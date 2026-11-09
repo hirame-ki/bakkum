@@ -23,7 +23,7 @@
 | 영상·소리 | 영상·소리 파일 | 영상: MP4·MOV·MKV, 용량 줄이기, 자르기, GIF, 소리만 MP3·WAV / 소리: MP3·M4A·WAV·FLAC, 자르기 |
 | 화면 녹화 | (파일 없이) | 화면 전체나 고른 영역을 MP4로, 소리 없음·마이크·컴퓨터 소리·둘 다, 잠시 멈춤. 비디오 폴더에 저장 |
 | 압축 | 모든 파일·폴더 | ZIP·TAR로 묶기, 파일 하나 GZIP, ZIP·TAR·GZ·TGZ 풀기 |
-| AI로 | 문서·그림·PDF | 요약, 요점 정리(공문의 마감·할 일, 일정은 엑셀·달력 파일로, 공문 여러 개는 마감순 할 일표 한 장으로), 9개 언어 번역, 문서 쓰기(회신문·계획서·결과 보고서·가정 통신문 초안, 쉬운 말·맞춤법), 표 → 엑셀, 문제와 시험지를 본뜬 비슷한 문제, 학습지, 디자인을 입힌 수업 PPT(네 가지 디자인, 발표자 노트), 수준별 자료, 지도안, 채점 기준표, 손글씨 읽기, 이름 짓기 |
+| AI로 | 문서·그림·PDF | 요약, 요점 정리(공문의 마감·할 일, 일정은 엑셀·달력 파일로, 공문 여러 개는 마감순 할 일표 한 장으로), 9개 언어 번역, 문서 쓰기(기안문·계획서·결과 보고서·가정 통신문 초안, 쉬운 말·맞춤법), 표 → 엑셀, 문제와 시험지를 본뜬 비슷한 문제, 학습지, 디자인을 입힌 수업 PPT(네 가지 디자인, 발표자 노트), 수준별 자료, 지도안, 채점 기준표, 손글씨 읽기, 이름 짓기 |
 
 받는 형식: `hwp hwpx` · `doc docx rtf odt` · `xls xlsx xlsm csv cell ods` · `ppt pptx show` · `pdf` · `png jpg jpeg jfif bmp gif tif tiff webp heic heif avif svg` · `txt md markdown html htm srt vtt tsv epub` · `zip tar gz tgz` · `mp4 m4v mov mkv avi wmv asf webm mpg mpeg ts mts m2ts 3gp` · `mp3 wav m4a aac flac ogg oga opus wma`
 

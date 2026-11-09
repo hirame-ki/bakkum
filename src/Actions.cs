@@ -527,7 +527,7 @@ namespace Bakkum
             var write = new List<ActionOption>();
             if (drafts)
             {
-                write.Add(new ActionOption("reply", "회신문", "공문에 답하기"));
+                write.Add(new ActionOption("reply", "기안문", "공문에 답하기"));
                 write.Add(new ActionOption("planning", "계획서", "목적·방침·세부 계획"));
                 write.Add(new ActionOption("report", "결과 보고서", "추진 내용·성과"));
                 write.Add(new ActionOption("letter", "가정 통신문", "학부모 안내"));

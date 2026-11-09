@@ -599,7 +599,7 @@ namespace Bakkum
         {
             switch (task)
             {
-                case "reply": return "_회신문";
+                case "reply": return "_기안문";
                 case "planning": return "_계획서";
                 case "report": return "_결과보고서";
             }

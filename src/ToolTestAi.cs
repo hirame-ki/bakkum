@@ -164,7 +164,7 @@ namespace Bakkum
             Check("한글: 쪽 나눔 표시가 남지 않는다", !text.Contains("쪽나눔"), null);
             job = AiRun("reply", new[] { AiFile("doc_reply_hwp.txt", AiSample) }, "output=hwp");
             o = OutputOf(job, ".hwp");
-            Check("한글: 회신문 초안 저장", o != null, o == null ? "결과 없음" : "");
+            Check("한글: 기안문 초안 저장", o != null, o == null ? "결과 없음" : "");
             if (o == null) return;
             text = HwpText(o);
             Check("한글: 항목 표시가 글자 그대로 남는다", text.Contains("1. 관련") && text.Contains("가. 참가 인원") && text.Contains("1) 담당") && text.Contains("(가) 가장 깊은") && text.Contains("김민수"), text.Length + "자");
@@ -205,7 +205,7 @@ namespace Bakkum
             if (o != null)
             {
                 string xml = DocumentXml(o);
-                Check("초안: 파일 이름", o.EndsWith("_회신문.docx"), Path.GetFileName(o));
+                Check("초안: 파일 이름", o.EndsWith("_기안문.docx"), Path.GetFileName(o));
                 Check("초안: 줄마다 문단", xml.Contains("수신: 가람교육지원청</w:t></w:r></w:p>") && xml.Contains("제목: 안내 회신</w:t></w:r></w:p>"), null);
                 Check("초안: 항목 깊이대로 들여 쓴다", new[] { 360, 720, 1080, 1440, 1800 }.All(n => xml.Contains("w:ind w:left=\"" + n + "\"")), null);
             }
