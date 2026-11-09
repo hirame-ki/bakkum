@@ -22,9 +22,9 @@ using System.Windows.Threading;
 [assembly: AssemblyProduct("바꿈")]
 [assembly: AssemblyCompany("hirame.ki")]
 [assembly: AssemblyCopyright("Copyright (c) 2026 hirame.ki")]
-[assembly: AssemblyVersion("0.3.3.0")]
-[assembly: AssemblyFileVersion("0.3.3.0")]
-[assembly: AssemblyInformationalVersion("0.3.3")]
+[assembly: AssemblyVersion("0.3.4.0")]
+[assembly: AssemblyFileVersion("0.3.4.0")]
+[assembly: AssemblyInformationalVersion("0.3.4")]
 
 namespace Bakkum
 {

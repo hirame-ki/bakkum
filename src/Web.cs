@@ -231,14 +231,14 @@ namespace Bakkum
         }
 
         /// 붙여 넣은 키를 다듬는다: 앞뒤 공백, 감싼 따옴표 한 겹, 'Bearer ' 머리를 뗀다.
-        /// 영문·숫자·'-'·'_'·'.'로만 된 20~256자가 아니면(공백·줄바꿈·한글이 섞이면) null.
+        /// 영문·숫자·'-'·'_'·'.'로만 된 20~512자가 아니면(공백·줄바꿈·한글이 섞이면) null.
         public static string CleanSecret(string raw)
         {
             if (raw == null) return null;
             string k = raw.Trim();
             if (k.Length >= 2 && (k[0] == '"' || k[0] == '\'' || k[0] == '`') && k[k.Length - 1] == k[0]) k = k.Substring(1, k.Length - 2).Trim();
             if (k.StartsWith("Bearer ", StringComparison.OrdinalIgnoreCase)) k = k.Substring(7).Trim();
-            if (k.Length < 20 || k.Length > 256) return null;
+            if (k.Length < 20 || k.Length > 512) return null;
             foreach (char c in k)
             {
                 bool ok = (c >= 'A' && c <= 'Z') || (c >= 'a' && c <= 'z') || (c >= '0' && c <= '9') || c == '-' || c == '_' || c == '.';

@@ -6,6 +6,7 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
 using System.Reflection;
+using System.Runtime.InteropServices;
 using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Controls;
@@ -14,6 +15,7 @@ using System.Windows.Documents;
 using System.Windows.Media;
 using System.Windows.Media.Animation;
 using System.Windows.Media.Effects;
+using System.Windows.Threading;
 
 namespace Bakkum
 {
@@ -37,8 +39,16 @@ namespace Bakkum
 
         StatusPill geminiPill;
         PasswordBox geminiBox;
-        FrameworkElement geminiEntry, geminiSaved;
+        FrameworkElement geminiEntry, geminiSaved, geminiPaste;
+        Button geminiGet, geminiStop, geminiKeep;
         bool geminiEntryOpen;
+        int geminiBoxLength, geminiTicket;
+        DispatcherTimer geminiWatch;
+        uint geminiClipSeq;
+        DateTime geminiWatchUntil;
+
+        [DllImport("user32.dll")]
+        static extern uint GetClipboardSequenceNumber();
 
         StatusPill orPill;
         Button orConnect, orCancel, orDisconnect, orPasteToggle;
@@ -86,6 +96,7 @@ namespace Bakkum
             {
                 gptCancelled = true;
                 orCancelled = true;
+                StopGeminiWatch();
             };
         }
 
@@ -391,6 +402,7 @@ namespace Bakkum
                 if (loading) return;
                 s.AiProvider = id;
                 Save();
+                if (id != Ai.GeminiId) StopGeminiWatch();
                 foreach (var r in rows) r.Refresh(true);
                 RefreshAi();
             };
@@ -527,20 +539,57 @@ namespace Bakkum
             geminiPill = new StatusPill();
             d.Children.Add(geminiPill);
 
-            // 키 넣는 곳: 키가 없을 때, 또는 [다른 키 넣기]를 눌렀을 때만
+            // 키 받기: 키가 없을 때, 또는 [다른 키 넣기]를 눌렀을 때만
             var entry = new StackPanel();
+            entry.Children.Add(DetailText("1. [키 받으러 가기]를 누르고 구글에 로그인해요.\n2. 구글 화면에서 키를 만들고 복사 단추를 눌러요.\n3. 복사하면 바꿈이 알아서 넣고 확인해요."));
+            geminiGet = Theme.MakeButton("키 받으러 가기", "Primary");
+            geminiGet.Click += delegate { StartGeminiWatch(); };
+            geminiStop = Theme.MakeButton("기다리기 멈추기", "Line");
+            geminiStop.Click += delegate
+            {
+                StopGeminiWatch();
+                ShowGemini();
+            };
+            var pasteToggle = Theme.MakeButton("키를 직접 넣을게요", "Quiet");
+            pasteToggle.Click += delegate
+            {
+                geminiPaste.Visibility = geminiPaste.Visibility == Visibility.Visible ? Visibility.Collapsed : Visibility.Visible;
+                if (geminiPaste.Visibility == Visibility.Visible) geminiBox.Focus();
+            };
+            geminiKeep = Theme.MakeButton("취소", "Quiet");
+            geminiKeep.Click += delegate
+            {
+                geminiPaste.Visibility = Visibility.Collapsed;
+                geminiBox.Password = "";
+                geminiEntryOpen = false;
+                ShowGemini();
+            };
+            entry.Children.Add(Spaced(Theme.ButtonRow(geminiGet, geminiStop, pasteToggle, geminiKeep), 14));
+
+            // 직접 넣는 곳. 키 칸에는 오른쪽 클릭 메뉴가 없어서 [붙여넣기]를 따로 둔다.
+            var paste = new StackPanel { Visibility = Demo && DemoSignedIn("pastekey") ? Visibility.Visible : Visibility.Collapsed };
             var label = Theme.Text("Gemini API 키", 13, FontWeights.Bold, Theme.Ink2);
             label.Margin = new Thickness(0, 14, 0, 7);
-            entry.Children.Add(label);
+            paste.Children.Add(label);
             var line = new DockPanel();
-            var save = Theme.MakeButton("저장", "Line");
-            save.Margin = new Thickness(8, 0, 0, 0);
+            var save = Theme.MakeButton("저장", "Quiet");
+            save.Margin = new Thickness(4, 0, 0, 0);
             DockPanel.SetDock(save, Dock.Right);
             line.Children.Add(save);
+            var pasteNow = Theme.MakeButton("붙여넣기", "Line");
+            pasteNow.Margin = new Thickness(8, 0, 0, 0);
+            DockPanel.SetDock(pasteNow, Dock.Right);
+            line.Children.Add(pasteNow);
             geminiBox = new PasswordBox { Style = Theme.GetStyle("Field") };
             line.Children.Add(geminiBox);
-            entry.Children.Add(line);
-            entry.Children.Add(Spaced(LinkLine("키 만들기: ", "aistudio.google.com/apikey", Gemini.KeyPage), 8));
+            paste.Children.Add(line);
+            paste.Children.Add(Spaced(LinkLine("키 만들기: ", "aistudio.google.com/apikey", Gemini.KeyPage), 8));
+            pasteNow.Click += delegate
+            {
+                string copied;
+                TryReadCopied(out copied);
+                if (!GeminiCopied(copied)) geminiPill.Set("복사해 둔 글이 Gemini 키 모양이 아니에요. 구글 화면에서 키를 다시 복사해 주세요", Theme.Coral);
+            };
             save.Click += delegate
             {
                 string k = Web.CleanSecret(geminiBox.Password);
@@ -549,42 +598,30 @@ namespace Bakkum
                     geminiPill.Set("키 모양이 맞지 않아요. AI Studio에서 복사한 키를 그대로 붙여 넣어 주세요", Theme.Coral);
                     return;
                 }
-                s.GeminiKey = k;
-                Save();
-                geminiBox.Password = "";
-                geminiEntryOpen = false;
-                ShowGemini();
+                TakeGeminiKey(k);
             };
+            geminiBox.PasswordChanged += delegate
+            {
+                // 한 번에 들어온 글(붙여넣기)이 키 모양이면 [저장]을 기다리지 않는다
+                int before = geminiBoxLength;
+                string now = geminiBox.Password;
+                geminiBoxLength = now.Length;
+                if (now.Length - before >= 20) Dispatcher.BeginInvoke(new Action(delegate { GeminiCopied(now); }));
+            };
+            geminiPaste = paste;
+            entry.Children.Add(paste);
+            entry.Children.Add(Spaced(Theme.Note("구글 로그인 정보는 바꿈에 들어오지 않아요. 구글이 앱에 쓰라고 안내한 API 키만 써요. 기다리는 동안 복사한 글은 키 모양인지만 보고, 저장하거나 보내지 않아요.", Theme.Blue), 14));
             geminiEntry = entry;
             d.Children.Add(entry);
 
             // 키가 저장돼 있을 때의 단추들
             var check = Theme.MakeButton("키 확인", "Line");
-            check.Click += delegate
-            {
-                string k = s.GeminiKey;
-                if (string.IsNullOrEmpty(k))
-                {
-                    geminiPill.Set("먼저 키를 저장해 주세요", Theme.Orange);
-                    return;
-                }
-                geminiPill.Set("확인 중", Theme.Slate);
-                Task.Run(() => Gemini.CheckKey(k)).ContinueWith(t =>
-                {
-                    string problem = t.IsFaulted ? "확인하지 못했어요" : t.Result;
-                    Dispatcher.BeginInvoke(new Action(delegate
-                    {
-                        if (problem == null) geminiPill.Set("키가 맞아요 · 쓸 수 있어요", Theme.Green);
-                        else geminiPill.Set(problem, Theme.Coral);
-                    }));
-                });
-            };
+            check.Click += delegate { CheckGeminiKey(); };
             var change = Theme.MakeButton("다른 키 넣기", "Quiet");
             change.Click += delegate
             {
-                geminiEntryOpen = !geminiEntryOpen;
+                geminiEntryOpen = true;
                 ShowGemini();
-                if (geminiEntryOpen) geminiBox.Focus();
             };
             var clear = Theme.MakeButton("지우기", "Quiet");
             clear.Click += delegate
@@ -596,16 +633,152 @@ namespace Bakkum
             };
             geminiSaved = Spaced(Theme.ButtonRow(check, change, clear), 14);
             d.Children.Add(geminiSaved);
-            d.Children.Add(Spaced(Theme.Warning("무료 키로 보낸 내용은 Google 서비스 개선에 쓰이고 사람이 볼 수도 있어요. 만 18세 이상만 쓸 수 있고, 결제를 연결한 프로젝트의 키는 요금이 나갈 수 있어요."), 14));
+            geminiEntryOpen = Demo && DemoSignedIn("changekey");
+            d.Children.Add(Spaced(Theme.Warning("무료 키로 보낸 내용은 Google 서비스 개선에 쓰이고 사람이 볼 수도 있어요. 만 18세 이상만 쓸 수 있고, 결제를 연결한 프로젝트의 키는 요금이 나갈 수 있어요. 키는 다른 사람과 나눠 쓰지 마세요."), 14));
         }
 
         void ShowGemini()
         {
+            geminiTicket++;   // 진행 중인 키 확인의 결과는 이제 보이지 않게
             bool has = Demo ? DemoSignedIn("gemini") : !string.IsNullOrEmpty(s.GeminiKey);
-            geminiEntry.Visibility = !has || geminiEntryOpen ? Visibility.Visible : Visibility.Collapsed;
-            geminiSaved.Visibility = has ? Visibility.Visible : Visibility.Collapsed;
-            if (has) geminiPill.Set("키 저장됨 · 이 PC의 내 계정에서만 풀리게 암호화", Theme.Green);
+            bool waiting = Demo ? DemoSignedIn("waitkey") : geminiWatch != null;
+            bool open = !has || geminiEntryOpen;
+            geminiEntry.Visibility = open ? Visibility.Visible : Visibility.Collapsed;
+            geminiSaved.Visibility = has && !open ? Visibility.Visible : Visibility.Collapsed;
+            geminiGet.Visibility = waiting ? Visibility.Collapsed : Visibility.Visible;
+            geminiStop.Visibility = waiting ? Visibility.Visible : Visibility.Collapsed;
+            geminiKeep.Visibility = has && !waiting ? Visibility.Visible : Visibility.Collapsed;
+            if (waiting) geminiPill.Set("구글 화면에서 키를 복사하면 바로 넣어요", Theme.Orange);
+            else if (has) geminiPill.Set("키 저장됨 · 이 PC의 내 계정에서만 풀리게 암호화", Theme.Green);
             else geminiPill.Set("저장된 키가 없어요", Theme.Orange);
+        }
+
+        /// [키 받으러 가기]: 구글의 키 화면을 열고, 키가 복사되기를 최대 10분 기다린다.
+        /// 이 단추를 누른 뒤에만, 복사한 글이 바뀔 때만 읽고, 키 모양이 아니면 바로 버린다.
+        void StartGeminiWatch()
+        {
+            if (geminiWatch != null) return;
+            string copied;
+            TryReadCopied(out copied);
+            string ready = Gemini.FindKey(copied);
+            if (ready != null && ready != s.GeminiKey)
+            {
+                TakeGeminiKey(ready);   // 이미 복사해 둔 키면 브라우저를 열 것 없이 바로
+                return;
+            }
+            geminiClipSeq = GetClipboardSequenceNumber();
+            geminiWatchUntil = DateTime.UtcNow.AddMinutes(10);
+            geminiWatch = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(500) };
+            geminiWatch.Tick += delegate { GeminiWatchTick(); };
+            geminiWatch.Start();
+            ShowGemini();
+            Open(Gemini.KeyPage);
+        }
+
+        void StopGeminiWatch()
+        {
+            if (geminiWatch == null) return;
+            geminiWatch.Stop();
+            geminiWatch = null;
+        }
+
+        void GeminiWatchTick()
+        {
+            if (DateTime.UtcNow > geminiWatchUntil)
+            {
+                StopGeminiWatch();
+                ShowGemini();
+                geminiPill.Set("10분 동안 복사한 키가 없어서 기다리기를 멈췄어요. [키 받으러 가기]를 다시 눌러 주세요", Theme.Orange);
+                return;
+            }
+            uint now = GetClipboardSequenceNumber();
+            if (now == geminiClipSeq) return;
+            string copied;
+            if (!TryReadCopied(out copied)) return;   // 다른 프로그램이 쓰는 중이면 다음 차례에 다시 본다
+            geminiClipSeq = now;
+            if (GeminiCopied(copied)) BringForward();
+        }
+
+        /// 복사한 글이 키 모양이면 넣고 true. 아니면 아무것도 남기지 않고 false.
+        public bool GeminiCopied(string copied)
+        {
+            string k = Gemini.FindKey(copied);
+            if (k == null) return false;
+            TakeGeminiKey(k);
+            return true;
+        }
+
+        /// 키를 저장하고, 복사해 둔 키를 지우고, 구글에 쓸 수 있는 키인지 바로 확인한다.
+        void TakeGeminiKey(string k)
+        {
+            StopGeminiWatch();
+            s.GeminiKey = k;
+            Save();
+            ForgetCopiedKey(k);
+            geminiBox.Password = "";
+            geminiPaste.Visibility = Visibility.Collapsed;
+            geminiEntryOpen = false;
+            ShowGemini();
+            CheckGeminiKey();
+        }
+
+        void CheckGeminiKey()
+        {
+            string k = s.GeminiKey;
+            if (string.IsNullOrEmpty(k))
+            {
+                geminiPill.Set("먼저 키를 저장해 주세요", Theme.Orange);
+                return;
+            }
+            if (Demo)
+            {
+                geminiPill.Set("키가 맞아요 · 쓸 수 있어요", Theme.Green);
+                return;
+            }
+            int ticket = ++geminiTicket;
+            geminiPill.Set("확인 중", Theme.Slate);
+            Task.Run(() => Gemini.CheckKey(k)).ContinueWith(t => Dispatcher.BeginInvoke(new Action(delegate
+            {
+                if (ticket != geminiTicket) return;
+                string problem = t.IsFaulted ? "확인하지 못했어요" : t.Result;
+                if (problem == null) geminiPill.Set("키가 맞아요 · 쓸 수 있어요", Theme.Green);
+                else geminiPill.Set(problem, Theme.Coral);
+            })));
+        }
+
+        /// 복사해 둔 글을 읽는다. 다른 프로그램이 쓰고 있어 못 읽으면 false.
+        static bool TryReadCopied(out string text)
+        {
+            text = null;
+            try
+            {
+                if (Clipboard.ContainsText()) text = Clipboard.GetText();
+                return true;
+            }
+            catch { return false; }
+        }
+
+        /// 넣은 키가 복사해 둔 글로 남아 있으면 지운다. 그 사이 다른 글을 복사했으면 건드리지 않는다.
+        static void ForgetCopiedKey(string k)
+        {
+            if (Demo) return;
+            string copied;
+            if (!TryReadCopied(out copied) || Gemini.FindKey(copied) != k) return;
+            try { Clipboard.Clear(); }
+            catch { }
+        }
+
+        /// 브라우저 뒤에 가려진 설정 창을 앞으로 꺼내 결과가 보이게 한다.
+        void BringForward()
+        {
+            try
+            {
+                if (WindowState == WindowState.Minimized) WindowState = WindowState.Normal;
+                Topmost = true;
+                Topmost = false;
+                Activate();
+            }
+            catch { }
         }
 
         void OpenRouterDetails(StackPanel d)

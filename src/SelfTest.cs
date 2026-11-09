@@ -94,6 +94,11 @@ namespace Bakkum
             Check("붙여 넣은 키: 따옴표·Bearer를 떼고, 다른 회사 키(sk-or-가 아님)는 받지 않는다",
                 OpenRouter.CleanKey(" \"Bearer " + OrKey + "\" ") == OrKey && OpenRouter.CleanKey("AIza" + "SyA-0123456789abcdefghijklmnopqrstu") == null &&
                 OpenRouter.CleanKey("sk-or-v1-한글이섞인키0123456789") == null && Web.CleanSecret("AIza" + "SyA-0123456789abcdefghijklmnopqrstu") != null, null);
+            string oldGemini = "AIza" + "SyA-0123456789abcdefghijklmnopqrstu", newGemini = "AQ." + "Ab8RN6-0123456789_abcdefghij.klmnopqrstuvwxyz";
+            Check("복사한 글에서 Gemini 키만 알아본다: 옛 키·AQ. 키는 받고 다른 글은 지나친다",
+                Gemini.FindKey(" \"" + oldGemini + "\" ") == oldGemini && Gemini.FindKey(newGemini + "\r\n") == newGemini &&
+                Gemini.FindKey("복사한 보통 문장이에요 0123456789") == null && Gemini.FindKey("sk-or-v1-0123456789abcdefghijklmnopqrstuv") == null &&
+                Gemini.FindKey("AQ.short") == null && Gemini.FindKey(new string('A', 5000)) == null && Gemini.FindKey(null) == null, null);
             probes.Clear();
 
             Check("키를 확인한다", OpenRouter.CheckKey(OrKey) == null, OpenRouter.CheckKey(OrKey));

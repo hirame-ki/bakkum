@@ -752,6 +752,18 @@ namespace Bakkum
         const string Base = "https://generativelanguage.googleapis.com/v1beta/";
         public const string KeyPage = "https://aistudio.google.com/apikey";
 
+        /// 복사한 글이 Gemini API 키 모양이면 다듬은 키를, 아니면 null. 모양만 보고 글은 어디에도 남기지 않는다.
+        /// 옛 키는 AIza로 시작하는 39자, 요즘 AI Studio가 만드는 키는 AQ.로 시작한다.
+        public static string FindKey(string copied)
+        {
+            if (copied == null || copied.Length > 600) return null;
+            string k = Web.CleanSecret(copied);
+            if (k == null) return null;
+            if (k.StartsWith("AIza", StringComparison.Ordinal) && k.Length >= 30 && k.Length <= 64) return k;
+            if (k.StartsWith("AQ.", StringComparison.Ordinal) && k.Length >= 30) return k;
+            return null;
+        }
+
         static void EnsureTls()
         {
             try { ServicePointManager.SecurityProtocol |= SecurityProtocolType.Tls12; }
@@ -790,6 +802,16 @@ namespace Bakkum
             try
             {
                 Send("GET", Base + "models?pageSize=1", key, null, TimeSpan.FromSeconds(20), null, out status, out resp);
+                if (status == 401 && key.StartsWith("AQ.", StringComparison.Ordinal))
+                {
+                    // 새 형식 키가 호출에 따라 거절됐다는 신고가 있어, 실제로 쓰는 호출로 한 번 더 본다(문서 내용은 보내지 않음).
+                    byte[] ping = Encoding.ASCII.GetBytes("{\"contents\":[{\"role\":\"user\",\"parts\":[{\"text\":\"ping\"}]}],\"generationConfig\":{\"maxOutputTokens\":1}}");
+                    for (int m = 0; m < Models.Length; m++)
+                    {
+                        Send("POST", Base + "models/" + Models[m] + ":generateContent", key, ping, TimeSpan.FromSeconds(20), null, out status, out resp);
+                        if (status != 404) break;
+                    }
+                }
             }
             catch (UserFacingException ex)
             {
@@ -886,7 +908,7 @@ namespace Bakkum
             }
             catch { }
             Log.Write("Gemini 실패: " + status + " " + (reason.Length > 60 ? reason.Substring(0, 60) : reason));
-            if (reason.Contains("API_KEY_INVALID") || reason.Contains("API key not valid")) return new UserFacingException("Gemini 키가 맞지 않아요. 설정 → AI 연결에서 키를 다시 넣어 주세요.");
+            if (status == 401 || reason.Contains("API_KEY_INVALID") || reason.Contains("API key not valid")) return new UserFacingException("Gemini 키가 맞지 않아요. 설정 → AI 연결에서 키를 다시 넣어 주세요.");
             if (status == 429) return new UserFacingException("Gemini 사용량 한도에 닿았어요. 잠시 뒤나 내일 다시 해 주세요.");
             if (status == 403) return new UserFacingException("이 Gemini 키로는 쓸 수 없어요. Google AI Studio에서 키를 확인해 주세요.");
             if (status == 400 && reason.Contains("FAILED_PRECONDITION")) return new UserFacingException("이 계정·지역에서는 Gemini 무료 사용이 안 돼요.");
