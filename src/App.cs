@@ -24,9 +24,9 @@ using System.Windows.Threading;
 [assembly: AssemblyProduct("바꿈")]
 [assembly: AssemblyCompany("hirame.ki")]
 [assembly: AssemblyCopyright("Copyright (c) 2026 hirame.ki")]
-[assembly: AssemblyVersion("0.3.5.0")]
-[assembly: AssemblyFileVersion("0.3.5.0")]
-[assembly: AssemblyInformationalVersion("0.3.5")]
+[assembly: AssemblyVersion("0.3.6.0")]
+[assembly: AssemblyFileVersion("0.3.6.0")]
+[assembly: AssemblyInformationalVersion("0.3.6")]
 
 namespace Bakkum
 {
@@ -375,13 +375,20 @@ namespace Bakkum
 
         public static void OpenSettings()
         {
+            OpenSettings(null);
+        }
+
+        /// page: 처음 보일 쪽(SettingsWindow.PageIds). null이면 지난번에 보던 쪽.
+        public static void OpenSettings(string page)
+        {
             if (settingsWindow != null)
             {
                 if (settingsWindow.WindowState == WindowState.Minimized) settingsWindow.WindowState = WindowState.Normal;
+                if (page != null) settingsWindow.ShowPage(page);
                 settingsWindow.Activate();
                 return;
             }
-            settingsWindow = new SettingsWindow();
+            settingsWindow = new SettingsWindow(page);
             settingsWindow.Closed += delegate { settingsWindow = null; };
             settingsWindow.Show();
             settingsWindow.Activate();
@@ -412,7 +419,7 @@ namespace Bakkum
             int n = Dialog.Ask(null, Theme.Sky, "ai", "AI 연결이 아직 없어요",
                 "요약·번역·문제 만들기는 AI를 연결한 뒤에 쓸 수 있어요. 쓰고 있는 Claude나 ChatGPT 구독, 무료 Gemini 키 가운데 하나를 고르면 돼요.",
                 null, "나중에", "설정 열기");
-            if (n == 1) OpenSettings();
+            if (n == 1) OpenSettings("ai");
         }
 
         static void OnSettingsChanged()
@@ -421,8 +428,12 @@ namespace Bakkum
             if (AppInfo.RunningInstalled) Installer.SetRunAtStartup(AppSettings.Current.StartWithWindows);
         }
 
+        /// 끝내는 중(창들이 닫혀도 '저장 없이 닫기'로 보지 않게)
+        public static bool Quitting;
+
         public static void Quit()
         {
+            Quitting = true;
             RecordUi.StopForQuit();
             try { if (trigger != null) trigger.Dispose(); } catch { }
             trigger = null;
@@ -497,14 +508,14 @@ namespace Bakkum
             return 0;
         }
 
-        /// /render-window settings|consent|install|dialog|toast|toast-done|toast-error|notice 결과.png [ai:연결] [state:chatgpt,openrouter] [h:높이]
+        /// /render-window settings|consent|install|dialog|toast|toast-done|toast-error|notice 결과.png [ai:연결] [state:chatgpt,openrouter] [h:높이] (settings: [page:shape|slots|key|ai|other] [full])
         /// 창을 화면 밖에 잠깐 띄워 그림으로 찍는다. 설정은 저장하지 않고, 네트워크·Claude Code도 부르지 않는다.
         public static int RenderWindow(string[] args)
         {
             Active = true;
             if (args.Length < 3)
             {
-                Print("사용: /render-window settings|consent|install|dialog|toast|toast-done|toast-error|notice 결과.png [ai:연결] [state:...] [h:높이]");
+                Print("사용: /render-window settings|consent|install|dialog|toast|toast-done|toast-error|notice 결과.png [ai:연결] [state:...] [h:높이] (settings: [page:쪽] [full])");
                 return 2;
             }
             string what = args[1].ToLowerInvariant();
@@ -527,11 +538,19 @@ namespace Bakkum
             {
                 case "settings":
                 {
-                    // 창은 화면보다 길어질 수 없으니, 내용 전체를 창 밖에서 펼쳐 찍는다
-                    var sw = new SettingsWindow();
-                    SnapDetached(sw, sw.PreviewContent(), outPng, 648);
-                    Print("그림: " + outPng);
-                    return 0;
+                    // page:shape|slots|key|ai|other 로 쪽을 고른다. full 을 붙이면 쪽 내용을 스크롤 없이 끝까지 펼쳐 찍는다
+                    // (창은 화면보다 길어질 수 없으니 내용을 창에서 떼어 낸다). 없으면 실제 창 크기 그대로.
+                    string page = null;
+                    foreach (var x in args) if (x.StartsWith("page:")) page = x.Substring(5);
+                    var sw = new SettingsWindow(page);
+                    if (args.Contains("full"))
+                    {
+                        SnapDetached(sw, sw.DetachForPreview(), outPng, sw.Width - 16);
+                        Print("그림: " + outPng);
+                        return 0;
+                    }
+                    w = sw;
+                    break;
                 }
                 case "consent":
                     w = ConsentWindow.ForPreview(3);

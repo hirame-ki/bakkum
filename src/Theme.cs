@@ -404,6 +404,49 @@ namespace Bakkum
     </Setter>
   </Style>
 
+  <!-- 설정 창 왼쪽 메뉴 한 줄: 쉴 때는 책상 위 글자, 마우스는 옅은 면, 고르면 흰 면 + 그 색 테두리 + 옅은 그림자 -->
+  <Style x:Key='Nav' TargetType='RadioButton'>
+    <Setter Property='FontFamily' Value='{StaticResource UiFont}'/>
+    <Setter Property='FontSize' Value='14.5'/>
+    <Setter Property='FontWeight' Value='Bold'/>
+    <Setter Property='Foreground' Value='#4b5160'/>
+    <Setter Property='Cursor' Value='Hand'/>
+    <Setter Property='FocusVisualStyle' Value='{x:Null}'/>
+    <Setter Property='HorizontalContentAlignment' Value='Stretch'/>
+    <Setter Property='Template'>
+      <Setter.Value>
+        <ControlTemplate TargetType='RadioButton'>
+          <Grid>
+            <Border x:Name='Ring' BorderBrush='#3d7bff' BorderThickness='2' CornerRadius='17' Margin='-3' Visibility='Collapsed'/>
+            <Border x:Name='Shade' Background='#ffffff' CornerRadius='14' Visibility='Hidden'>
+              <Border.Effect>
+                <DropShadowEffect Color='#22252f' BlurRadius='16' ShadowDepth='3' Direction='270' Opacity='0.10'/>
+              </Border.Effect>
+            </Border>
+            <Border x:Name='Bd' Background='Transparent' BorderBrush='Transparent' BorderThickness='1.5' CornerRadius='14' Padding='9,8,12,8'>
+              <ContentPresenter VerticalAlignment='Center' RecognizesAccessKey='False'/>
+            </Border>
+          </Grid>
+          <ControlTemplate.Triggers>
+            <Trigger Property='IsMouseOver' Value='True'>
+              <Setter TargetName='Bd' Property='Background' Value='#efeae2'/>
+              <Setter Property='Foreground' Value='#22252f'/>
+            </Trigger>
+            <Trigger Property='IsChecked' Value='True'>
+              <Setter TargetName='Shade' Property='Visibility' Value='Visible'/>
+              <Setter TargetName='Bd' Property='Background' Value='#ffffff'/>
+              <Setter TargetName='Bd' Property='BorderBrush' Value='{Binding Tag.VividBrush, RelativeSource={RelativeSource TemplatedParent}}'/>
+              <Setter Property='Foreground' Value='#22252f'/>
+            </Trigger>
+            <Trigger Property='IsKeyboardFocused' Value='True'>
+              <Setter TargetName='Ring' Property='Visibility' Value='Visible'/>
+            </Trigger>
+          </ControlTemplate.Triggers>
+        </ControlTemplate>
+      </Setter.Value>
+    </Setter>
+  </Style>
+
   <Style TargetType='CheckBox'>
     <Setter Property='FontFamily' Value='{StaticResource UiFont}'/>
     <Setter Property='FontSize' Value='14.5'/>

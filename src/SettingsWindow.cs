@@ -1,7 +1,8 @@
 // SPDX-License-Identifier: GPL-3.0-only
 // Bakkum - Copyright (C) 2026 hirame.ki - additional terms under GPL-3.0 section 7 apply, see NOTICE.txt
-// 설정 창: 메뉴 모양 · 메뉴를 띄우는 키 · AI 연결 · 그 밖에. 바꾸는 즉시 저장된다.
-// 디자인(DESIGN.md): 책상색 바탕 위 흰 카드 한 장씩. 칸 제목마다 색 칩.
+// 설정 창: 왼쪽 메뉴(메뉴 모양 · 메뉴 칸 · 메뉴를 띄우는 키 · AI 연결 · 그 밖에)에서 고른 쪽 하나만 오른쪽에 보인다.
+// 바꾸면 바로 적용되고, [설정 완료]로 닫아야 남는다. 창의 X로 닫으면 열 때의 값으로 되돌린다(2026-11-10 사용자 요청).
+// 디자인(DESIGN.md): 책상색 바탕, 쪽마다 색 칩 머리 + 흰 카드. 고른 메뉴는 흰 면 + 그 색 테두리.
 // AI 연결은 고르면 펼쳐지는 카드: 고른 카드는 그 연결의 색 테두리와 색 그림자로 떠오른다.
 using System;
 using System.Collections.Generic;
@@ -60,40 +61,90 @@ namespace Bakkum
         bool orBusy;
         int quotaTicket;
 
-        public SettingsWindow()
+        // ── 왼쪽 메뉴와 쪽 ──
+        // 쪽은 모두 처음에 만들어 두고 보이기만 바꾼다(AI 상태 확인·시험이 쪽과 상관없이 돌게).
+
+        /// 왼쪽 메뉴 차례. 다른 곳에서 설정을 열 때 이 이름으로 쪽을 고른다(예: App.OpenSettings("ai")).
+        public static readonly string[] PageIds = { "shape", "slots", "key", "ai", "other" };
+        static string lastPage = "shape";
+
+        readonly List<RadioButton> navs = new List<RadioButton>();
+        readonly List<FrameworkElement> pages = new List<FrameworkElement>();
+        ScrollViewer pageScroll;
+        StatusPill unsavedPill;
+
+        /// 창을 열 때의 값. 창의 X로 닫으면 이 값으로 되돌린다.
+        readonly Choices opened;
+        /// [설정 완료]·[프로그램 종료]로 닫을 때 true: 바꾼 것을 그대로 둔다.
+        bool keep;
+
+        public SettingsWindow() : this(null) { }
+
+        public SettingsWindow(string page)
         {
             Title = "설정 · " + AppInfo.Name;
-            Width = 664;
-            Height = 880;
-            MinWidth = 560;
-            MinHeight = 480;
+            // 2026-11-10: 높이 880은 이 PC 작업 영역(816)보다 커서 제목 줄의 X가 화면 위로 숨었다. 화면 안에 들어오게 줄인다.
+            var area = SystemParameters.WorkArea;
+            Width = Math.Max(640, Math.Min(900, area.Width - 40));
+            Height = Math.Max(440, Math.Min(660, area.Height - 40));
+            MinWidth = Math.Min(760, Width);
+            MinHeight = Math.Min(480, Height);
             WindowStartupLocation = WindowStartupLocation.CenterScreen;
             Theme.Polish(this);
             try { Icon = App.WindowIcon; } catch { }
 
-            var body = new StackPanel { Margin = new Thickness(26, 24, 26, 8) };
-            var head = Theme.Head(AppInfo.Name, "");
-            headSub = FindSub(head);
-            head.Margin = new Thickness(4, 0, 0, 22);
-            body.Children.Add(head);
+            opened = Choices.Of(s);
+
+            var keyHead = Theme.DialogHead("메뉴를 띄우는 키", "", Theme.Orange, "key");
+            headSub = FindSub(keyHead);
             UpdateHeadSub();
 
-            body.Children.Add(Section("메뉴 모양", Theme.Purple, "shape", ShapeSection()));
-            body.Children.Add(Section("메뉴 칸", Theme.Yellow, "star", SlotSection()));
-            body.Children.Add(Section("메뉴를 띄우는 키", Theme.Orange, "key", KeySection()));
-            body.Children.Add(Section("AI 연결", Theme.Blue, "spark", AiSection()));
-            body.Children.Add(Section("그 밖에", Theme.Green, "check", OtherSection()));
+            var nav = new StackPanel();
+            nav.Children.Add(NavItem("shape", "메뉴 모양", Theme.Purple, "shape"));
+            nav.Children.Add(NavItem("slots", "메뉴 칸", Theme.Yellow, "star"));
+            nav.Children.Add(NavItem("key", "메뉴를 띄우는 키", Theme.Orange, "key"));
+            nav.Children.Add(NavItem("ai", "AI 연결", Theme.Blue, "spark"));
+            nav.Children.Add(NavItem("other", "그 밖에", Theme.Green, "check"));
 
-            var scroll = new ScrollViewer { VerticalScrollBarVisibility = ScrollBarVisibility.Auto, Content = body, Focusable = false };
-            var root = new DockPanel();
+            pages.Add(Page(Theme.DialogHead("메뉴 모양", "파일을 끌다가 키를 누르면 뜨는 메뉴의 모양을 골라요.", Theme.Purple, "shape"), Card(ShapeSection())));
+            pages.Add(Page(Theme.DialogHead("메뉴 칸", "메뉴에 나올 칸과 차례를 정해요.", Theme.Yellow, "star"), Card(SlotSection())));
+            pages.Add(Page(keyHead, Card(KeySection())));
+            pages.Add(Page(Theme.DialogHead("AI 연결", "'AI로' 칸의 요약·번역·문제 만들기와 글자 뽑기의 'AI로'에 써요. 선생님 계정을 이어 쓰고, 보낼 때마다 먼저 물어봐요.", Theme.Blue, "spark"), Card(AiSection())));
+            pages.Add(Page(Theme.DialogHead("그 밖에", "켤 때와 다 된 뒤, 새 버전 알림, 이 프로그램 정보를 모았어요.", Theme.Green, "check"), OtherCards()));
+
+            var body = new Grid { Margin = new Thickness(30, 28, 30, 12) };
+            foreach (var p in pages) body.Children.Add(p);
+            pageScroll = new ScrollViewer { VerticalScrollBarVisibility = ScrollBarVisibility.Auto, Content = body, Focusable = false };
+
+            var right = new DockPanel();
             var footer = Footer();
             DockPanel.SetDock(footer, Dock.Bottom);
-            root.Children.Add(footer);
-            root.Children.Add(scroll);
+            right.Children.Add(footer);
+            right.Children.Add(pageScroll);
+
+            var root = new Grid();
+            root.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(238) });
+            root.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+            var side = Sidebar(nav);
+            root.Children.Add(side);
+            Grid.SetColumn(right, 1);
+            root.Children.Add(right);
             Content = root;
 
+            ShowPage(page ?? lastPage);
             loading = false;
+            if (Demo && DemoSignedIn("unsaved")) ShowUnsaved(true);
             Loaded += delegate { RefreshAi(); };
+            Closing += delegate
+            {
+                // 창의 X(또는 Alt+F4): 저장하지 않고 닫는다. 이 창에서 바꾼 고르기·스위치·차례를 열 때 값으로 되돌린다.
+                // 로그인·키 저장·새 버전 받기처럼 단추로 바로 한 일은 되돌리지 않는다.
+                if (keep || Demo || App.Quitting) return;
+                if (opened.Same(Choices.Of(s))) return;
+                opened.ApplyTo(s);
+                s.Save();
+                Log.Write("설정 창을 X로 닫음: 바꾼 설정을 열 때 값으로 되돌림");
+            };
             Closed += delegate
             {
                 gptCancelled = true;
@@ -102,27 +153,157 @@ namespace Bakkum
             };
         }
 
-        /// 그림 확인용: 스크롤 없이 펼친 내용(머리 + 카드 + 아래 단추 줄). 창에서 떼어 낸다.
-        public FrameworkElement PreviewContent()
+        /// 왼쪽 판: 로고 + '설정' + 버전, 그 아래 메뉴 다섯 줄
+        static FrameworkElement Sidebar(StackPanel nav)
         {
-            var root = (DockPanel)Content;
-            Content = null;
-            var scroll = (ScrollViewer)root.Children[1];
-            var body = (FrameworkElement)scroll.Content;
-            var footer = (FrameworkElement)root.Children[0];
-            scroll.Content = null;
-            root.Children.Clear();
-            var stack = new StackPanel();
-            stack.Children.Add(body);
-            stack.Children.Add(footer);
-            RefreshAi();
+            var stack = new StackPanel { Margin = new Thickness(18, 26, 14, 18) };
+            var head = new DockPanel { Margin = new Thickness(6, 0, 0, 26) };
+            var logo = Theme.Logo(40);
+            logo.Margin = new Thickness(0, 0, 12, 0);
+            DockPanel.SetDock(logo, Dock.Left);
+            head.Children.Add(logo);
+            var words = new StackPanel { VerticalAlignment = VerticalAlignment.Center };
+            words.Children.Add(Theme.Text("설정", 20, FontWeights.Bold, Theme.Ink));
+            var ver = Theme.MetaLabel(AppInfo.Name + " " + AppInfo.Version);
+            ver.Margin = new Thickness(0, 1, 0, 0);
+            words.Children.Add(ver);
+            head.Children.Add(words);
+            stack.Children.Add(head);
+            stack.Children.Add(nav);
             return stack;
+        }
+
+        /// 왼쪽 메뉴 한 줄: 색 칩(그림) + 이름. 고르면 그 쪽만 오른쪽에 보인다.
+        RadioButton NavItem(string id, string label, Hue hue, string glyph)
+        {
+            var row = new DockPanel();
+            var chip = Theme.GlyphChip(glyph, hue, 32);
+            chip.Margin = new Thickness(0, 0, 11, 0);
+            DockPanel.SetDock(chip, Dock.Left);
+            row.Children.Add(chip);
+            row.Children.Add(new TextBlock { Text = Theme.Keep(label), VerticalAlignment = VerticalAlignment.Center, TextTrimming = TextTrimming.CharacterEllipsis });
+            var rb = new RadioButton { Style = Theme.GetStyle("Nav"), GroupName = "page", Tag = hue, Content = row, Margin = new Thickness(0, 0, 0, 6) };
+            rb.Checked += delegate { ShowPage(id); };
+            navs.Add(rb);
+            return rb;
+        }
+
+        /// 오른쪽 한 쪽: 색 칩 머리 + 흰 카드(들)
+        static FrameworkElement Page(FrameworkElement head, params FrameworkElement[] cards)
+        {
+            var stack = new StackPanel { Visibility = Visibility.Collapsed };
+            head.Margin = new Thickness(2, 0, 0, 22);
+            stack.Children.Add(head);
+            for (int i = 0; i < cards.Length; i++)
+            {
+                cards[i].Margin = new Thickness(0, i == 0 ? 0 : 16, 0, 0);
+                stack.Children.Add(cards[i]);
+            }
+            return stack;
+        }
+
+        static FrameworkElement Card(UIElement content)
+        {
+            return Theme.Card(content, 24);
+        }
+
+        /// 제목이 붙은 카드(한 쪽에 카드가 여러 장일 때)
+        static FrameworkElement TitledCard(string title, UIElement content)
+        {
+            var stack = new StackPanel();
+            var t = Theme.Text(title, 15.5, FontWeights.Bold, Theme.Ink);
+            t.Margin = new Thickness(0, 0, 0, 14);
+            stack.Children.Add(t);
+            stack.Children.Add(content);
+            return Theme.Card(stack, 24);
+        }
+
+        /// 쪽 고르기(shape · slots · key · ai · other). 모르는 이름이면 첫 쪽.
+        public void ShowPage(string id)
+        {
+            int at = Array.IndexOf(PageIds, id);
+            if (at < 0) at = 0;
+            lastPage = PageIds[at];
+            for (int i = 0; i < pages.Count; i++) pages[i].Visibility = i == at ? Visibility.Visible : Visibility.Collapsed;
+            if (navs[at].IsChecked != true) navs[at].IsChecked = true;
+            if (pageScroll != null) pageScroll.ScrollToTop();
+        }
+
+        /// 그림 확인용: 창에서 내용을 떼어 낸다. 쪽 내용을 스크롤 없이 끝까지 펼쳐 찍을 때 쓴다.
+        public FrameworkElement DetachForPreview()
+        {
+            var root = (FrameworkElement)Content;
+            Content = null;
+            RefreshAi();
+            return root;
         }
 
         void Save()
         {
             if (loading || Demo) return;
             s.Save();
+            ShowUnsaved(!opened.Same(Choices.Of(s)));
+        }
+
+        /// 바꾼 것이 있으면 아래 줄 왼쪽에 '아직 남지 않았다'는 알약을 보인다.
+        void ShowUnsaved(bool on)
+        {
+            if (unsavedPill == null) return;
+            unsavedPill.Set(on ? "[설정 완료]를 눌러야 바꾼 설정이 남아요" : "", Theme.Orange);
+        }
+
+        /// 이 창에서 고르고 켜고 끄는 값들. X로 닫을 때 되돌리는 범위다.
+        /// 로그인·키·즐겨찾기·쓴 횟수처럼 다른 단추나 메뉴가 바로 정하는 값은 넣지 않는다.
+        sealed class Choices
+        {
+            string menuShape, triggerKey, aiProvider;
+            bool anySource, startWithWindows, revealResult, claudeMetered, orNoTraining, autoOrder, checkUpdates;
+            List<string> slotOrder, hiddenSlots;
+
+            public static Choices Of(AppSettings s)
+            {
+                return new Choices
+                {
+                    menuShape = s.MenuShape,
+                    triggerKey = s.TriggerKey,
+                    aiProvider = s.AiProvider,
+                    anySource = s.AnySource,
+                    startWithWindows = s.StartWithWindows,
+                    revealResult = s.RevealResult,
+                    claudeMetered = s.ClaudeAllowMetered,
+                    orNoTraining = s.OpenRouterNoTraining,
+                    autoOrder = s.AutoOrder,
+                    checkUpdates = s.CheckUpdates,
+                    slotOrder = s.SlotOrder == null ? new List<string>() : new List<string>(s.SlotOrder),
+                    hiddenSlots = s.HiddenSlots == null ? new List<string>() : new List<string>(s.HiddenSlots)
+                };
+            }
+
+            public bool Same(Choices o)
+            {
+                return menuShape == o.menuShape && triggerKey == o.triggerKey && (aiProvider ?? "none") == (o.aiProvider ?? "none")
+                    && anySource == o.anySource && startWithWindows == o.startWithWindows && revealResult == o.revealResult
+                    && claudeMetered == o.claudeMetered && orNoTraining == o.orNoTraining && autoOrder == o.autoOrder
+                    && checkUpdates == o.checkUpdates
+                    && System.Linq.Enumerable.SequenceEqual(slotOrder, o.slotOrder)
+                    && System.Linq.Enumerable.SequenceEqual(System.Linq.Enumerable.OrderBy(hiddenSlots, x => x), System.Linq.Enumerable.OrderBy(o.hiddenSlots, x => x));
+            }
+
+            public void ApplyTo(AppSettings s)
+            {
+                s.MenuShape = menuShape;
+                s.TriggerKey = triggerKey;
+                s.AiProvider = aiProvider;
+                s.AnySource = anySource;
+                s.StartWithWindows = startWithWindows;
+                s.RevealResult = revealResult;
+                s.ClaudeAllowMetered = claudeMetered;
+                s.OpenRouterNoTraining = orNoTraining;
+                s.AutoOrder = autoOrder;
+                s.CheckUpdates = checkUpdates;
+                s.SlotOrder = new List<string>(slotOrder);
+                s.HiddenSlots = new List<string>(hiddenSlots);
+            }
         }
 
         static TextBlock FindSub(FrameworkElement head)
@@ -150,16 +331,6 @@ namespace Bakkum
             string open = "파일을 오른쪽 클릭 → 보내기 → '" + AppInfo.Name + "'으로도 열 수 있어요.";
             if (k == "Off") headSub.Text = Theme.Keep("파일을 오른쪽 클릭 → 보내기 → '" + AppInfo.Name + "'으로 메뉴를 열어요.");
             else headSub.Text = Theme.Keep("탐색기에서 파일을 끌다가 " + (k == "Ctrl" ? "Ctrl을" : k == "Q" ? "Q를" : "Shift를") + " 누르면 메뉴가 떠요. " + open);
-        }
-
-        static FrameworkElement Section(string title, Hue hue, string glyph, UIElement content)
-        {
-            var stack = new StackPanel();
-            stack.Children.Add(Theme.SectionHead(title, hue, glyph));
-            stack.Children.Add(content);
-            var card = Theme.Card(stack, 24);
-            card.Margin = new Thickness(0, 0, 0, 16);
-            return card;
         }
 
         // ── 메뉴 모양 ──
@@ -338,9 +509,9 @@ namespace Bakkum
 
         UIElement KeySection()
         {
+            // 무슨 키인지·어떻게 뜨는지는 쪽 머리 설명(UpdateHeadSub)이 키에 맞춰 알려 준다
             var stack = new StackPanel();
-            stack.Children.Add(Theme.Body("탐색기에서 파일을 끄는 동안 이 키를 누르면 커서 자리에 메뉴가 떠요."));
-            var grid = new UniformGrid { Columns = 4, Margin = new Thickness(-5, 14, -5, 0) };
+            var grid = new UniformGrid { Columns = 4, Margin = new Thickness(-5, 0, -5, 0) };
             var keys = new[] { new[] { "Shift", "Shift" }, new[] { "Ctrl", "Ctrl" }, new[] { "Q", "Q" }, new[] { "Off", "끄기" } };
             foreach (var pair in keys)
             {
@@ -370,9 +541,9 @@ namespace Bakkum
 
         UIElement AiSection()
         {
+            // 어디에 쓰는지는 쪽 머리 설명에 있다
             var stack = new StackPanel();
-            stack.Children.Add(Theme.Body("'AI로' 칸의 요약·번역·문제 만들기와 글자 뽑기의 'AI로'에 써요. 선생님 계정을 이어 쓰고, 보낼 때마다 먼저 물어봐요."));
-            var list = new StackPanel { Margin = new Thickness(0, 16, 0, 0) };
+            var list = new StackPanel();
             stack.Children.Add(list);
 
             var none = AddRow(list, "none", "쓰지 않음", "문서를 밖으로 보내지 않아요. 글자 뽑기도 이 PC 안에서만 해요.", null, Theme.Slate);
@@ -1001,23 +1172,51 @@ namespace Bakkum
 
         // ── 그 밖에 ──
 
-        UIElement OtherSection()
+        /// 켜기와 결과 · 새 버전 · 이 프로그램(예전 아래 줄의 라이선스·지우기도 여기로)
+        FrameworkElement[] OtherCards()
         {
-            var stack = new StackPanel();
+            var start = new StackPanel();
             var startup = Theme.Switch("윈도우를 켤 때 같이 켜기", "꺼 두면 윈도우를 켤 때마다 바꿈을 직접 열어야 메뉴가 떠요.", s.StartWithWindows, delegate (bool on)
             {
                 s.StartWithWindows = on;
                 Save();
             });
-            stack.Children.Add(startup);
+            start.Children.Add(startup);
             var reveal = Theme.Switch("다 되면 결과가 있는 폴더 열기", null, s.RevealResult, delegate (bool on)
             {
                 s.RevealResult = on;
                 Save();
             });
-            stack.Children.Add(Spaced(reveal, 14));
-            stack.Children.Add(Spaced(UpdateArea(), 14));
-            stack.Children.Add(Spaced(Theme.Note("결과 파일은 원본 옆에 만들어요. 원본 폴더에 쓸 수 없으면 문서 폴더의 '변환 결과'에 둬요. 원본은 바꾸지 않아요.", Theme.Green), 18));
+            start.Children.Add(Spaced(reveal, 14));
+            start.Children.Add(Spaced(Theme.Note("결과 파일은 원본 옆에 만들어요. 원본 폴더에 쓸 수 없으면 문서 폴더의 '변환 결과'에 둬요. 원본은 바꾸지 않아요.", Theme.Green), 18));
+            return new[]
+            {
+                TitledCard("켜기와 결과", start),
+                TitledCard("새 버전", UpdateArea()),
+                TitledCard("이 프로그램", AboutArea())
+            };
+        }
+
+        /// 버전 · [사용법 다시 보기] · [라이선스·고지] · [프로그램 지우기](설치된 것을 켰을 때만)
+        FrameworkElement AboutArea()
+        {
+            var stack = new StackPanel();
+            stack.Children.Add(Theme.Body(AppInfo.Name + " " + AppInfo.Version));
+            var guide = Theme.MakeButton("사용법 다시 보기", "Line");
+            guide.Click += delegate { GuideWindow.Open(); };
+            var notice = Theme.MakeButton("라이선스·고지", "Quiet");
+            notice.Click += delegate { ShowNotice(this); };
+            Button remove = null;
+            if (AppInfo.RunningInstalled || Demo)
+            {
+                remove = Theme.MakeButton("프로그램 지우기", "Quiet");
+                remove.Click += delegate
+                {
+                    try { Process.Start(AppInfo.InstalledExe, "/uninstall"); }
+                    catch (Exception ex) { Log.Write("지우기 실행 실패: " + ex.GetType().Name); }
+                };
+            }
+            stack.Children.Add(Spaced(Theme.ButtonRow(guide, notice, remove), 12));
             return stack;
         }
 
@@ -1045,14 +1244,10 @@ namespace Bakkum
             updateApply = Theme.MakeButton("새 버전으로 바꾸기", "Primary");
             updateApply.Margin = new Thickness(8, 0, 0, 0);
             updateApply.Visibility = Visibility.Collapsed;
-            var guide = Theme.MakeButton("사용법 다시 보기", "Line");
-            guide.Margin = new Thickness(8, 0, 0, 0);
-            guide.Click += delegate { GuideWindow.Open(); };
             updatePill = new StatusPill { Margin = new Thickness(0, 10, 0, 0) };
             updatePill.Set("", Theme.Slate);
             row.Children.Add(updateCheck);
             row.Children.Add(updateApply);
-            row.Children.Add(guide);
             stack.Children.Add(row);
             stack.Children.Add(updatePill);
             ShowAvailable();
@@ -1092,30 +1287,14 @@ namespace Bakkum
 
         FrameworkElement Footer()
         {
-            var grid = new Grid { Margin = new Thickness(26, 10, 26, 20) };
+            var grid = new Grid { Margin = new Thickness(30, 10, 30, 20) };
             grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
             grid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
-            var left = new StackPanel { Orientation = Orientation.Horizontal, VerticalAlignment = VerticalAlignment.Center };
-            var version = Theme.MetaLabel(AppInfo.Name + " " + AppInfo.Version);
-            version.VerticalAlignment = VerticalAlignment.Center;
-            version.Margin = new Thickness(2, 0, 10, 0);
-            left.Children.Add(version);
-            var notice = Theme.MakeButton("라이선스·고지", "Quiet");
-            notice.Click += delegate { ShowNotice(this); };
-            left.Children.Add(notice);
-            if (AppInfo.RunningInstalled || Demo)
-            {
-                var remove = Theme.MakeButton("프로그램 지우기", "Quiet");
-                remove.Margin = new Thickness(2, 0, 0, 0);
-                remove.Click += delegate
-                {
-                    try { Process.Start(AppInfo.InstalledExe, "/uninstall"); }
-                    catch (Exception ex) { Log.Write("지우기 실행 실패: " + ex.GetType().Name); }
-                };
-                left.Children.Add(remove);
-            }
-            grid.Children.Add(left);
-            var right = new StackPanel { Orientation = Orientation.Horizontal };
+            // 바꾼 것이 있을 때만: [설정 완료]를 눌러야 남는다는 알약(창의 X로 닫으면 되돌리므로)
+            unsavedPill = new StatusPill { VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(0, 0, 12, 0) };
+            unsavedPill.Set("", Theme.Orange);
+            grid.Children.Add(unsavedPill);
+            var right = new StackPanel { Orientation = Orientation.Horizontal, VerticalAlignment = VerticalAlignment.Center };
             // 2026-11-08 사용자 시험: 설정 창을 닫으려고 [끝내기]를 눌러 바꿈이 꺼졌고, 그 뒤로 Shift를 눌러도 메뉴가 뜨지 않았다.
             // 같은 날 사용자 의견: [바꿈 끄기]와 [닫기]도 둘 다 닫는 말처럼 들려 차이를 모르겠다고 했다.
             // 그래서 하는 일이 다르게 들리는 [프로그램 종료]와 [설정 완료]로 나누고, 끄기 전에는 한 번 묻는다.
@@ -1126,12 +1305,19 @@ namespace Bakkum
                 int r = Dialog.Ask(this, Theme.Coral, "close", "프로그램을 종료할까요?",
                     "종료하면 파일을 끌다가 Shift를 눌러도 메뉴가 뜨지 않아요. 설정만 마치려면 [설정 완료]를 누르세요. 다시 켜려면 바탕 화면이나 시작 메뉴에서 " + AppInfo.Name + "을 열면 돼요.",
                     null, "취소", "종료");
-                if (r == 1) App.Quit();
+                if (r != 1) return;
+                keep = true;
+                App.Quit();
             };
+            // 2026-11-10 사용자 요청: 창의 X는 저장 없이 바로 닫기. 그래서 바꾼 것을 남기며 닫는 단추는 [설정 완료]다([프로그램 종료]도 그대로 둔다).
             var close = Theme.MakeButton("설정 완료", "Primary");
-            close.ToolTip = "이 창만 닫아요. 바꿈은 계속 켜져 있어요.";
+            close.ToolTip = "바꾼 설정을 저장하고 이 창을 닫아요. 바꿈은 계속 켜져 있어요.";
             close.Margin = new Thickness(10, 0, 0, 0);
-            close.Click += delegate { Close(); };
+            close.Click += delegate
+            {
+                keep = true;
+                Close();
+            };
             right.Children.Add(quit);
             right.Children.Add(close);
             Grid.SetColumn(right, 1);
