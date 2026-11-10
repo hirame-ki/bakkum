@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: GPL-3.0-only
+// Bakkum - Copyright (C) 2026 hirame.ki - additional terms under GPL-3.0 section 7 apply, see NOTICE.txt
 // 사진 손질 창. 왼쪽에서 도구를 고르고, 가운데 사진 위에서 드래그하고, 오른쪽에서 값을 맞춘다.
 // 화면에서는 줄인 사진으로 바로바로 보여 주고, 저장할 때 원본 크기로 똑같이 다시 계산한다.
 // 어떤 사진도 이 PC 밖으로 나가지 않는다. 원본은 건드리지 않고 '이름_손질' 파일을 새로 만든다.

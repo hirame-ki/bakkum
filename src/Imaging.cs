@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: GPL-3.0-only
+// Bakkum - Copyright (C) 2026 hirame.ki - additional terms under GPL-3.0 section 7 apply, see NOTICE.txt
 // 그림 읽기·돌리기·줄이기·저장. 윈도우에 든 그림 코덱(WIC)을 쓴다.
 // 사진의 EXIF 방향은 실제 픽셀에 반영하고, 새로 저장할 때 EXIF(위치 정보 포함)는 남기지 않는다.
 using System;

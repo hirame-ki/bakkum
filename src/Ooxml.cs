@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: GPL-3.0-only
+// Bakkum - Copyright (C) 2026 hirame.ki - additional terms under GPL-3.0 section 7 apply, see NOTICE.txt
 // 워드·엑셀·파워포인트 파일을 프로그램 없이 직접 쓰고 읽는다. 밖에서 쓰는 라이브러리는 없다.
 // 글 덩어리(DocBlock)를 중간 형식으로 삼아 마크다운·HTML·글자 파일과 오간다.
 using System;

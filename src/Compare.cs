@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: GPL-3.0-only
+// Bakkum - Copyright (C) 2026 hirame.ki - additional terms under GPL-3.0 section 7 apply, see NOTICE.txt
 // 전후 비교: 결과를 열어 보기 전에 원본과 나란히 본다. 휠로 같이 확대하고, 끌어서 같이 옮긴다.
 // 디자인(DESIGN.md): 책상색 바탕 위 흰 칸 두 개, 꼬리표로 원본과 결과를 나눈다.
 using System;

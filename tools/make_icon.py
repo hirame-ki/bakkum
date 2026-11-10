@@ -1,3 +1,5 @@
+# SPDX-License-Identifier: GPL-3.0-only
+# Bakkum - Copyright (C) 2026 hirame.ki - additional terms under GPL-3.0 section 7 apply, see NOTICE.txt
 # 프로그램 아이콘(assets/app.ico)을 만든다. 잉크색 육각형 안에 흰 화살표 두 개(바꾸기).
 # 실행: python -I tools/make_icon.py
 import math

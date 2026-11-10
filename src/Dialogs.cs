@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: GPL-3.0-only
+// Bakkum - Copyright (C) 2026 hirame.ki - additional terms under GPL-3.0 section 7 apply, see NOTICE.txt
 // 작은 대화 창(안내·확인)과 라이선스·고지 창. 색종이 디자인: 책상색 바탕 위 흰 카드, 색 칩 머리.
 using System;
 using System.Windows;
@@ -112,7 +114,7 @@ namespace Bakkum
             try { w.Icon = App.WindowIcon; } catch { }
 
             var dock = new DockPanel();
-            var head = Theme.DialogHead("라이선스·고지", AppInfo.Name + "의 라이선스(Apache 2.0)와, 함께 쓰는 프로그램·상표 안내예요.", Theme.Slate, "box");
+            var head = Theme.DialogHead("라이선스·고지", AppInfo.Name + "의 라이선스(GPL-3.0)와 추가 조건, 함께 쓰는 프로그램·상표 안내예요.", Theme.Slate, "box");
             head.Margin = new Thickness(0, 0, 0, 16);
             DockPanel.SetDock(head, Dock.Top);
             dock.Children.Add(head);

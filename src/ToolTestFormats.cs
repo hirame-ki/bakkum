@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: GPL-3.0-only
+// Bakkum - Copyright (C) 2026 hirame.ki - additional terms under GPL-3.0 section 7 apply, see NOTICE.txt
 // 도구 시험 중 전자책·ODS·압축·SVG·글자 문서 PDF 부분. 예시 파일은 이 시험이 직접 만든다(진짜 문서 안 씀).
 using System;
 using System.Collections.Generic;

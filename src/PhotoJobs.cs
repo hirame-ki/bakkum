@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: GPL-3.0-only
+// Bakkum - Copyright (C) 2026 hirame.ki - additional terms under GPL-3.0 section 7 apply, see NOTICE.txt
 // 사진 손질 칸에서 시작한 일을 실제로 처리한다(화면 없이 돌아간다).
 using System;
 using System.Collections.Generic;

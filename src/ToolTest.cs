@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: GPL-3.0-only
+// Bakkum - Copyright (C) 2026 hirame.ki - additional terms under GPL-3.0 section 7 apply, see NOTICE.txt
 // 도구 시험(인터넷·진짜 문서 안 씀): Bakkum.exe /selftest-tools 시험폴더 [photo|pdf|doc]
 // 시험폴더에 사람이 만든 예시 파일을 넣어 두면, 그 폴더 안에 결과를 만들고 하나씩 확인한다.
 using System;

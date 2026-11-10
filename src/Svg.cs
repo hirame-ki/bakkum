@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: GPL-3.0-only
+// Bakkum - Copyright (C) 2026 hirame.ki - additional terms under GPL-3.0 section 7 apply, see NOTICE.txt
 // SVG 그림을 PNG로 그린다. 파일 하나로 끝나는 그림만 다룬다.
 // 스크립트와 바깥 파일·인터넷 주소는 읽지 않는다(그림 안에 넣은 data: 그림만 쓴다).
 using System;

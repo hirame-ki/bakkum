@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: GPL-3.0-only
+// Bakkum - Copyright (C) 2026 hirame.ki - additional terms under GPL-3.0 section 7 apply, see NOTICE.txt
 // 네트워크 연결 시험: Bakkum.exe /selftest-net 포트
 // 먼저 이 PC 안에 가짜 서버를 띄운다: python tools\mock_ai.py 포트
 // OpenRouter·ChatGPT 연결(로그인 → 키·토큰 받기 → 읽기 → 새로 고침 → 로그아웃)을 가짜 서버에 대고 처음부터 끝까지 돌려 본다.

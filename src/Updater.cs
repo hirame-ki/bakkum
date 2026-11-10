@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: GPL-3.0-only
+// Bakkum - Copyright (C) 2026 hirame.ki - additional terms under GPL-3.0 section 7 apply, see NOTICE.txt
 // 앱 안 업데이트. 하루 한 번 새 버전이 있는지만 보고(문서 내용은 보내지 않는다), 선생님이 [바꾸기]를 눌렀을 때만 받는다.
 // 프로그램이 직접 받은 파일에는 '인터넷에서 받은 파일' 표시가 붙지 않아 윈도우 PC 보호 창이 뜨지 않는다.
 // 주소는 이 프로그램의 공개 저장소·사이트만 받고, 받은 파일은 SHA-256이 맞을 때만 실행한다.

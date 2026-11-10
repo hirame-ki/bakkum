@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: GPL-3.0-only
+// Bakkum - Copyright (C) 2026 hirame.ki - additional terms under GPL-3.0 section 7 apply, see NOTICE.txt
 // 압축 칸: ZIP·TAR·GZIP으로 묶고, 새 폴더에 푼다.
 // 파일 안의 이름은 믿지 않는다. 폴더 밖으로 나가는 경로, 링크, 이름이 겹치는 항목은 풀지 않는다.
 using System;

@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: GPL-3.0-only
+// Bakkum - Copyright (C) 2026 hirame.ki - additional terms under GPL-3.0 section 7 apply, see NOTICE.txt
 // AI가 고른 슬라이드 구성에 디자인을 입혀 PPT를 만든다.
 // AI는 내용과 쪽 구성(JSON)만 정하고, 모양은 이 파일이 그린다. 그래서 답이 조금 어긋나도 슬라이드가 깨지지 않고,
 // 글자·도형·표·색이 모두 PPT 안에서 그대로 고쳐진다.

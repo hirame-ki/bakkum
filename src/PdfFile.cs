@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: GPL-3.0-only
+// Bakkum - Copyright (C) 2026 hirame.ki - additional terms under GPL-3.0 section 7 apply, see NOTICE.txt
 // PDF 읽기·다시 쓰기. 용량 줄이기와 그림→PDF에 쓴다.
 // 읽기: 보통 xref·xref 스트림(/Prev 따라가기)·섞인 형식(/XRefStm)·객체 스트림을 읽고, 깨진 파일은 처음부터 훑어 다시 짠다.
 // 쓰기: 쓰이는 객체만 1번부터 다시 번호를 매겨, 객체 스트림 + xref 스트림(PDF 1.5)으로 쓴다.

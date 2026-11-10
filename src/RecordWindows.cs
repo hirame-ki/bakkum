@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: GPL-3.0-only
+// Bakkum - Copyright (C) 2026 hirame.ki - additional terms under GPL-3.0 section 7 apply, see NOTICE.txt
 // 화면 녹화의 창들: 고르기 → (영역 끌기) → 3·2·1 → 떠 있는 막대 → 저장 알림.
 using System;
 using System.Collections.Generic;

@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: GPL-3.0-only
+// Bakkum - Copyright (C) 2026 hirame.ki - additional terms under GPL-3.0 section 7 apply, see NOTICE.txt
 // 쪽 편집 창. 쪽을 끌어 순서를 바꾸고, 골라서 돌리거나 복제·삭제한다.
 // 화면에 보이는 칸만 만들고 작은 그림도 보이는 쪽만 그려서, 쪽이 많아도 메모리를 적게 쓴다.
 using System;

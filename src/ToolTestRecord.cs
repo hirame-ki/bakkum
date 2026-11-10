@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: GPL-3.0-only
+// Bakkum - Copyright (C) 2026 hirame.ki - additional terms under GPL-3.0 section 7 apply, see NOTICE.txt
 // 화면 녹화 시험. 대부분 가짜 화면·가짜 소리로 확인한다.
 // 진짜 화면은 빠르기만 재고 파일로 남기지 않는다. 마이크는 열지 않는다.
 using System;

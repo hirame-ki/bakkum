@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: GPL-3.0-only
+// Bakkum - Copyright (C) 2026 hirame.ki - additional terms under GPL-3.0 section 7 apply, see NOTICE.txt
 // 손실 없는 WEBP(VP8L) 저장. 윈도우에는 WEBP를 쓰는 부품이 없어서 공개 규격(WebP Lossless Bitstream)대로 직접 쓴다.
 // 쓰는 변환: 초록 빼기 + 예측(16칸 묶음마다 가장 좋은 방식) + LZ77 + 허프만. 저장한 뒤 윈도우 코덱으로 되읽어 시험했다.
 using System;

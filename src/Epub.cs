@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: GPL-3.0-only
+// Bakkum - Copyright (C) 2026 hirame.ki - additional terms under GPL-3.0 section 7 apply, see NOTICE.txt
 // 전자책(EPUB) 읽고 쓰기. 글과 표, 사진을 옮긴다. 복제 방지가 걸린 책은 열지 않는다.
 using System;
 using System.Collections.Generic;

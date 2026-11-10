@@ -1,4 +1,6 @@
-﻿// 프로그램 시작점. 한 번만 뜨게 하고(두 번째 실행은 첫 번째에게 파일을 넘김), 알림 영역 아이콘과 끌기 감지를 켠다.
+﻿// SPDX-License-Identifier: GPL-3.0-only
+// Bakkum - Copyright (C) 2026 hirame.ki - additional terms under GPL-3.0 section 7 apply, see NOTICE.txt
+// 프로그램 시작점. 한 번만 뜨게 하고(두 번째 실행은 첫 번째에게 파일을 넘김), 알림 영역 아이콘과 끌기 감지를 켠다.
 // 시험용 명령: /render-menu, /render-window, /run   설치용: /install(창), /uninstall
 using System;
 using System.Collections.Generic;
@@ -22,9 +24,9 @@ using System.Windows.Threading;
 [assembly: AssemblyProduct("바꿈")]
 [assembly: AssemblyCompany("hirame.ki")]
 [assembly: AssemblyCopyright("Copyright (c) 2026 hirame.ki")]
-[assembly: AssemblyVersion("0.3.4.0")]
-[assembly: AssemblyFileVersion("0.3.4.0")]
-[assembly: AssemblyInformationalVersion("0.3.4")]
+[assembly: AssemblyVersion("0.3.5.0")]
+[assembly: AssemblyFileVersion("0.3.5.0")]
+[assembly: AssemblyInformationalVersion("0.3.5")]
 
 namespace Bakkum
 {

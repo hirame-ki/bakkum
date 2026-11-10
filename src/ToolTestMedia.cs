@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: GPL-3.0-only
+// Bakkum - Copyright (C) 2026 hirame.ki - additional terms under GPL-3.0 section 7 apply, see NOTICE.txt
 // 도구 시험 중 영상·소리 부분. 시험용 파일은 색띠 영상과 삐 소리뿐이다.
 using System;
 using System.Collections.Generic;

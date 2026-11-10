@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: GPL-3.0-only
+// Bakkum - Copyright (C) 2026 hirame.ki - additional terms under GPL-3.0 section 7 apply, see NOTICE.txt
 // 메뉴 칸마다 하는 일. 파일 하나가 실패해도 나머지 파일은 계속한다.
 // 결과는 원본 옆(쓸 수 없으면 문서\변환 결과)에 두고, 이름이 겹치면 번호를 붙인다. 원본은 건드리지 않는다.
 using System;

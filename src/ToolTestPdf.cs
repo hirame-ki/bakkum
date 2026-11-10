@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: GPL-3.0-only
+// Bakkum - Copyright (C) 2026 hirame.ki - additional terms under GPL-3.0 section 7 apply, see NOTICE.txt
 // 도구 시험 중 PDF 부분. 예시 PDF는 파이썬으로 만들어 시험폴더에 넣어 둔다.
 using System;
 using System.Collections.Generic;

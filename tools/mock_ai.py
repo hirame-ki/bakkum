@@ -1,3 +1,5 @@
+# SPDX-License-Identifier: GPL-3.0-only
+# Bakkum - Copyright (C) 2026 hirame.ki - additional terms under GPL-3.0 section 7 apply, see NOTICE.txt
 """바꿈 네트워크 시험용 가짜 서버. 이 PC 안(127.0.0.1)에서만 돈다.
 
 OpenRouter(로그인·키 교환·키 정보·모델 목록·읽기)와

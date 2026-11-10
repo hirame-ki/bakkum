@@ -1,4 +1,6 @@
-﻿# 바꿈 만들기. 윈도우에 들어 있는 C# 5 컴파일러(csc.exe)만 씁니다(따로 설치할 것 없음).
+﻿# SPDX-License-Identifier: GPL-3.0-only
+# Bakkum - Copyright (C) 2026 hirame.ki - additional terms under GPL-3.0 section 7 apply, see NOTICE.txt
+# 바꿈 만들기. 윈도우에 들어 있는 C# 5 컴파일러(csc.exe)만 씁니다(따로 설치할 것 없음).
 # 사용(PowerShell):
 #   (이 파일이 있는 폴더로 cd 한 뒤)
 #   powershell -ExecutionPolicy Bypass -File .\build.ps1          → build\Bakkum.exe

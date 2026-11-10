@@ -1,3 +1,5 @@
+# SPDX-License-Identifier: GPL-3.0-only
+# Bakkum - Copyright (C) 2026 hirame.ki - additional terms under GPL-3.0 section 7 apply, see NOTICE.txt
 """바꿈 자체 시험용 가짜 Claude Code. 어떤 서버에도 연결하지 않는다.
 
 Bakkum.exe /selftest-net 이 작은 .cmd 파일을 거쳐 이 스크립트를 부른다(npm으로 깐 claude.cmd와 같은 길).

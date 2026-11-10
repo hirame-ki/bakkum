@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: GPL-3.0-only
+// Bakkum - Copyright (C) 2026 hirame.ki - additional terms under GPL-3.0 section 7 apply, see NOTICE.txt
 // 'AI로' 칸 시험: 가짜 Claude Code(tools\mock_claude.py의 tasks 모드)에 대고 돌린다. 인터넷으로는 아무것도 나가지 않는다.
 // Bakkum.exe /selftest-tools 시험폴더 ai  (시험폴더에 clear.png, scan.pdf, tbl.pdf가 있어야 한다)
 using System;

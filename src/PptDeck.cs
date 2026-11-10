@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: GPL-3.0-only
+// Bakkum - Copyright (C) 2026 hirame.ki - additional terms under GPL-3.0 section 7 apply, see NOTICE.txt
 // 도형·글상자·그림·표를 자리대로 놓아 PPT를 쓴다. PDF를 글자 고칠 수 있는 PPT로 옮길 때와 AI 수업 자료가 함께 쓴다.
 // 근거: ECMA-376(PresentationML·DrawingML)의 요소 순서. PowerPoint는 순서가 틀리면 '복구'를 묻는다.
 using System;

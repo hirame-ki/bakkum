@@ -132,6 +132,15 @@ build\Bakkum.exe /run text local 스캔.pdf
 
 ## 라이선스
 
-Apache License 2.0. 전문은 [LICENSE](LICENSE), 함께 쓰는 프로그램·서비스와 상표 안내는 [NOTICE.txt](NOTICE.txt)에 있습니다.
+GNU General Public License 3.0(GPL-3.0)과 추가 조건. 전문은 [LICENSE](LICENSE)에 있습니다. 누구나 쓰고, 나누고, 고칠 수 있지만, 고친 판을 나누거나 팔 때는 그 판의 소스 전체도 같은 조건으로 공개해야 합니다.
+
+GPL-3.0 제7조에 따른 추가 조건(자세한 문구는 [NOTICE.txt](NOTICE.txt)):
+
+- 저작권 표시와 만든 사람 표시를 지우지 않습니다.
+- 고친 판은 원본과 다르다고 밝히고, 원작자가 만든 것처럼 보이게 하지 않습니다.
+- '바꿈'이라는 이름과 아이콘·로고에 대한 상표 권리는 주지 않습니다. 고친 판에는 다른 이름과 아이콘을 씁니다.
+- 만든 사람의 이름을 고친 판이나 다른 제품 홍보에 쓰지 않습니다.
+
+0.3.4까지는 Apache License 2.0으로 배포했고, 그 버전들에는 그 조건이 그대로 적용됩니다. 함께 쓰는 프로그램·서비스와 상표 안내도 [NOTICE.txt](NOTICE.txt)에 있습니다.
 
 바꿈은 한글과컴퓨터, Microsoft, OpenAI, Anthropic, Google, OpenRouter와 관계가 없고, 이 회사들이 후원하거나 보증하지 않습니다.

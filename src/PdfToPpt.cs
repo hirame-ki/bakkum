@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: GPL-3.0-only
+// Bakkum - Copyright (C) 2026 hirame.ki - additional terms under GPL-3.0 section 7 apply, see NOTICE.txt
 // PDF를 글자 고칠 수 있는 PPT로 바꾼다.
 // - 글자가 들어 있는 쪽: 글자를 글상자로 옮기고, 글자를 뺀 쪽을 그림으로 떠서 슬라이드 배경에 깐다.
 // - 스캔한 쪽: 글자 인식으로 읽고, 읽은 자리를 주변 색으로 지운 뒤 글상자로 얹는다.

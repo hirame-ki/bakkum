@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: GPL-3.0-only
+// Bakkum - Copyright (C) 2026 hirame.ki - additional terms under GPL-3.0 section 7 apply, see NOTICE.txt
 // 문서 형식 바꾸기(워드·엑셀·PPT·자막·웹 문서)와 문서 속 사진 다루기.
 // 한글·워드가 있어야 하는 길과 프로그램 없이 되는 길을 나눠, 없는 프로그램 때문에 멈추지 않게 한다.
 using System;

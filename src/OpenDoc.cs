@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: GPL-3.0-only
+// Bakkum - Copyright (C) 2026 hirame.ki - additional terms under GPL-3.0 section 7 apply, see NOTICE.txt
 // 오픈 문서 형식(ODS 표, ODT 글)과 워드 파일을 글·표·사진 덩어리로 읽는다. 프로그램이 없어도 된다.
 using System;
 using System.Collections.Generic;

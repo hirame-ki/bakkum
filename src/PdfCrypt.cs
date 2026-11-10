@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: GPL-3.0-only
+// Bakkum - Copyright (C) 2026 hirame.ki - additional terms under GPL-3.0 section 7 apply, see NOTICE.txt
 // PDF 암호 걸기·풀기. 표준 보안 처리기(ISO 32000-2, 7.6절)를 따른다.
 // 풀기: RC4(40·128비트), AES-128, AES-256(R5·R6). 사용자가 넣은 암호가 맞을 때만 푼다.
 // 걸기: AES-256(R6). 객체 스트림 없이 쓴다(문자열·스트림을 객체마다 잠근다).

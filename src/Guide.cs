@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: GPL-3.0-only
+// Bakkum - Copyright (C) 2026 hirame.ki - additional terms under GPL-3.0 section 7 apply, see NOTICE.txt
 // 처음 켰을 때 한 번 보여 주는 사용법. 알림 영역 메뉴와 설정에서 다시 볼 수 있다.
 using System;
 using System.Collections.Generic;

@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: GPL-3.0-only
+// Bakkum - Copyright (C) 2026 hirame.ki - additional terms under GPL-3.0 section 7 apply, see NOTICE.txt
 // 윈도우에 들어 있는 기능(WinRT): PDF 쪽 그리기(Windows.Data.Pdf)와 글자 인식(Windows.Media.Ocr).
 // 근거: Microsoft Learn의 Windows.Media.Ocr.OcrEngine · Windows.Graphics.Imaging · Windows.Data.Pdf 문서.
 // SDK 없이 윈도우 기본 컴파일러로 만들기 위해 System.Runtime.WindowsRuntime의 확장 메서드(AsTask 등)는 쓰지 않고,

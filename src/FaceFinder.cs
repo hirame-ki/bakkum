@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: GPL-3.0-only
+// Bakkum - Copyright (C) 2026 hirame.ki - additional terms under GPL-3.0 section 7 apply, see NOTICE.txt
 // 얼굴 찾기. 윈도우에 든 Windows.Media.FaceAnalysis를 쓰므로 사진은 이 PC 밖으로 나가지 않는다.
 // 완벽하지 않다. 옆모습·가려진 얼굴·아주 작은 얼굴은 놓칠 수 있어, 화면에서 사용자가 꼭 확인하게 한다.
 using System;

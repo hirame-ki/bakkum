@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: GPL-3.0-only
+// Bakkum - Copyright (C) 2026 hirame.ki - additional terms under GPL-3.0 section 7 apply, see NOTICE.txt
 // 새 버전 받기 시험: 이 PC 안의 작은 가짜 서버(127.0.0.1)만 쓴다. 받은 파일을 실행하지는 않는다.
 // Bakkum.exe /selftest-tools 시험폴더 update
 using System;

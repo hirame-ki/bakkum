@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: GPL-3.0-only
+// Bakkum - Copyright (C) 2026 hirame.ki - additional terms under GPL-3.0 section 7 apply, see NOTICE.txt
 // OpenRouter 연결: 선생님의 OpenRouter 계정으로 무료(:free) AI 모델을 쓴다.
 // 키는 브라우저 로그인(OAuth PKCE)으로 받거나, 선생님이 만든 키를 붙여 넣는다. 키는 윈도우 사용자 암호화로 저장한다.
 // 근거: OpenRouter 문서(openrouter.ai/docs: OAuth PKCE, 키 정보·사용 한도, 채팅 요청·오류, 공급자 고르기), 2026-11-08 읽음.

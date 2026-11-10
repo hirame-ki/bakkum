@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: GPL-3.0-only
+// Bakkum - Copyright (C) 2026 hirame.ki - additional terms under GPL-3.0 section 7 apply, see NOTICE.txt
 // 사진 손질 계산. 화면 미리보기와 저장이 같은 코드를 쓴다(미리보기는 줄인 사진으로).
 // 자리·크기는 모두 사진 크기에 대한 비율(0~1)이라, 미리보기와 원본의 크기가 달라도 같은 곳에 적용된다.
 // 저장하면 픽셀을 새로 쓰므로 가린 곳은 원래 그림이 파일에 남지 않고, 사진 정보(EXIF·위치)도 따라가지 않는다.

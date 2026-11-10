@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: GPL-3.0-only
+// Bakkum - Copyright (C) 2026 hirame.ki - additional terms under GPL-3.0 section 7 apply, see NOTICE.txt
 // 글자 문서(마크다운·HTML·전자책·글자 파일, 프로그램이 없을 때의 워드·표)를 PDF로 만든다.
 // PC에 있는 글꼴에서 실제로 쓴 글자만 떼어 넣어, 파일이 작고 글자를 고르거나 찾을 수 있는 진짜 PDF가 된다.
 using System;

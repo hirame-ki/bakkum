@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: GPL-3.0-only
+// Bakkum - Copyright (C) 2026 hirame.ki - additional terms under GPL-3.0 section 7 apply, see NOTICE.txt
 // MP4를 다시 압축하지 않고 다른 상자로 옮겨 담는다. 윈도우에는 MOV·MKV로 저장하는 부품이 없지만
 // 안의 영상(H.264)과 소리(AAC)는 세 형식 모두 같은 것을 쓸 수 있다.
 // 근거: ISO/IEC 14496-12(MP4 상자 구조), Matroska 명세(RFC 9559), QuickTime File Format의 ftyp.

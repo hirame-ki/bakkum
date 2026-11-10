@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: GPL-3.0-only
+// Bakkum - Copyright (C) 2026 hirame.ki - additional terms under GPL-3.0 section 7 apply, see NOTICE.txt
 // 파일 종류 구분과 메뉴 칸(할 일)·고를 거리 정의.
 using System;
 using System.Collections.Generic;

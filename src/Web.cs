@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: GPL-3.0-only
+// Bakkum - Copyright (C) 2026 hirame.ki - additional terms under GPL-3.0 section 7 apply, see NOTICE.txt
 // 인터넷 요청 한 번, 그리고 브라우저 로그인이 돌아오는 작은 문(이 PC 안에서만 열림).
 // 돌아오는 문(Loopback)은 RFC 8252(OAuth 2.0 for Native Apps) 7.3·8.3절을, PKCE 도우미는 RFC 7636 4.1·4.2절을 보고 짰다.
 using System;

@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: GPL-3.0-only
+// Bakkum - Copyright (C) 2026 hirame.ki - additional terms under GPL-3.0 section 7 apply, see NOTICE.txt
 // 설치·지우기. 관리자 권한 없이 이 PC의 내 계정에만 설치한다.
 //  - 프로그램: %LOCALAPPDATA%\Programs\Bakkum\Bakkum.exe
 //  - 시작 메뉴·바탕 화면·보내기(SendTo) 바로 가기, 윈도우 시작 시 켜기(시작 프로그램 폴더의 바로 가기)

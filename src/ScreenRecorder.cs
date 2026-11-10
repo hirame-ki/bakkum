@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: GPL-3.0-only
+// Bakkum - Copyright (C) 2026 hirame.ki - additional terms under GPL-3.0 section 7 apply, see NOTICE.txt
 // 화면 녹화 엔진. 화면을 GDI로 찍고 소리는 WASAPI로 받아 Media Foundation의 Sink Writer로 MP4(H.264 + AAC)에 저장한다.
 // 창이 없어서 시험에서는 가짜 화면·가짜 소리를 넣어 확인한다.
 // 근거: Microsoft Learn의 Capturing an Image(GDI), Loopback Recording(WASAPI), Tutorial: Using the Sink Writer 문서.

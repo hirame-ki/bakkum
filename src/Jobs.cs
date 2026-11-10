@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: GPL-3.0-only
+// Bakkum - Copyright (C) 2026 hirame.ki - additional terms under GPL-3.0 section 7 apply, see NOTICE.txt
 // 변환 작업 줄 세우기와 화면 오른쪽 아래 진행 알림.
 using System;
 using System.Collections.Generic;

@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: GPL-3.0-only
+// Bakkum - Copyright (C) 2026 hirame.ki - additional terms under GPL-3.0 section 7 apply, see NOTICE.txt
 // 영상의 한 구간을 움직이는 GIF로. 프레임은 임시 파일에 두어 메모리를 적게 쓰고,
 // 색은 전체 프레임에서 모은 256색 한 벌을 함께 쓴다. 앞 장과 같은 칸은 투명으로 두어 파일을 줄인다.
 using System;

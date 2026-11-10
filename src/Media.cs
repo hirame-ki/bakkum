@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: GPL-3.0-only
+// Bakkum - Copyright (C) 2026 hirame.ki - additional terms under GPL-3.0 section 7 apply, see NOTICE.txt
 // 영상·소리 바꾸기. 윈도우에 들어 있는 Media Foundation만 쓰고 따로 설치하는 것은 없다.
 // 윈도우가 만들 수 있는 것: MP4(H.264+AAC)·MP3·M4A·WAV·FLAC. MOV·MKV는 MP4를 만든 뒤 상자만 바꿔 담는다.
 // WebM·OGG는 윈도우에 저장 부품이 없어 만들지 못한다. 읽을 수 있는 형식은 그 PC에 깔린 코덱에 달렸다.

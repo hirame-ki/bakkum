@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: GPL-3.0-only
+// Bakkum - Copyright (C) 2026 hirame.ki - additional terms under GPL-3.0 section 7 apply, see NOTICE.txt
 // 설정 창: 메뉴 모양 · 메뉴를 띄우는 키 · AI 연결 · 그 밖에. 바꾸는 즉시 저장된다.
 // 디자인(DESIGN.md): 책상색 바탕 위 흰 카드 한 장씩. 칸 제목마다 색 칩.
 // AI 연결은 고르면 펼쳐지는 카드: 고른 카드는 그 연결의 색 테두리와 색 그림자로 떠오른다.

@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: GPL-3.0-only
+// Bakkum - Copyright (C) 2026 hirame.ki - additional terms under GPL-3.0 section 7 apply, see NOTICE.txt
 // 'AI로' 칸이 하는 일: 요약·요점 정리·일정·할 일표·번역·문서 초안·글 다듬기·표·문제·수업 자료·손글씨·이름 짓기.
 // 글자가 든 문서는 이 PC에서 글자를 읽어 글만 보내고, 글자가 없는 스캔본·사진만 쪽 그림으로 보낸다.
 // 보내기 전에 창으로 묻는다. 이름·전화번호는 이 PC에서 [[N1]]처럼 가려서 보내고, 답을 받으면 이 PC에서 되돌린다.

@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: GPL-3.0-only
+// Bakkum - Copyright (C) 2026 hirame.ki - additional terms under GPL-3.0 section 7 apply, see NOTICE.txt
 // PDF를 쪽 단위로 다루는 일: 합치기·나누기·쪽 고르기·돌리기, 워터마크·쪽 번호 넣기, 정보 지우기.
 // 쪽을 새로 짜는 일(Compose)은 쪽 객체만 옮겨 담으므로 글자·그림은 그대로이고, 책갈피와 양식은 새 문서로 옮기지 않는다.
 // 워터마크는 글자를 그림(투명도 포함)으로 넣는다. 어떤 글꼴이든 다른 PC에서 똑같이 보이게 하기 위해서다.

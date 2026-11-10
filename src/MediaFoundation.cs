@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: GPL-3.0-only
+// Bakkum - Copyright (C) 2026 hirame.ki - additional terms under GPL-3.0 section 7 apply, see NOTICE.txt
 // 윈도우 Media Foundation을 직접 부른다. 영상의 길이·크기 읽기, 프레임 꺼내기(GIF), 화면 녹화 저장에 쓴다.
 // 근거: Microsoft Learn의 mfobjects.h · mfreadwrite.h 문서. 아래 인터페이스는 C 헤더의 메서드 순서를 그대로 따른다.
 // 쓰지 않는 메서드는 U로 시작하는 빈 자리로 두었다. 순서가 곧 약속이라 지우면 안 된다.

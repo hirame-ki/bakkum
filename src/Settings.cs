@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: GPL-3.0-only
+// Bakkum - Copyright (C) 2026 hirame.ki - additional terms under GPL-3.0 section 7 apply, see NOTICE.txt
 // 설정을 %APPDATA%\Bakkum\settings.json 에 둔다. API 키는 윈도우 사용자 암호화(DPAPI)로 감싸 저장한다.
 using System;
 using System.IO;

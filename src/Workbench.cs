@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: GPL-3.0-only
+// Bakkum - Copyright (C) 2026 hirame.ki - additional terms under GPL-3.0 section 7 apply, see NOTICE.txt
 // 메뉴에서 고른 일 가운데 창이 필요한 일(사진 손질·쪽 편집·콜라주)을 여는 곳과, 시작 전에 몇 가지 물어보는 곳.
 using System;
 using System.Collections.Generic;

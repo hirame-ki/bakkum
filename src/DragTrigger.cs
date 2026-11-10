@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: GPL-3.0-only
+// Bakkum - Copyright (C) 2026 hirame.ki - additional terms under GPL-3.0 section 7 apply, see NOTICE.txt
 // 탐색기에서 파일을 끄는 동안 정해 둔 키(Shift·Ctrl·Q)를 누르면 커서 자리에 메뉴를 띄운다.
 // 전역 저수준 훅(WH_MOUSE_LL·WH_KEYBOARD_LL)으로 마우스 왼쪽 단추가 눌린 채 움직였는지와 키가 새로 눌렸는지만 본다.
 // 누른 키나 마우스 위치를 어디에도 저장하거나 보내지 않는다.

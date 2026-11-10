@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: GPL-3.0-only
+// Bakkum - Copyright (C) 2026 hirame.ki - additional terms under GPL-3.0 section 7 apply, see NOTICE.txt
 // 파일을 끌다가 키를 누르거나 '보내기'로 열면 커서 자리에 뜨는 메뉴.
 // 모양은 색인(index, 기본)·부채(fan)·물결(wave)·벌집(honeycomb). 칸 하나가 색종이 한 장이고(할 일마다 색이 정해져 있음),
 // 마우스를 올리면 진한 색으로 바뀌며 톡 튀어나온다. 모양과 색은 DESIGN.md '색종이'를 따른다.

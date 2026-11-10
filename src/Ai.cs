@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: GPL-3.0-only
+// Bakkum - Copyright (C) 2026 hirame.ki - additional terms under GPL-3.0 section 7 apply, see NOTICE.txt
 // AI 연결: 선생님 본인의 Claude 구독(이 PC의 Claude Code), ChatGPT 요금제(OpenAI 로그인), Gemini 키, OpenRouter 무료 모델.
 // 비밀번호는 받지 않는다. Claude 로그인은 Claude Code 자체 화면에서, ChatGPT·OpenRouter 로그인은 각 회사의 브라우저 화면에서 한다.
 // ChatGPT는 ChatGpt.cs, OpenRouter는 OpenRouter.cs, 인터넷 요청은 Web.cs.

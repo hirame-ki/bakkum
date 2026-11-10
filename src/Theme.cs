@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: GPL-3.0-only
+// Bakkum - Copyright (C) 2026 hirame.ki - additional terms under GPL-3.0 section 7 apply, see NOTICE.txt
 // 바꿈 디자인(DESIGN.md '색종이'): 아홉 가지 색, 둥근 모서리, 부드러운 그림자, 톡 튀는 움직임.
 // 글꼴은 Pretendard가 깔려 있으면 쓰고, 없으면 맑은 고딕.
 using System;

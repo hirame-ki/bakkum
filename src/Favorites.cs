@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: GPL-3.0-only
+// Bakkum - Copyright (C) 2026 hirame.ki - additional terms under GPL-3.0 section 7 apply, see NOTICE.txt
 // 즐겨찾기(첫 화면에 바로 나오는 고를 거리)와 칸마다 쓴 횟수.
 using System;
 using System.Collections.Generic;

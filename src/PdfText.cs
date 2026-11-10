@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: GPL-3.0-only
+// Bakkum - Copyright (C) 2026 hirame.ki - additional terms under GPL-3.0 section 7 apply, see NOTICE.txt
 // PDF 안에 들어 있는 글자를 그대로 읽는다(글자 인식을 거치지 않아 틀리지 않는다).
 // 글꼴에 글자 대응표가 없어 믿을 수 없는 PDF나 스캔본은 Usable이 false다. 그때는 글자 인식이나 AI로 넘어간다.
 using System;

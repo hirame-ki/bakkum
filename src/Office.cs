@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: GPL-3.0-only
+// Bakkum - Copyright (C) 2026 hirame.ki - additional terms under GPL-3.0 section 7 apply, see NOTICE.txt
 // 한컴오피스(한글·한셀·한쇼)와 MS 오피스를 자동화로 불러 PDF·HWPX 등으로 저장한다.
 // 우리가 띄운 프로세스만 정리하고, 이미 떠 있던 프로그램(선생님이 쓰는 중)은 끄지 않는다.
 // 프로그램이 띄운 안내 창 가운데 시험에서 내용을 확인한 '호환 문서'(배치가 바뀔 수 있다는 안내)에만 Enter를 대신 누른다.

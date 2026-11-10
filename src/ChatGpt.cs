@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: GPL-3.0-only
+// Bakkum - Copyright (C) 2026 hirame.ki - additional terms under GPL-3.0 section 7 apply, see NOTICE.txt
 // ChatGPT 연결: OpenAI 'Sign in with ChatGPT'(오픈소스·자기 PC에서 도는 앱이 선생님의 ChatGPT 요금제를 쓰는 방식).
 // 선생님이 브라우저의 OpenAI 로그인 화면에서 허락하면, 이 프로그램이 그 계정의 앱으로 등록되고 요금제(Plus·Pro) 안에서 쓰는 토큰을 받는다.
 // 비밀번호는 보지 않고, 개발자 비밀 키도 없다.
