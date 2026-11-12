@@ -134,6 +134,20 @@ namespace Bakkum
         /// 사본을 만든다(오래 걸리므로 뒤 스레드에서). progress는 0~1. 멈추면 OperationCanceledException.
         public static string Make(string src, Action<double> progress, Func<bool> stop)
         {
+            try
+            {
+                return MakeOnce(src, progress, stop);
+            }
+            catch (HardwareEncoderFailed)
+            {
+                // 그래픽 인코더가 앞쪽에서 멈추면 VEncoder.CpuOnly가 켜져서 다시 할 때는 CPU 인코더로 만든다(임시 파일 이름도 새로)
+                Log.Write("미리 보기 사본: 그래픽 인코더가 멈춰서 CPU 인코더로 다시 만듦");
+                return MakeOnce(src, progress, stop);
+            }
+        }
+
+        static string MakeOnce(string src, Action<double> progress, Func<bool> stop)
+        {
             string dst = PathFor(src);
             if (File.Exists(dst) && new FileInfo(dst).Length > 1000) return Remember(src, dst);
             string tmp = Path.Combine(Folder, Path.GetFileNameWithoutExtension(dst) + "." + Guid.NewGuid().ToString("N").Substring(0, 6) + ".tmp.mp4");
