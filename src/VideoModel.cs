@@ -807,7 +807,7 @@ namespace Bakkum
             try { File.Delete(PathOf(files)); } catch { }
         }
 
-        /// 오래된 자동 저장(60일) 정리
+        /// 오래된 자동 저장(60일)과 다시 만들 수 있는 파일(사본·푼 소리·읽어 주기) 정리
         public static void Tidy()
         {
             try
@@ -838,8 +838,39 @@ namespace Bakkum
                         catch { }
                     }
                 }
+                // 푼 소리·다듬은 소리는 크고 다시 만들 수 있어서 7일 안 쓰면 지운다(쓸 때마다 날짜가 새로워진다)
+                var keep = new HashSet<string>(AudioCache.InUse().Concat(VAudioProc.InUse()), StringComparer.OrdinalIgnoreCase);
+                DeleteOld(Path.Combine(AppInfo.CacheDir, "vaudio"), 7, keep);
+                // 읽어 주기·내 목소리 녹음은 남아 있는 자동 저장이 쓰면 남긴다. 안 쓰는 읽어 주기는 30일, 녹음은 사용자 자료라 60일 뒤에 지운다.
+                foreach (var f in Directory.GetFiles(Folder, "*.json"))
+                {
+                    try
+                    {
+                        foreach (var used in VProject.FromJson(File.ReadAllText(f, Encoding.UTF8)).Files()) keep.Add(Path.GetFullPath(used));
+                    }
+                    catch { }
+                }
+                DeleteOld(Path.Combine(AppInfo.CacheDir, "voice"), 30, keep);
+                DeleteOld(Path.Combine(Folder, "voice"), 30, keep);
+                DeleteOld(Path.Combine(Folder, "rec"), 60, keep);
+                // 0.3.7까지 임시 폴더에 두던 푼 소리(시험 중에는 진짜 임시 폴더를 건드리지 않는다)
+                if (AppInfo.DataDirOverride == null) Util.TryDeleteDir(Path.Combine(Path.GetTempPath(), AppInfo.Id, "vaudio"));
             }
             catch { }
+        }
+
+        static void DeleteOld(string dir, int days, HashSet<string> keep)
+        {
+            if (!Directory.Exists(dir)) return;
+            var before = DateTime.Now.AddDays(-days);
+            foreach (var f in Directory.GetFiles(dir, "*", SearchOption.AllDirectories))
+            {
+                try
+                {
+                    if (!keep.Contains(f) && File.GetLastWriteTime(f) < before) File.Delete(f);
+                }
+                catch { }
+            }
         }
     }
 }

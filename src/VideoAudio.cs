@@ -422,6 +422,12 @@ namespace Bakkum
             }
         }
 
+        /// 이 프로그램이 지금 쓰는 다듬은 소리 파일(정리할 때 남긴다)
+        public static List<string> InUse()
+        {
+            lock (Cache) return Cache.Values.Select(p => p.File).Where(f => f != null).ToList();
+        }
+
         static string Folder
         {
             get
@@ -447,6 +453,7 @@ namespace Bakkum
                 string file = Path.Combine(Folder, name + ".pcm");
                 if (System.IO.File.Exists(file))
                 {
+                    try { System.IO.File.SetLastWriteTime(file, DateTime.Now); } catch { }
                     p.File = file;
                     p.Frames = new FileInfo(file).Length / 4;
                     p.Ready = true;
@@ -1129,11 +1136,12 @@ namespace Bakkum
             });
         }
 
+        /// 다시 만들 수 있어서 캐시 폴더에 둔다. 자동 저장한 편집이 쓰는 것은 정리에서 남긴다(VAutoSave.Tidy).
         public static string Folder
         {
             get
             {
-                string d = Path.Combine(VAutoSave.Folder, "voice");
+                string d = Path.Combine(AppInfo.CacheDir, "voice");
                 Directory.CreateDirectory(d);
                 return d;
             }
@@ -1146,7 +1154,11 @@ namespace Bakkum
             string key;
             using (var sha = SHA1.Create()) key = BitConverter.ToString(sha.ComputeHash(Encoding.UTF8.GetBytes(text + "|" + voiceId + "|" + rate.ToString("F2"))), 0, 10).Replace("-", "").ToLowerInvariant();
             string path = Path.Combine(Folder, key + ".wav");
-            if (File.Exists(path)) return path;
+            if (File.Exists(path))
+            {
+                try { File.SetLastWriteTime(path, DateTime.Now); } catch { }
+                return path;
+            }
             byte[] wav = WinRtCall.Mta(() =>
             {
                 using (var synth = new WinSpeech.SpeechSynthesizer())
@@ -1223,6 +1235,7 @@ namespace Bakkum
         public double Seconds;
         readonly ManualResetEvent started = new ManualResetEvent(false);
 
+        /// 녹음은 다시 만들 수 없는 사용자 자료라 자동 저장과 같은 곳에 둔다(정리할 때 편집이 쓰는 것은 남긴다)
         public static string Folder
         {
             get

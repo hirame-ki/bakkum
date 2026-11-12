@@ -940,6 +940,36 @@ namespace Bakkum
             VAutoSave.Tidy();
             Check("오래된 마우스 기록·쪽 그림 정리(120일)", !File.Exists(oldLog) && File.Exists(newLog) && !Directory.Exists(oldPages), "");
             File.Delete(newLog);
+
+            // 푼 소리·읽어 주기는 캐시 폴더에. 오래된 것은 지우되, 지금 쓰는 소리와 자동 저장이 쓰는 읽어 주기·녹음은 남긴다.
+            Check("푼 소리·읽어 주기는 캐시 폴더에, 녹음은 자동 저장 곳에", AudioCache.Folder.StartsWith(AppInfo.CacheDir, StringComparison.OrdinalIgnoreCase) && VTts.Folder.StartsWith(AppInfo.CacheDir, StringComparison.OrdinalIgnoreCase) && VMicRecorder.Folder.StartsWith(VAutoSave.Folder, StringComparison.OrdinalIgnoreCase), AudioCache.Folder + " · " + VTts.Folder);
+            string legacyVoice = Path.Combine(VAutoSave.Folder, "voice");
+            Directory.CreateDirectory(legacyVoice);
+            string pcmOld = Path.Combine(AudioCache.Folder, "오래됨.pcm"), pcmNew = Path.Combine(AudioCache.Folder, "최근.pcm"), procOld = Path.Combine(AudioCache.Folder, "proc", "오래됨.pcm");
+            string voiceUsed = Path.Combine(VTts.Folder, "씀.wav"), voiceOld = Path.Combine(VTts.Folder, "안씀.wav");
+            string legacyUsed = Path.Combine(legacyVoice, "옛씀.wav"), legacyOld = Path.Combine(legacyVoice, "옛안씀.wav");
+            string recUsed = Path.Combine(VMicRecorder.Folder, "내목소리_씀.wav"), recOld = Path.Combine(VMicRecorder.Folder, "내목소리_안씀.wav"), recNew = Path.Combine(VMicRecorder.Folder, "내목소리_최근.wav");
+            Directory.CreateDirectory(Path.GetDirectoryName(procOld));
+            var made = new[] { pcmOld, pcmNew, procOld, voiceUsed, voiceOld, legacyUsed, legacyOld, recUsed, recOld, recNew };
+            foreach (var f in made) File.WriteAllText(f, "x");
+            foreach (var f in new[] { pcmOld, procOld }) File.SetLastWriteTime(f, DateTime.Now.AddDays(-10));
+            foreach (var f in new[] { voiceUsed, voiceOld, legacyUsed, legacyOld }) File.SetLastWriteTime(f, DateTime.Now.AddDays(-40));
+            foreach (var f in new[] { recUsed, recOld }) File.SetLastWriteTime(f, DateTime.Now.AddDays(-90));
+            File.SetLastWriteTime(recNew, DateTime.Now.AddDays(-10));
+            var track = AudioCache.Wait(moving, null);
+            if (track.File != null) File.SetLastWriteTime(track.File, DateTime.Now.AddDays(-10));
+            var up = new VProject();
+            up.Clips.Add(new VClip { Path = moving, In = 0, Out = 1 });
+            up.Opened.Add(V("자동저장시험.mp4"));
+            foreach (var f in new[] { voiceUsed, legacyUsed }) up.Sounds.Add(new VSound { Kind = "voice", Path = f, Text = "읽어 주기" });
+            up.Sounds.Add(new VSound { Kind = "record", Path = recUsed });
+            VAutoSave.Save(up);
+            VAutoSave.Tidy();
+            bool gone = !File.Exists(pcmOld) && !File.Exists(procOld) && !File.Exists(voiceOld) && !File.Exists(legacyOld) && !File.Exists(recOld);
+            bool kept = File.Exists(pcmNew) && File.Exists(voiceUsed) && File.Exists(legacyUsed) && File.Exists(recUsed) && File.Exists(recNew) && track.File != null && File.Exists(track.File);
+            Check("오래된 푼 소리(7일)·읽어 주기(30일)·안 쓰는 녹음(60일) 정리, 쓰는 것은 남김", gone && kept, string.Join(", ", made.Where(File.Exists).Select(Path.GetFileName)));
+            VAutoSave.Forget(up.Opened);
+            foreach (var f in made) if (File.Exists(f)) File.Delete(f);
         }
 
         static void ExportChecks(string moving)
