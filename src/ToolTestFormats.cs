@@ -239,6 +239,11 @@ namespace Bakkum
             var docBack = DocxBlocks.Read(docx);
             Check("워드 읽기: 제목·굵게·표·사진", docBack.Any(b => b.Kind == BlockKind.Heading && b.Text == "워드 제목") && docBack.Any(b => b.Text.Contains("**굵은**")) && docBack.Any(b => b.Kind == BlockKind.Table && b.Rows[1][1] == "값2") && docBack.Any(b => b.Kind == BlockKind.Picture), docBack.Count + "덩어리");
             Check("워드→마크다운·HTML·글자", ReadU(Out1(RunJob("format", "md", new[] { docx }, null))).Contains("# 워드 제목") && ReadU(Out1(RunJob("format", "html", new[] { docx }, null))).Contains("data:image/") && ReadU(Out1(RunJob("format", "txt", new[] { docx }, null))).Contains("값1\t값2"), "");
+            // PDF는 마크다운·HTML·EPUB·글자 파일로 바꾸지 않는다(표가 한 줄로 뭉개짐). 같이 놓은 워드만 바꾸고 '글자 뽑기'를 알려 준다.
+            var pdfDocx = RunJob("format", "html", new[] { tablePdf, docx }, null);
+            Check("PDF+워드→HTML: 워드만 바꾸고 PDF는 글자 뽑기로 안내", pdfDocx.Outputs.Count == 1 && Path.GetFileNameWithoutExtension(pdfDocx.Outputs[0]).StartsWith("d") && pdfDocx.Notes.Any(n => n.Contains("글자 뽑기")), pdfDocx.Outputs.Count + "개 / " + string.Join(" / ", pdfDocx.Notes));
+            var pdfOnly = RunJob("format", "md", new[] { tablePdf }, null);
+            Check("PDF만 마크다운으로: 만들지 않고 까닭을 알린다", pdfOnly.Outputs.Count == 0 && pdfOnly.Problems.Any(x => x.Contains("글자 뽑기")), string.Join(" / ", pdfOnly.Problems));
             if (!MsWord.Installed)
             {
                 var nw = RunJob("pdf", "go", new[] { docx }, null);
@@ -258,7 +263,10 @@ namespace Bakkum
             string tsvText = ReadU(tsv);
             Check("CSV→TSV", tsvText.Contains("번호\t이름\t값") && tsvText.Contains("1\t쉼표, 있음\t12.5"), tsvText.Replace("\r\n", " / "));
             Check("TSV→CSV·ODS", ReadU(Out1(RunJob("format", "csv", new[] { tsv }, null))).Contains("\"쉼표, 있음\"") && Out1(RunJob("format", "ods", new[] { tsv }, null)) != "", "");
-            Check("표→글자 파일: 탭으로", ReadU(Out1(RunJob("format", "txt", new[] { csv }, null))).Contains("1\t쉼표, 있음\t12.5"), "");
+            // 표만 골랐을 땐 '글자 파일'이 고를 거리에 없다(TSV와 똑같다). 문서와 섞어 고른 묶음에서 '글자 파일'을 고르면 표도 탭으로 나눈 글자가 된다.
+            var mixTxt = RunJob("format", "txt", new[] { docx, csv }, null);
+            string csvTxt = mixTxt.Outputs.FirstOrDefault(o => Path.GetFileNameWithoutExtension(o).StartsWith("t")) ?? "";
+            Check("문서와 섞어 고른 표→글자 파일: 탭으로", mixTxt.Outputs.Count == 2 && ReadU(csvTxt).Contains("1\t쉼표, 있음\t12.5"), mixTxt.Outputs.Count + "개");
             // 빈 칸·빈 줄을 '여러 번 되풀이'로 적은 ODS(프로그램이 만드는 흔한 모양)
             string craft = F2("craft.ods");
             RawZip(craft, new RawEntry("mimetype") { Data = Ascii8("application/vnd.oasis.opendocument.spreadsheet") }, new RawEntry("content.xml") { Data = new UTF8Encoding(false).GetBytes("<?xml version=\"1.0\" encoding=\"UTF-8\"?><office:document-content xmlns:office=\"urn:oasis:names:tc:opendocument:xmlns:office:1.0\" xmlns:table=\"urn:oasis:names:tc:opendocument:xmlns:table:1.0\" xmlns:text=\"urn:oasis:names:tc:opendocument:xmlns:text:1.0\"><office:body><office:spreadsheet><table:table table:name=\"첫 시트\"><table:table-row><table:table-cell office:value-type=\"string\" table:number-columns-repeated=\"3\"><text:p>같은값</text:p></table:table-cell><table:table-cell table:number-columns-repeated=\"1000\"/></table:table-row><table:table-row table:number-rows-repeated=\"2\"><table:table-cell/></table:table-row><table:table-row><table:table-cell office:value-type=\"float\" office:value=\"3.5\"><text:p>3,5</text:p></table:table-cell><table:table-cell office:value-type=\"date\" office:date-value=\"2026-03-02\"><text:p>3월 2일</text:p></table:table-cell><table:table-cell office:value-type=\"string\"><text:p>가<text:s text:c=\"2\"/>나</text:p></table:table-cell></table:table-row><table:table-row table:number-rows-repeated=\"1048570\"><table:table-cell table:number-columns-repeated=\"1024\"/></table:table-row></table:table></office:spreadsheet></office:body></office:document-content>") });
@@ -466,11 +474,23 @@ namespace Bakkum
                 return string.Join(",", ActionOf("format").OptionsFor(new[] { F2(name) }).Select(o => o.Id));
             };
             Check("형식 칸: 전자책", opts("a.epub") == "docx,md,html,txt", opts("a.epub"));
-            Check("형식 칸: PDF", opts("a.pdf") == "docx,xlsx,pptx,pptximg,md,html,epub", opts("a.pdf"));
+            // 의미 없는 변환은 고를 거리에 없다(2026-11-13): PDF → 마크다운·HTML·EPUB(글자만 남고 표가 뭉개짐),
+            // 표 → 글자 파일(TSV와 똑같은 파일), TSV → 글자 파일(이름만 바뀜), 글자 파일 → 마크다운·HTML(글자 그대로·문단 틀만).
+            Check("형식 칸: PDF", opts("a.pdf") == "docx,xlsx,pptx,pptximg", opts("a.pdf"));
             Check("형식 칸: 워드", opts("a.docx") == "pptx,md,html,epub,txt", opts("a.docx"));
-            Check("형식 칸: 표", opts("a.csv") == "xlsx,tsv,ods,txt" && opts("a.xlsx") == "csv,tsv,ods,txt" && opts("a.ods") == "xlsx,csv,tsv,txt" && opts("a.tsv") == "xlsx,csv,ods,txt", opts("a.ods"));
+            Check("형식 칸: 표", opts("a.csv") == "xlsx,tsv,ods" && opts("a.xlsx") == "csv,tsv,ods" && opts("a.ods") == "xlsx,csv,tsv" && opts("a.tsv") == "xlsx,csv,ods", opts("a.csv") + " / " + opts("a.xlsx") + " / " + opts("a.ods") + " / " + opts("a.tsv"));
             Check("형식 칸: 자막", opts("a.srt") == "vtt,txt" && opts("a.vtt") == "srt,txt", opts("a.srt"));
-            Check("형식 칸: 글자·마크다운·HTML", opts("a.txt") == "docx,md,html,epub" && opts("a.md") == "docx,html,epub,txt" && opts("a.html") == "docx,md,epub,txt", opts("a.txt"));
+            Check("형식 칸: 글자·마크다운·HTML", opts("a.txt") == "docx,epub" && opts("a.md") == "docx,html,epub,txt" && opts("a.html") == "docx,md,epub,txt", opts("a.txt"));
+            // 일부만 옮겨지는 변환은 고를 때 작은 줄로 미리 알린다
+            Func<string[], string, string> sub = delegate (string[] names, string id)
+            {
+                var o = ActionOf("format").OptionsFor(names.Select(F2).ToList()).FirstOrDefault(x => x.Id == id);
+                return o == null ? "(없음)" : o.Sub;
+            };
+            Check("형식 칸 작은 줄: 마크다운은 사진이 빠진다고", sub(new[] { "a.docx" }, "md") == "사진은 빠져요" && sub(new[] { "a.hwp" }, "md") == "사진은 빠져요" && sub(new[] { "a.html" }, "md") == "사진은 빠져요", sub(new[] { "a.docx" }, "md"));
+            Check("형식 칸 작은 줄: 시트가 여럿일 수 있으면 첫 시트만", sub(new[] { "a.xlsx" }, "csv") == "첫 시트만" && sub(new[] { "a.ods" }, "tsv") == "첫 시트만" && sub(new[] { "a.xls" }, "csv") == "첫 시트만" && sub(new[] { "a.cell" }, "tsv") == "첫 시트만" && sub(new[] { "a.tsv", "b.xlsx" }, "csv") == "첫 시트만", sub(new[] { "a.xlsx" }, "csv") + " / " + sub(new[] { "a.tsv", "b.xlsx" }, "csv"));
+            Check("형식 칸 작은 줄: 시트가 하나뿐인 CSV·TSV는 그대로", sub(new[] { "a.csv" }, "tsv") == "탭으로 나눈 표" && sub(new[] { "a.tsv" }, "csv") == "쉼표로 나눈 표", sub(new[] { "a.csv" }, "tsv"));
+            Check("형식 칸: PDF와 워드를 같이 놓으면 워드 몫은 남는다", ActionOf("format").OptionsFor(new[] { F2("a.pdf"), F2("b.docx") }).Any(o => o.Id == "html"), "");
             Func<string[], string> packs = delegate (string[] names)
             {
                 return string.Join(",", ActionOf("archive").OptionsFor(names.Select(F2).ToList()).Select(o => o.Id));

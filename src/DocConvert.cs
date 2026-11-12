@@ -640,16 +640,20 @@ namespace Bakkum
             string e = Formats.Ext(f);
             if (e == "." + target || (target == "html" && e == ".htm") || (target == "md" && e == ".markdown")) return false;
             if (IsCue(f) || IsTable(f)) return target == "txt";
+            // PDF는 바꾸지 않는다(WebText가 따로 알린다).
             switch (Formats.KindOf(f))
             {
                 case Kind.Text:
-                case Kind.Pdf:
                 case Kind.Hwp:
                 case Kind.Word:
                     return true;
             }
             return false;
         }
+
+        /// PDF를 마크다운·HTML·EPUB·글자 파일로 바꾸면 글자만 남고, 표는 칸이 한 줄로 이어 붙어 읽을 수 없게 된다
+        /// (2026-11-13 시험: 3줄 표가 "번호 이름 점수 1 가나다 90 …" 한 문단). 그래서 형식 바꾸기에서는 PDF를 이 형식들로 바꾸지 않는다.
+        internal const string PdfToTextNote = "PDF는 이 형식으로 바꾸면 표와 그림이 사라지고 글자만 남아서 바꾸지 않았어요. 글자가 필요하면 '글자 뽑기'를 써 주세요.";
 
         static string CuesToPlain(string text)
         {
@@ -675,41 +679,13 @@ namespace Bakkum
             return sb.ToString();
         }
 
-        /// PDF는 눈에 보이는 줄마다 끊겨 있다. 줄이 폭을 거의 채웠고 문장이 끝나지 않았으면 다음 줄과 이어진 글로 본다.
-        static List<DocBlock> JoinPdfLines(List<DocBlock> blocks)
-        {
-            var result = new List<DocBlock>();
-            int start = 0;
-            while (start < blocks.Count)
-            {
-                int end = start;
-                while (end < blocks.Count && blocks[end].Kind != BlockKind.PageBreak) end++;
-                int longest = 0;
-                for (int i = start; i < end; i++) longest = Math.Max(longest, blocks[i].Text.Length);
-                DocBlock prev = null;
-                for (int i = start; i < end; i++)
-                {
-                    var b = blocks[i];
-                    string t = (b.Text ?? "").Trim();
-                    bool marker = Regex.IsMatch(t, @"^([-•·※○●□■▶◆]|\d{1,3}[.)]|[①-⑳]|[가-힣][.)]\s)");
-                    if (prev == null && result.Count > 0 && i == start) prev = result[result.Count - 1];
-                    if (prev != null && !marker && prev.Text.Length >= longest * 0.85 && !Regex.IsMatch(prev.Text, @"[.!?。…:;)\]」』”]$"))
-                    {
-                        prev.Text += " " + t;
-                        continue;
-                    }
-                    var copy = DocBlock.Para(t);
-                    result.Add(copy);
-                    prev = copy;
-                }
-                start = end + 1;
-            }
-            return result;
-        }
-
         static void WebText(Job job, List<string> files, string target)
         {
-            var list = Only(job, files, f => CanBecomeText(f, target));
+            var pdfs = files.Where(f => Formats.KindOf(f) == Kind.Pdf).ToList();
+            var rest = files.Where(f => Formats.KindOf(f) != Kind.Pdf).ToList();
+            if (pdfs.Count > 0 && rest.Count == 0) throw new UserFacingException(PdfToTextNote);
+            if (pdfs.Count > 0) job.Note((pdfs.Count == 1 ? Util.ShortName(pdfs[0]) : "PDF " + pdfs.Count + "개") + ": " + PdfToTextNote);
+            var list = Only(job, rest, f => CanBecomeText(f, target));
             var plain = new UTF8Encoding(target == "txt");
             Conversions.EachFile(job, list, "바꾸는 중", delegate (string f)
             {
@@ -732,7 +708,6 @@ namespace Bakkum
                     return;
                 }
                 var blocks = BlocksOf(job, f);
-                if (Formats.KindOf(f) == Kind.Pdf) blocks = JoinPdfLines(blocks);
                 if (!blocks.Any(b => b.Kind != BlockKind.PageBreak)) throw new UserFacingException("옮길 글자를 찾지 못했어요.");
                 if (target == "epub") Conversions.Produce(job, dst, delegate (string d) { Epub.Write(d, blocks, stem); });
                 else
@@ -741,7 +716,6 @@ namespace Bakkum
                     Conversions.Produce(job, dst, delegate (string d) { File.WriteAllText(d, o, plain); });
                     if (target != "html" && blocks.Any(b => b.Kind == BlockKind.Picture)) job.Note(Util.ShortName(f) + ": 이 형식에는 사진을 넣을 수 없어 뺐어요.");
                 }
-                if (Formats.KindOf(f) == Kind.Pdf) job.Note(Util.ShortName(f) + ": PDF에서는 글자만 옮겼어요. 표와 그림은 옮기지 못해요.");
             });
         }
 

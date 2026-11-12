@@ -368,9 +368,10 @@ namespace Bakkum
             return new ActionOption("docx", "워드로", "");
         }
 
+        /// 마크다운에는 사진을 넣을 수 없어 빠진다. 고를 때 미리 보이게 작은 줄에 적는다.
         static ActionOption ToMd()
         {
-            return new ActionOption("md", "마크다운", "글자와 표");
+            return new ActionOption("md", "마크다운", "사진은 빠져요");
         }
 
         static ActionOption ToHtml()
@@ -438,7 +439,9 @@ namespace Bakkum
             }
             if (Any(usable, Kind.Hwp, Kind.Word)) AddOnce(opts, new ActionOption("pptx", "PPT로", "글자 고칠 수 있게"));
             if (usable.Any(f => Formats.Ext(f) == ".odt")) AddOnce(opts, ToWord());
-            if (Any(usable, Kind.Pdf, Kind.Hwp, Kind.Word))
+            // PDF는 넣지 않는다. 마크다운·HTML·EPUB로 바꾸면 글자만 남고 표가 한 줄로 뭉개진다(2026-11-13 시험).
+            // PDF의 글자가 필요하면 '글자 뽑기' 칸을 쓴다.
+            if (Any(usable, Kind.Hwp, Kind.Word))
             {
                 AddOnce(opts, ToMd());
                 AddOnce(opts, ToHtml());
@@ -458,10 +461,10 @@ namespace Bakkum
                         AddOnce(opts, ToTxt());
                         break;
                     case ".tsv":
+                        // 글자 파일은 넣지 않는다. TSV를 글자 파일로 바꾸면 내용은 그대로이고 이름만 바뀐다.
                         AddOnce(opts, ToXlsxOpt());
                         AddOnce(opts, ToCsvOpt());
                         AddOnce(opts, ToOdsOpt());
-                        AddOnce(opts, ToTxt());
                         break;
                     case ".html":
                     case ".htm":
@@ -484,13 +487,13 @@ namespace Bakkum
                         AddOnce(opts, ToTxt());
                         break;
                     default:
+                        // 글자 파일(.txt): 마크다운은 글자가 그대로이고, HTML은 문단마다 웹 문서 틀만 씌워 넣지 않는다.
                         AddOnce(opts, ToWord());
-                        AddOnce(opts, ToMd());
-                        AddOnce(opts, ToHtml());
                         AddOnce(opts, ToBook());
                         break;
                 }
             }
+            // 표 → 글자 파일은 넣지 않는다. TSV로 바꾼 파일과 바이트까지 똑같다(2026-11-13 시험).
             foreach (var f in usable.Where(x => Formats.KindOf(x) == Kind.Excel))
             {
                 string e = Formats.Ext(f);
@@ -498,8 +501,18 @@ namespace Bakkum
                 if (e != ".csv") AddOnce(opts, ToCsvOpt());
                 AddOnce(opts, ToTsvOpt());
                 if (e != ".ods") AddOnce(opts, ToOdsOpt());
-                AddOnce(opts, ToTxt());
             }
+            // 시트가 여럿일 수 있는 파일은 CSV·TSV에 첫 시트만 들어간다. 바꾼 뒤가 아니라 고를 때 알린다.
+            if (usable.Any(IsWorkbook))
+            {
+                foreach (var o in opts.Where(x => x.Id == "csv" || x.Id == "tsv")) o.Sub = "첫 시트만";
+            }
+        }
+
+        /// 시트가 여럿일 수 있는 표 파일: CSV를 뺀 엑셀 갈래 모두(.xlsx·.xlsm·.xls·.cell·.ods)
+        static bool IsWorkbook(string f)
+        {
+            return Formats.KindOf(f) == Kind.Excel && Formats.Ext(f) != ".csv";
         }
 
         static void AiOptions(List<string> usable, List<ActionOption> opts)
