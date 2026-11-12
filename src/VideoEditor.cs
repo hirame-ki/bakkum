@@ -85,8 +85,10 @@ namespace Bakkum
             project = p;
             Title = "영상 편집 · " + AppInfo.Name;
             var wa = SystemParameters.WorkArea;
-            MinWidth = 1060;
-            MinHeight = 700;
+            // 작은 화면(예: 1366×768에 125%, 1920×1080에 150%)에서는 작업 영역이 700보다 낮다.
+            // 가장 작은 크기를 작업 영역에 맞춰야 아래 [내보내기]가 작업 표시줄 뒤로 숨지 않는다.
+            MinWidth = Math.Min(1060, wa.Width);
+            MinHeight = Math.Min(700, wa.Height);
             Width = Math.Max(MinWidth, Math.Min(1480, wa.Width * 0.96));
             Height = Math.Max(MinHeight, Math.Min(930, wa.Height * 0.95));
             WindowStartupLocation = WindowStartupLocation.CenterScreen;
@@ -94,6 +96,7 @@ namespace Bakkum
             try { Icon = App.WindowIcon; } catch { }
             preview = new VPreview();
             Content = BuildRoot();
+            SizeChanged += delegate { FitTimelineRow(); };
             AllowDrop = true;
             Drop += OnDrop;
             autosaveTimer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(2) };
@@ -397,7 +400,8 @@ namespace Bakkum
             var root = new Grid { Margin = new Thickness(14, 12, 14, 12) };
             root.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
             root.RowDefinitions.Add(new RowDefinition { Height = new GridLength(1, GridUnitType.Star) });
-            root.RowDefinitions.Add(new RowDefinition { Height = new GridLength(250) });
+            timelineRow = new RowDefinition { Height = new GridLength(250) };
+            root.RowDefinitions.Add(timelineRow);
             root.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
             // 왼쪽 칸 메뉴는 시간 막대 옆까지 길게 둔다. 칸이 아홉 개라 화면 위쪽에만 두면
             // 보통 노트북(창 높이 700~780)에서 가리기·선생님 도구·내보내기가 아래로 숨었다(2026-11-12 그림 확인).
@@ -446,6 +450,17 @@ namespace Bakkum
             Grid.SetColumnSpan(foot, 2);
             root.Children.Add(foot);
             return root;
+        }
+
+        RowDefinition timelineRow;
+
+        /// 창 높이가 700보다 낮으면(작은 노트북) 화면(영상)이 너무 작아지지 않게 시간 막대를 250에서 200까지 줄인다.
+        /// 200 아래로는 줄이지 않는다: 더 줄이면 시간 막대 칸이 눌려 글자까지 작아진다.
+        void FitTimelineRow()
+        {
+            if (timelineRow == null || ActualHeight <= 0) return;
+            double h = Math.Max(200, Math.Min(250, 250 - (700 - ActualHeight)));
+            if (Math.Abs(timelineRow.Height.Value - h) > 0.5) timelineRow.Height = new GridLength(h);
         }
 
         FrameworkElement BuildHead()
@@ -1555,7 +1570,7 @@ namespace Bakkum
             };
             foreach (var z in zones) dc.DrawRectangle(fill, pen, z);
             var t = new FormattedText("앱 단추·글에 가려지는 곳", System.Globalization.CultureInfo.GetCultureInfo("ko-KR"), FlowDirection.LeftToRight,
-                new Typeface(Theme.Font, FontStyles.Normal, FontWeights.Bold, FontStretches.Normal), Math.Max(10, Math.Min(13, W / 30)), Theme.Frozen(Theme.Hex(0x7A2214)), 1.0);
+                new Typeface(Theme.Font, FontStyles.Normal, FontWeights.Bold, FontStretches.Normal), Math.Max(12, Math.Min(14, W / 30)), Theme.Frozen(Theme.Hex(0x7A2214)), 1.0);
             dc.DrawText(t, new Point(8, Hh * 0.78 + 6));
         }
 
@@ -1608,7 +1623,7 @@ namespace Bakkum
                 if (rd.Face)
                 {
                     var label = new FormattedText(rd.Off ? "보이게 둠" : "얼굴", System.Globalization.CultureInfo.GetCultureInfo("ko-KR"), FlowDirection.LeftToRight,
-                        new Typeface(Theme.Font, FontStyles.Normal, FontWeights.Bold, FontStretches.Normal), 11, rd.Off ? Theme.Ink2 : Theme.Ink, 1.0);
+                        new Typeface(Theme.Font, FontStyles.Normal, FontWeights.Bold, FontStretches.Normal), 12, rd.Off ? Theme.Ink2 : Theme.Ink, 1.0);
                     var at = new Point(Math.Min(pts.Min(p => p.X), W - label.Width - 8), Math.Max(0, pts.Min(p => p.Y) - label.Height - 4));
                     dc.DrawRoundedRectangle(rd.Off ? Theme.Frozen(Theme.Hex(0xEEF0F4)) : H.VividBrush, null, new Rect(at.X - 4, at.Y - 1, label.Width + 8, label.Height + 2), 6, 6);
                     dc.DrawText(label, at);

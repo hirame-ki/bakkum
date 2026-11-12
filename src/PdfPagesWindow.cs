@@ -90,8 +90,9 @@ namespace Bakkum
             this.preview = preview;
             Title = "쪽 편집 · " + AppInfo.Name;
             var wa = SystemParameters.WorkArea;
-            MinWidth = 760;
-            MinHeight = 560;
+            // 작은 화면에서도 창이 화면 밖으로 나가지 않게 가장 작은 크기를 작업 영역에 맞춘다
+            MinWidth = Math.Min(760, wa.Width);
+            MinHeight = Math.Min(560, wa.Height);
             Width = Math.Max(MinWidth, Math.Min(1120, wa.Width * 0.92));
             Height = Math.Max(MinHeight, Math.Min(780, wa.Height * 0.92));
             WindowStartupLocation = WindowStartupLocation.CenterScreen;

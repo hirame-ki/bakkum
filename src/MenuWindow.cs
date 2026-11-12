@@ -581,13 +581,14 @@ namespace Bakkum
         /// 그림 동그라미 귀퉁이의 숫자 단추(숫자 키로 고를 수 있다는 표시)
         static FrameworkElement MakeBadge(MenuCell c)
         {
-            var g = new Grid { Width = 19, Height = 19, IsHitTestVisible = false };
+            // 숫자가 작은 화면에서도 읽히게 12(동그라미 21, 예전 10.5·19). 2026-11-13 사용자 요청 "너무 작게 나오는 글자가 없게".
+            var g = new Grid { Width = 21, Height = 21, IsHitTestVisible = false };
             g.Children.Add(new Ellipse { Fill = c.BadgeBrush, Stroke = Brushes.White, StrokeThickness = 1.6 });
             g.Children.Add(new TextBlock
             {
                 Text = c.Number.ToString(),
                 FontFamily = Theme.Font,
-                FontSize = 10.5,
+                FontSize = 12,
                 FontWeight = FontWeights.Bold,
                 Foreground = c.BadgeTextBrush,
                 HorizontalAlignment = HorizontalAlignment.Center,
@@ -635,7 +636,7 @@ namespace Bakkum
                 {
                     Text = sub,
                     FontFamily = Theme.Font,
-                    FontSize = 11.5,
+                    FontSize = 12,
                     Foreground = c.SubBrush,
                     TextAlignment = align,
                     TextTrimming = TextTrimming.CharacterEllipsis,

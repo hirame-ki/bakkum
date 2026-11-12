@@ -149,10 +149,12 @@ namespace Bakkum
             moves.Children.Add(zoom);
             moves.Children.Add(pan);
             Title = "전후 비교 · " + AppInfo.Name;
-            Width = 980;
-            Height = 700;
-            MinWidth = 640;
-            MinHeight = 420;
+            // 작은 화면(작업 영역이 700보다 낮음)에서도 창이 화면 밖으로 나가지 않게
+            var wa = SystemParameters.WorkArea;
+            Width = Math.Min(980, wa.Width);
+            Height = Math.Min(700, wa.Height);
+            MinWidth = Math.Min(640, wa.Width);
+            MinHeight = Math.Min(420, wa.Height);
             WindowStartupLocation = WindowStartupLocation.CenterScreen;
             Theme.Polish(this);
             try { Icon = App.WindowIcon; } catch { }
