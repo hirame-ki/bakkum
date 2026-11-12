@@ -28,7 +28,7 @@ namespace Bakkum
             return MakeLongGop(path, seconds, ProxyFps, out taken);
         }
 
-        static bool MakeLongGop(string path, double seconds, double fps, out bool taken)
+        static bool MakeLongGop(string path, double seconds, double fps, out bool taken, bool cpu = false)
         {
             const int W = 1920, H = 1080;
             if (File.Exists(path)) File.Delete(path);
@@ -42,7 +42,7 @@ namespace Bakkum
                     bg[o + 3] = 255;
                 }
             }
-            var enc = new VEncoder(path, W, H, fps, 6000000, 0, null, 0, seconds, () => false) { KeyEvery = 300 };
+            var enc = new VEncoder(path, W, H, fps, 6000000, 0, null, 0, seconds, () => false) { KeyEvery = 300, NoHardware = cpu };
             enc.Start();
             var buffers = new Queue<byte[]>();
             int n = (int)Math.Round(seconds * fps);
@@ -225,6 +225,17 @@ namespace Bakkum
             string srcKeys = Spacing(KeyFrames(src), out kmin, out kmax);
             Check("사본 시험: 통째 그림이 드문 1080p 원본", ps != null && ps.Width == 1920 && Near(ps.Seconds, seconds, 0.2), Say(ps) + " · 만드는 데 " + made.ToString("0.0") + "초 · " + (hw ? "하드웨어" : "소프트웨어") + " 인코더");
             Check("인코더가 통째 그림 간격(300장)을 지킨다", kmin == 300 && kmax == 300, srcKeys + (taken ? " · 설정 받음" : " · 설정 안 받음"));
+            if (!heavy)
+            {
+                // 그래픽 인코더가 없는 PC: CPU 인코더도 형식을 정한 뒤 넣은 간격은 받았다고만 하고 무시했다(11-12)
+                string cpuSrc = P("proxy_cpu.mp4");
+                bool cpuTaken;
+                MakeLongGop(cpuSrc, seconds, ProxyFps, out cpuTaken, true);
+                int cmin, cmax;
+                string cpuKeys = Spacing(KeyFrames(cpuSrc), out cmin, out cmax);
+                Check("CPU 인코더도 통째 그림 간격(300장)을 지킨다", cmin == 300 && cmax == 300, cpuKeys);
+                File.Delete(cpuSrc);
+            }
             if (ps == null) return;
             string old = VProxy.PathFor(src);
             if (File.Exists(old)) File.Delete(old);

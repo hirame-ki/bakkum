@@ -684,7 +684,6 @@ namespace Bakkum
         /// 시험용: CPU 인코더만 쓴다(그래픽 인코더가 없는 PC 흉내).
         public bool NoHardware;
         static readonly Guid MaxKeyframeSpacing = new Guid("c16eb52b-73a1-476f-8d62-839d6a020652");
-        static readonly Guid GopSize = new Guid("95f31b26-95a4-41aa-9303-246a7fc6eef1");
 
         public VEncoder(string path, int w, int h, double fps, uint videoBps, uint audioBytes, VProject soundOf, double from, double to, Func<bool> stop)
         {
@@ -761,9 +760,10 @@ namespace Bakkum
                 input.SetGUID(Mf.Subtype, Mf.Rgb32);
                 Describe(input);
                 input.SetUINT32(Mf.Stride, (uint)(W * 4));
-                Mf.SetVideoInput(w, video, input, Codec == Mf.H264);
-                // 미디어 형식의 간격 값은 하드웨어 인코더가 무시해서(11-12 실측) 인코더에 직접 넣는다
-                if (KeyEvery > 0) KeyEveryTaken = Mf.SetCodecValue(w, video, GopSize, KeyEvery);
+                Mf.SetVideoInput(w, video, input, Codec == Mf.H264, KeyEvery);
+                // 미디어 형식의 간격 값은 하드웨어 인코더가 무시해서(11-12 실측) 인코더에 직접 넣는다.
+                // 형식과 함께 넘긴 값은 NVIDIA·CPU 인코더가, 지금 넣는 값은 인텔 그래픽 인코더가 지켰다(11-12). 둘 다 한다.
+                if (KeyEvery > 0) KeyEveryTaken = Mf.SetCodecValue(w, video, Mf.GopSize, KeyEvery);
                 if (soundOf != null)
                 {
                     at = Mf.MediaType();

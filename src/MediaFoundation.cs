@@ -263,29 +263,34 @@ namespace Bakkum
 
         static readonly Guid CodecApiId = new Guid("901db4c7-31ce-41a2-85dc-8fa0bf41b8da");
         static readonly Guid BPictureCount = new Guid("8d390aac-dc5c-4200-b57f-814d04babab2");
+        /// 통째 그림(키프레임) 간격(CODECAPI_AVEncMPVGOPSize)
+        public static readonly Guid GopSize = new Guid("95f31b26-95a4-41aa-9303-246a7fc6eef1");
 
         /// 영상 줄의 입력 형식을 정한다. H.264면 B프레임(앞뒤 장을 보고 만드는 장)을 끈다: CPU 인코더는 B프레임을 쓰면
         /// MP4 장 시각표(ctts)에 음수를 '판 0'으로 적거나(규격 밖이라 오래된 재생기에서 장 순서가 엉킬 수 있다)
         /// 들쭉날쭉한 시각을 받으면 화면 전체를 한 장(33ms) 늦게 적는다(2026-11-12 실측). 이 PC의 그래픽 인코더는 원래 B프레임이 없다.
         /// 형식을 정한 뒤에는 CPU 인코더가 이 값을 받지 않아서 형식을 정할 때 같이 넘긴다. 받지 않는 인코더면 설정 없이 다시 한다.
-        public static void SetVideoInput(IMFSinkWriter w, uint stream, IMFMediaType input, bool h264)
+        /// keyEvery(통째 그림 간격)도 같은 까닭으로 같이 넘긴다. NVIDIA 그래픽 인코더와 CPU 인코더는 형식을 정한 뒤에 넣은 간격을
+        /// '받았다'고만 하고 지키지 않았다(2026-11-12 RTX 5060 Ti 실측: 300을 넣어도 30장마다, 다시 읽어도 30).
+        public static void SetVideoInput(IMFSinkWriter w, uint stream, IMFMediaType input, bool h264, uint keyEvery = 0)
         {
-            if (!h264)
+            if (!h264 && keyEvery == 0)
             {
                 w.SetInputMediaType(stream, input, null);
                 return;
             }
-            IMFAttributes p = Attributes(1);
+            IMFAttributes p = Attributes(2);
             try
             {
-                p.SetUINT32(BPictureCount, 0);
+                if (h264) p.SetUINT32(BPictureCount, 0);
+                if (keyEvery > 0) p.SetUINT32(GopSize, keyEvery);
                 try
                 {
                     w.SetInputMediaType(stream, input, p);
                 }
                 catch (Exception ex)
                 {
-                    Log.Write("인코더가 B프레임 끄기를 받지 않음 " + ex.GetType().Name + " 0x" + ex.HResult.ToString("X8"));
+                    Log.Write("인코더가 B프레임 끄기·통째 그림 간격을 받지 않음 " + ex.GetType().Name + " 0x" + ex.HResult.ToString("X8"));
                     w.SetInputMediaType(stream, input, null);
                 }
             }
