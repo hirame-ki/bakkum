@@ -613,6 +613,11 @@ namespace Bakkum
         string failure, note;
         long framesWritten, framesDropped;
         bool ticking;
+        bool hardware;
+        /// 그래픽 인코더가 녹화 도중 멈춘 적이 있으면 바꿈을 끌 때까지 CPU 인코더로만 녹화한다(찍은 화면은 다시 만들 수 없어서 다음 녹화부터)
+        internal static bool CpuOnly;
+        /// 시험용: 그래픽 인코더가 이 장 수를 쓴 뒤 멈춘 것처럼 한다. -1이면 끔.
+        internal static int FailHardwareAt = -1;
 
         /// 녹화를 더 잇지 못하게 됐을 때(다른 스레드에서 부른다)
         public Action Died;
@@ -641,6 +646,7 @@ namespace Bakkum
         public string Failure { get { return failure; } }
         public string Note { get { return note; } }
         public long FramesWritten { get { return Interlocked.Read(ref framesWritten); } }
+        public bool Hardware { get { return hardware; } }
         public long FramesDropped { get { return Interlocked.Read(ref framesDropped); } }
         public bool Paused { get { return !clock.Running; } }
         public double Seconds { get { return clock.Now() / 1e7; } }
@@ -652,7 +658,8 @@ namespace Bakkum
             {
                 try
                 {
-                    sink = Open(true);
+                    sink = Open(!CpuOnly);
+                    hardware = !CpuOnly;
                 }
                 catch (Exception ex)
                 {
@@ -1084,8 +1091,10 @@ namespace Bakkum
                 catch (Exception ex)
                 {
                     broken = true;
-                    Log.Write("녹화 저장 실패: " + ex.GetType().Name + " 0x" + ex.HResult.ToString("X8"));
-                    Fail(ex.HResult == unchecked((int)0x80070070) ? "디스크 공간이 모자라 저장하지 못했어요." : "영상을 저장하지 못했어요.");
+                    Log.Write("녹화 저장 실패: " + ex.GetType().Name + " 0x" + ex.HResult.ToString("X8") + (hardware ? " (그래픽 인코더)" : ""));
+                    bool disk = ex.HResult == unchecked((int)0x80070070);
+                    if (hardware && !disk) CpuOnly = true;
+                    Fail(disk ? "디스크 공간이 모자라 저장하지 못했어요." : hardware ? "그래픽 인코더가 멈춰서 녹화를 저장하지 못했어요. 다시 녹화하면 그래픽 인코더 없이 녹화해요." : "영상을 저장하지 못했어요.");
                 }
                 finally
                 {
@@ -1119,6 +1128,7 @@ namespace Bakkum
             IMFSample sample = Mf.Sample(it.Buffer, it.Time, it.Duration);
             try
             {
+                if (hardware && !it.Audio && FailHardwareAt >= 0 && FramesWritten >= FailHardwareAt) throw new COMException("시험: 그래픽 인코더가 멈춤", unchecked((int)0x80004005));
                 sink.WriteSample(it.Audio ? audioStream : videoStream, sample);
                 if (!it.Audio) Interlocked.Increment(ref framesWritten);
             }

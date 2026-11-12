@@ -998,6 +998,26 @@ namespace Bakkum
             var pr = Probe(plan.Output);
             Check("내보내기: 고른 구간만(1~3초)", pr != null && Near(pr.Seconds, 2, 0.15) && pr.Width == 640 && Near(plan.From, 1, 1e-9), Say(pr) + " " + string.Join(" / ", j.Problems));
 
+            // 그래픽 인코더가 쓰는 도중 멈추면: 앞쪽(4번째 장)이면 CPU 인코더로 처음부터 다시, 뒤쪽(101번째 장)이면 멈추고 만들던 파일을 지운다
+            var gp = new VProject { Aspect = "16:9", SourceW = 640, SourceH = 360 };
+            gp.Clips.Add(new VClip { Path = moving, In = 0, Out = 5 });
+            string early = V("그래픽 앞쪽 멈춤.mp4"), late = V("그래픽 뒤쪽 멈춤.mp4");
+            Job ej, lj2;
+            try
+            {
+                VEncoder.FailHardwareAt = 3;
+                ej = ExportNow(gp, PlanFor(early, 640, 360, 0, 5), null);
+                VEncoder.FailHardwareAt = 100;
+                lj2 = ExportNow(gp, PlanFor(late, 640, 360, 0, 5), null);
+            }
+            finally
+            {
+                VEncoder.FailHardwareAt = -1;
+            }
+            var epr = Probe(early);
+            Check("내보내기: 그래픽 인코더가 앞쪽에서 멈추면 CPU 인코더로 처음부터 다시 만든다", ej.Problems.Count == 0 && epr != null && epr.HasVideo && epr.HasAudio && Near(epr.Seconds, 5, 0.15) && ej.Notes.Any(x => x.Contains("그래픽 인코더 없이")), Say(epr) + " " + string.Join(" / ", ej.Problems.Concat(ej.Notes)));
+            Check("내보내기: 뒤쪽에서 멈추면 다시 하지 않고 알리며 만들던 파일을 지운다", lj2.Problems.Any(x => x.Contains("저장하지 못했어요")) && !File.Exists(late) && lj2.Outputs.Count == 0, string.Join(" / ", lj2.Problems));
+
             // 소리만
             foreach (var fmt in new[] { "m4a", "wav" })
             {

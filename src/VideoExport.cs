@@ -392,11 +392,26 @@ namespace Bakkum
 
         static void Video(Job job, VProject p, VExportPlan plan)
         {
+            try
+            {
+                Video(job, p, plan, false);
+            }
+            catch (HardwareEncoderFailed)
+            {
+                // 그래픽 인코더가 앞쪽 몇 장에서 멈추면(드라이버·그래픽 메모리·동시 사용 한도) 만들던 파일은 지워졌다. CPU 인코더로 처음부터 다시 만든다.
+                Log.Write("영상 편집 내보내기: 그래픽 인코더가 멈춰서 CPU 인코더로 다시 만듦");
+                Video(job, p, plan, true);
+            }
+        }
+
+        static void Video(Job job, VProject p, VExportPlan plan, bool cpu)
+        {
             int W = plan.W, H = plan.H;
             double fps = plan.Fps;
             int frames = Math.Max(1, (int)Math.Ceiling(plan.Seconds * fps - 1e-6));
             bool sound = HasSound(p);
             var started = DateTime.Now;
+            string doing = cpu ? "CPU로 다시 만드는 중 " : "영상 만드는 중 ";
             Conversions.Produce(job, plan.Output, delegate (string d)
             {
                 var free = new BlockingCollection<byte[]>();
@@ -436,7 +451,7 @@ namespace Bakkum
                 }) { IsBackground = true, Name = "영상 만들기" };
                 render.SetApartmentState(ApartmentState.MTA);
                 render.Start();
-                var enc = new VEncoder(d, W, H, fps, plan.VideoBps, plan.AudioBytesPerSec, sound ? p : null, plan.From, plan.To, () => job.Cancelled);
+                var enc = new VEncoder(d, W, H, fps, plan.VideoBps, plan.AudioBytesPerSec, sound ? p : null, plan.From, plan.To, () => job.Cancelled) { NoHardware = cpu };
                 double blackFrom = -1, blackLong = 0, blackAt = -1;
                 try
                 {
@@ -464,7 +479,7 @@ namespace Bakkum
                         if (done % 5 == 0 || done == frames)
                         {
                             double frac = done / (double)frames;
-                            job.Report("영상 만드는 중 " + Math.Round(frac * 100) + "%" + Eta(started, frac), 0.1 + 0.9 * frac);
+                            job.Report(doing + Math.Round(frac * 100) + "%" + Eta(started, frac), 0.1 + 0.9 * frac);
                         }
                     }
                     job.Check();
@@ -652,6 +667,12 @@ namespace Bakkum
         }
     }
 
+    /// 그래픽 인코더가 앞쪽 몇 장을 쓰다 멈췄다(CPU 인코더로 처음부터 다시 만들 수 있다)
+    sealed class HardwareEncoderFailed : UserFacingException
+    {
+        public HardwareEncoderFailed() : base("영상을 저장하지 못했어요. (그래픽 인코더)") { }
+    }
+
     /// H.264 + AAC 저장. 화면은 받는 대로, 소리는 화면보다 조금 앞서 섞어 넣는다(MTA 일꾼 스레드).
     sealed class VEncoder : IDisposable
     {
@@ -681,6 +702,11 @@ namespace Bakkum
         public bool KeyEveryTaken;
         /// 시험용: 압축 방식(기본 H.264). 진짜 HEVC 시험 영상을 만들 때 바꾼다.
         public Guid Codec = Mf.H264;
+        /// 시험용: 그래픽 인코더가 이 장(번호)을 쓸 때 멈춘 것처럼 한다. -1이면 끔.
+        internal static int FailHardwareAt = -1;
+        /// 그래픽 인코더가 이 장 수를 쓰기 전에 멈추면 HardwareEncoderFailed(처음부터 다시 만들 만큼 앞쪽)
+        const int EarlyFrames = 60;
+        int written;
         /// 시험용: CPU 인코더만 쓴다(그래픽 인코더가 없는 PC 흉내).
         public bool NoHardware;
         static readonly Guid MaxKeyframeSpacing = new Guid("c16eb52b-73a1-476f-8d62-839d6a020652");
@@ -716,6 +742,7 @@ namespace Bakkum
             if (e is UserFacingException || e is OperationCanceledException) throw e;
             Log.Write("영상 편집 저장 실패: " + e.GetType().Name + " 0x" + e.HResult.ToString("X8"));
             if (e.HResult == unchecked((int)0x80070070)) throw new UserFacingException("디스크 공간이 모자라 저장하지 못했어요.");
+            if (Hardware && written < EarlyFrames) throw new HardwareEncoderFailed();
             throw new UserFacingException("영상을 저장하지 못했어요. (" + e.GetType().Name + ")");
         }
 
@@ -866,7 +893,12 @@ namespace Bakkum
                         mb.SetCurrentLength((uint)bytes);
                         if (it.Done != null) it.Done(it.Px);
                         var sample = Mf.Sample(mb, t0, t1 - t0);
-                        try { w.WriteSample(vs, sample); }
+                        try
+                        {
+                            if (Hardware && it.Index == FailHardwareAt) throw new COMException("시험: 그래픽 인코더가 멈춤", unchecked((int)0x80004005));
+                            w.WriteSample(vs, sample);
+                            written++;
+                        }
                         finally { Mf.Release(sample); }
                     }
                     finally

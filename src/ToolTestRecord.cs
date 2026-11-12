@@ -492,6 +492,26 @@ namespace Bakkum
             }
             Check("저장할 수 없는 곳이면 시작하지 않는다", refused, null);
 
+            // 녹화 도중 그래픽 인코더가 멈추면: 찍은 화면은 다시 만들 수 없어 알리고, 다음 녹화부터 CPU 인코더로
+            string gf = P("rec_gpu_fail.mp4"), gn = P("rec_gpu_next.mp4");
+            ScreenRecorder broke, next;
+            try
+            {
+                ScreenRecorder.FailHardwareAt = 5;
+                broke = Rec(gf, new TestFrames(320, 240), NoSound(), r => Thread.Sleep(1500));
+                ScreenRecorder.FailHardwareAt = -1;
+                next = Rec(gn, new TestFrames(320, 240), NoSound(), r => Thread.Sleep(1500));
+            }
+            finally
+            {
+                ScreenRecorder.FailHardwareAt = -1;
+                ScreenRecorder.CpuOnly = false;
+            }
+            var pn = Probe(gn);
+            Check("녹화 도중 그래픽 인코더가 멈추면 알리고, 다음 녹화는 CPU 인코더로", broke.Hardware && broke.Failure != null && broke.Failure.Contains("다시 녹화하면") && !File.Exists(gf) && next.Failure == null && !next.Hardware && pn != null && pn.HasVideo,
+                (broke.Failure ?? "실패 없음") + " · 다음 녹화 " + (next.Hardware ? "그래픽 인코더" : "CPU") + " " + Say(pn));
+            if (File.Exists(gn)) File.Delete(gn);
+
             // 시작 전 취소하면 파일이 남지 않는다
             string g = P("rec_discard.mp4");
             var cancel = new ScreenRecorder(g, new TestFrames(320, 240), NoSound(), 24);
