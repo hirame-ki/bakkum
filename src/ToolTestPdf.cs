@@ -40,6 +40,8 @@ namespace Bakkum
             Check("쪽 범위 1,3-5,8-", r != null && r.SequenceEqual(new[] { 0, 2, 3, 4, 7, 8 }), r == null ? err : string.Join(",", r));
             Check("쪽 범위 초과", PdfTools.ParseRanges("12", 9, out err) == null && err.Contains("9쪽"), err);
             Check("쪽 범위 뒤집기 5-3", PdfTools.ParseRanges("5-3", 9, out err).SequenceEqual(new[] { 4, 3, 2 }), "");
+            r = PdfTools.ParseRanges("1 - 3, 5 ~ 6 8 -", 9, out err);
+            Check("쪽 범위: 줄표 앞뒤 빈칸", r != null && r.SequenceEqual(new[] { 0, 1, 2, 4, 5, 7, 8 }), r == null ? err : string.Join(",", r));
 
             // 합치기(PDF·그림 섞기)
             var j = RunJob("pdf", "merge", new[] { a, b, img }, null);
