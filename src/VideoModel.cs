@@ -365,6 +365,8 @@ namespace Bakkum
         public VExport Export = new VExport();
         /// 처음 연 파일들(자동 저장 이름)
         public List<string> Opened = new List<string>();
+        /// 처음 연 파일들의 내용 지문(Opened와 같은 차례). 영상을 옮기거나 이름을 바꿔도 자동 저장을 찾는다.
+        public List<string> Prints = new List<string>();
         public DateTime Saved;
 
         static int counter;
@@ -654,6 +656,7 @@ namespace Bakkum
             if (p.Markers == null) p.Markers = new List<VMarker>();
             if (p.Export == null) p.Export = new VExport();
             if (p.Opened == null) p.Opened = new List<string>();
+            if (p.Prints == null) p.Prints = new List<string>();
             foreach (var c in p.Clips)
             {
                 if (c.Keys == null) c.Keys = new List<VKey>();
@@ -804,6 +807,67 @@ namespace Bakkum
                 Log.Write("영상 편집 자동 저장 읽기 실패: " + ex.GetType().Name);
                 return null;
             }
+        }
+
+        /// 파일 내용 지문(미리 보기 사본과 같은 방식: 크기와 앞뒤 조각). 읽지 못하면 null.
+        public static List<string> PrintsOf(List<string> files)
+        {
+            try
+            {
+                return files.Select(CursorLog.Fingerprint).ToList();
+            }
+            catch (Exception)
+            {
+                return null;
+            }
+        }
+
+        public static bool SamePrints(List<string> a, List<string> b)
+        {
+            return a != null && b != null && a.Count > 0 && a.OrderBy(x => x).SequenceEqual(b.OrderBy(x => x));
+        }
+
+        /// 이 파일들의 자동 저장: 경로로 찾은 것과, 원본이 옮겨져 그 자리에 없는 자동 저장 가운데 내용 지문이 같은 것 중
+        /// 가장 최근에 저장한 것. 복사본(원본이 그 자리에 있는 것)의 편집은 따로 하는 것으로 보고 고르지 않는다.
+        /// 다른 자동 저장에서 찾았으면 옛 자리를 지금 자리로 바꾸고 from에 그 파일을 알려 준다(이어서 하면 Resumed로 지운다).
+        /// ponytail: 열 때마다 자동 저장을 모두 훑는다(60일 치라 수십 개). 많아지면 지문 → 파일 이름 목록을 따로 둔다.
+        public static VProject Find(List<string> files, List<string> prints, out string from)
+        {
+            string own = PathOf(files);
+            var found = Load(files);
+            from = found != null ? own : null;
+            if (prints == null) return found;
+            foreach (var f in Directory.GetFiles(Folder, "*.json"))
+            {
+                if (string.Equals(f, own, StringComparison.OrdinalIgnoreCase)) continue;
+                try
+                {
+                    string text = File.ReadAllText(f, Encoding.UTF8);
+                    if (!prints.All(x => text.Contains(x))) continue;
+                    var p = VProject.FromJson(text);
+                    if (p.Clips.Count == 0 || p.Prints.Count != p.Opened.Count || !SamePrints(p.Prints, prints) || p.Opened.All(File.Exists)) continue;
+                    if (found != null && p.Saved <= found.Saved) continue;
+                    found = p;
+                    from = f;
+                }
+                catch (Exception ex)
+                {
+                    Log.Write("영상 편집 자동 저장 찾기 실패: " + ex.GetType().Name);
+                }
+            }
+            if (found == null || from == own) return found;
+            for (int i = 0; i < found.Opened.Count; i++) found.Relink(found.Opened[i], files[prints.IndexOf(found.Prints[i])]);
+            found.Opened = files.ToList();
+            found.Prints = prints.ToList();
+            return found;
+        }
+
+        /// 다른 자리의 자동 저장(from)을 이어서 하면: 지금 자리로 바로 저장하고 옛 것은 지운다(편집이 두 갈래로 나뉘지 않게)
+        public static void Resumed(VProject p, string from)
+        {
+            if (from == null || string.Equals(from, PathOf(p.Opened), StringComparison.OrdinalIgnoreCase)) return;
+            Save(p);
+            try { File.Delete(from); } catch { }
         }
 
         public static void Forget(IEnumerable<string> files)
