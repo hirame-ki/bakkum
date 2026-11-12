@@ -388,6 +388,27 @@ namespace Bakkum
             if (!File.Exists(dst)) throw new UserFacingException("한셀에서 PDF를 만들지 못했어요.");
         }
 
+        /// 다른 형식으로 저장한다. 형식 번호는 엑셀과 같다(51 xlsx, 56 xls). 2026-11-13 한컴오피스 2024(13.0)에서 51로 xlsx가 나오는 것을 확인.
+        /// format이 0 이하면 형식을 정하지 않는다(이름이 .cell이면 한셀 문서로 저장, 시험 파일 만들 때).
+        public void SaveAs(string src, string dst, int format)
+        {
+            dynamic wb = null;
+            app.Arm(TimeSpan.FromMinutes(5));
+            try
+            {
+                wb = app.Obj.Workbooks.Open(src);
+                if (format > 0) wb.SaveAs(dst, format);
+                else wb.SaveAs(dst);
+            }
+            catch (Exception ex) { throw app.Failure(ex, "다른 형식으로 저장하지"); }
+            finally
+            {
+                app.Disarm();
+                if (wb != null) { try { wb.Close(false); } catch { } }
+            }
+            if (!File.Exists(dst) || new FileInfo(dst).Length == 0) throw new UserFacingException("한셀에서 파일을 만들지 못했어요.");
+        }
+
         public void Dispose()
         {
             try { app.Obj.Quit(); } catch { }
@@ -412,20 +433,38 @@ namespace Bakkum
 
         public void ToPdf(string src, string dst)
         {
+            SaveAs(src, dst, 32, "PDF로 저장하지");
+            if (!File.Exists(dst)) throw new UserFacingException("한쇼에서 PDF를 만들지 못했어요.");
+        }
+
+        /// 다른 형식으로 저장한다. 형식 번호는 파워포인트와 같다(24 pptx, 1 ppt, 32 pdf).
+        /// 한쇼는 이름 끝에 형식의 확장자를 덧붙일 때가 있다('가.show'를 기본 형식으로 → '가.show.pptx', 2026-11-13 실측).
+        public void SaveAs(string src, string dst, int format, string what)
+        {
+            string added = dst + (format == 1 ? ".ppt" : format == 32 ? ".pdf" : ".pptx");
+            bool addedBefore = File.Exists(added);
             dynamic pres = null;
             app.Arm(TimeSpan.FromMinutes(5));
             try
             {
                 pres = app.Obj.Presentations.Open(src, true, false, false);
-                pres.SaveAs(dst, 32);
+                if (format != 32)
+                {
+                    // 한쇼는 옛 .ppt의 슬라이드 내용을 나중에 불러온다. 열자마자 PPTX로 저장하면 슬라이드가 텅 빈다(도형 0개).
+                    // 슬라이드마다 도형 수를 한 번 읽으면 다 불러온다(2026-11-13 한컴오피스 2024 실측). PDF 저장은 그대로도 괜찮아서 손대지 않는다.
+                    int count = (int)pres.Slides.Count;
+                    for (int i = 1; i <= count; i++) { var n = pres.Slides.Item(i).Shapes.Count; }
+                }
+                pres.SaveAs(dst, format);
             }
-            catch (Exception ex) { throw app.Failure(ex, "PDF로 저장하지"); }
+            catch (Exception ex) { throw app.Failure(ex, what); }
             finally
             {
                 app.Disarm();
                 if (pres != null) { try { pres.Close(); } catch { } }
             }
-            if (!File.Exists(dst)) throw new UserFacingException("한쇼에서 PDF를 만들지 못했어요.");
+            // 이번 저장이 만든 것만 옮긴다(전부터 있던 같은 이름의 파일은 건드리지 않는다)
+            if (!File.Exists(dst) && !addedBefore && File.Exists(added)) File.Move(added, dst);
         }
 
         public void Dispose()
@@ -534,6 +573,25 @@ namespace Bakkum
             if (!File.Exists(dst)) throw new UserFacingException("MS 엑셀에서 PDF를 만들지 못했어요.");
         }
 
+        /// 다른 형식으로 저장한다(51 xlsx, 56 xls). 2026-11-13 협업자 PC의 MS 엑셀에서 .xls → xlsx 확인.
+        public void SaveAs(string src, string dst, int format)
+        {
+            dynamic wb = null;
+            app.Arm(TimeSpan.FromMinutes(5));
+            try
+            {
+                wb = app.Obj.Workbooks.Open(src, 0, true, Type.Missing, "hirameki-no-password");
+                wb.SaveAs(dst, format);
+            }
+            catch (Exception ex) { throw app.Failure(ex, "다른 형식으로 저장하지"); }
+            finally
+            {
+                app.Disarm();
+                if (wb != null) { try { wb.Close(false); } catch { } }
+            }
+            if (!File.Exists(dst) || new FileInfo(dst).Length == 0) throw new UserFacingException("MS 엑셀에서 파일을 만들지 못했어요.");
+        }
+
         public void Dispose()
         {
             if (!app.Shared) { try { app.Obj.Quit(); } catch { } }
@@ -559,20 +617,26 @@ namespace Bakkum
 
         public void ToPdf(string src, string dst)
         {
+            SaveAs(src, dst, 32, "PDF로 저장하지");
+            if (!File.Exists(dst)) throw new UserFacingException("MS 파워포인트에서 PDF를 만들지 못했어요.");
+        }
+
+        /// 다른 형식으로 저장한다(24 pptx, 1 ppt, 32 pdf). 2026-11-13 협업자 PC의 파워포인트에서 .ppt → pptx 확인.
+        public void SaveAs(string src, string dst, int format, string what)
+        {
             dynamic pres = null;
             app.Arm(TimeSpan.FromMinutes(5));
             try
             {
                 pres = app.Obj.Presentations.Open(src, -1, 0, 0);
-                pres.SaveAs(dst, 32);
+                pres.SaveAs(dst, format);
             }
-            catch (Exception ex) { throw app.Failure(ex, "PDF로 저장하지"); }
+            catch (Exception ex) { throw app.Failure(ex, what); }
             finally
             {
                 app.Disarm();
                 if (pres != null) { try { pres.Close(); } catch { } }
             }
-            if (!File.Exists(dst)) throw new UserFacingException("MS 파워포인트에서 PDF를 만들지 못했어요.");
         }
 
         public void Dispose()
@@ -592,6 +656,49 @@ namespace Bakkum
     /// 파일 종류에 맞는 프로그램을 골라 PDF로 저장한다. 고른 프로그램 이름을 돌려준다.
     public static class OfficeConvert
     {
+        /// 옛 엑셀(.xls)·한셀(.cell) → xlsx. .cell은 한셀만 열고, .xls는 MS 엑셀이 있으면 엑셀, 없으면 한셀로 연다.
+        public static bool CanMakeXlsx(string src)
+        {
+            return Formats.Ext(src) == ".cell" ? Hancell.Installed : MsExcel.Installed || Hancell.Installed;
+        }
+
+        public static string ToXlsx(Job job, string src, string dst)
+        {
+            Util.EnsureReadable(src);
+            bool cell = Formats.Ext(src) == ".cell";
+            if (!cell && MsExcel.Installed)
+            {
+                job.Use(() => new MsExcel(job)).SaveAs(src, dst, 51);
+                return "MS 엑셀";
+            }
+            if (Hancell.Installed)
+            {
+                job.Use(() => new Hancell(job)).SaveAs(src, dst, 51);
+                return "한셀";
+            }
+            throw new UserFacingException(cell ? "한셀 파일을 바꾸려면 한셀이 있어야 해요." : "옛 엑셀 파일(.xls)을 바꾸려면 MS 엑셀이나 한셀이 있어야 해요.");
+        }
+
+        /// 옛 PPT(.ppt)·한쇼(.show) → pptx. .show는 한쇼만 열고, .ppt는 MS 파워포인트가 있으면 파워포인트, 없으면 한쇼로 연다.
+        public static string ToPptx(Job job, string src, string dst)
+        {
+            Util.EnsureReadable(src);
+            bool show = Formats.Ext(src) == ".show";
+            if (!show && MsPowerPoint.Installed)
+            {
+                job.Use(() => new MsPowerPoint(job)).SaveAs(src, dst, 24, "PPTX로 저장하지");
+                if (!File.Exists(dst)) throw new UserFacingException("MS 파워포인트에서 PPTX를 만들지 못했어요.");
+                return "MS 파워포인트";
+            }
+            if (Hanshow.Installed)
+            {
+                job.Use(() => new Hanshow(job)).SaveAs(src, dst, 24, "PPTX로 저장하지");
+                if (!File.Exists(dst)) throw new UserFacingException("한쇼에서 PPTX를 만들지 못했어요.");
+                return "한쇼";
+            }
+            throw new UserFacingException(show ? "한쇼 파일을 바꾸려면 한쇼가 있어야 해요." : "옛 PPT 파일(.ppt)을 바꾸려면 MS 파워포인트나 한쇼가 있어야 해요.");
+        }
+
         public static string ToPdf(Job job, string src, string dst)
         {
             Util.EnsureReadable(src);

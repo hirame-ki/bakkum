@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-3.0-only
 // Bakkum - Copyright (C) 2026 hirame.ki - additional terms under GPL-3.0 section 7 apply, see NOTICE.txt
-// 'AI로' 칸이 하는 일: 요약·요점 정리·일정·할 일표·번역·문서 초안·글 다듬기·표·문제·수업 자료·손글씨·이름 짓기.
+// 'AI로' 칸이 하는 일: 요약·요점 정리·일정·할 일표·번역·문서 초안·글 다듬기·표·문제·수업 자료·손글씨·이름 짓기(폴더 정리는 AiOrganize.cs).
 // 글자가 든 문서는 이 PC에서 글자를 읽어 글만 보내고, 글자가 없는 스캔본·사진만 쪽 그림으로 보낸다.
 // 보내기 전에 창으로 묻는다. 이름·전화번호는 이 PC에서 [[N1]]처럼 가려서 보내고, 답을 받으면 이 PC에서 되돌린다.
 using System;
@@ -289,7 +289,7 @@ namespace Bakkum
         public TextBox Box;
     }
 
-    public static class AiTasks
+    public static partial class AiTasks
     {
         const int MaxPages = 100;
         const int ChunkSize = 12000;
@@ -353,6 +353,11 @@ namespace Bakkum
         {
             Ai.EnsureReady(job);
             string task = job.Option.Id;
+            if (IsOrganize(task))
+            {
+                foreach (var d in files.Where(ArchiveJobs.IsFolder)) Organize(job, d.TrimEnd('\\'));
+                return;
+            }
             var sources = new List<AiSource>();
             Conversions.EachFile(job, files, "내용 읽는 중", delegate (string f) { sources.Add(Read(job, f, task)); });
             job.ReleaseResources();
@@ -391,12 +396,7 @@ namespace Bakkum
                 Phones = masker.Phones,
                 Others = masker.Others
             };
-            var choice = job.Ask(() => SendConsentWindow.AskUser(plan), new SendChoice { Send = job.AutoYes, Mask = job.Param("mask", "1") != "0" });
-            if (!choice.Send) throw new OperationCanceledException();
-            if (choice.Mask && plan.Chars > 0 && plan.Names + plan.Phones + plan.Others > 0)
-            {
-                job.Note("가려서 보낸 곳: 이름 " + plan.Names + " · 전화번호 " + plan.Phones + " · 그 밖 " + plan.Others + " (결과에는 원래대로 되돌렸어요)");
-            }
+            var choice = AskToSend(job, plan);
 
             if (draft)
             {
@@ -428,6 +428,17 @@ namespace Bakkum
             });
             if (renames.Count > 0) FinishRename(job, renames);
             if (task == "todo") FinishTodos(job, sources.Select(s => s.File).ToList(), todos);
+        }
+
+        static SendChoice AskToSend(Job job, SendPlan plan)
+        {
+            var choice = job.Ask(() => SendConsentWindow.AskUser(plan), new SendChoice { Send = job.AutoYes, Mask = job.Param("mask", "1") != "0" });
+            if (!choice.Send) throw new OperationCanceledException();
+            if (choice.Mask && plan.Chars > 0 && plan.Names + plan.Phones + plan.Others > 0)
+            {
+                job.Note("가려서 보낸 곳: 이름 " + plan.Names + " · 전화번호 " + plan.Phones + " · 그 밖 " + plan.Others + " (결과에는 원래대로 되돌렸어요)");
+            }
+            return choice;
         }
 
         static string WithNote(IEnumerable<string> parts, string note)
@@ -1216,10 +1227,13 @@ namespace Bakkum
             line = Regex.Replace(line, @"[\\/:*?""<>|\t]", " ");
             line = Regex.Replace(line, @"\s+", " ").Trim().Trim('\'', '`', '‘', '’', '“', '”', '「', '」', '.', ' ');
             string ext = Path.GetExtension(line).ToLowerInvariant();
-            if (ext.Length >= 3 && ext.Length <= 6 && Formats.KindOf("a" + ext) != Kind.Unknown) line = line.Substring(0, line.Length - ext.Length).TrimEnd();
-            if (line.Length > 40) line = line.Substring(0, 40).TrimEnd();
-            return line;
+            if (ext.Length >= 3 && ext.Length <= 6 && Formats.KindOf("a" + ext) != Kind.Unknown) line = line.Substring(0, line.Length - ext.Length).TrimEnd(' ', '.');
+            if (line.Length > 40) line = line.Substring(0, 40).TrimEnd(' ', '.');
+            // CON·NUL 같은 장치 이름은 쓰지 않는다. NUL로 옮기면 파일이 그대로 사라진다.
+            return DeviceName.IsMatch(line) ? "" : line;
         }
+
+        static readonly Regex DeviceName = new Regex(@"^(CON|PRN|AUX|NUL|COM[0-9¹²³]|LPT[0-9¹²³]|CONIN\$|CONOUT\$)(\s*\..*)?$", RegexOptions.IgnoreCase);
 
         static bool ConfirmNames(List<RenamePlan> plans)
         {
@@ -1279,6 +1293,8 @@ namespace Bakkum
     {
         public int Files, Chars, Pictures, Names, Phones, Others;
         public string Plain = "", Masked = "";
+        /// 폴더 정리: 문서 글 대신 파일 이름 목록을 보낸다.
+        public bool FileNames;
     }
 
     public sealed class SendChoice
@@ -1305,6 +1321,7 @@ namespace Bakkum
 
         static string What(SendPlan plan)
         {
+            if (plan.FileNames) return "파일 이름 " + plan.Files + "개와 고친 날짜, 안에 있는 폴더 이름 (파일 내용은 보내지 않아요)";
             var parts = new List<string>();
             if (plan.Chars > 0) parts.Add("문서의 글자 약 " + plan.Chars.ToString("N0") + "자");
             if (plan.Pictures > 0) parts.Add("쪽 그림 " + plan.Pictures + "장");
@@ -1388,7 +1405,9 @@ namespace Bakkum
                 note.Margin = new Thickness(0, 14, 0, 0);
                 body.Children.Add(note);
             }
-            var warn = Theme.Warning("이름은 '이름: ○○○', '○○○ 학생'처럼 드러난 모양만 찾아요. 다 못 찾을 수 있으니, 학생 개인정보가 많은 문서는 보내지 마세요.");
+            var warn = Theme.Warning(plan.FileNames
+                ? "파일 이름 속 학생 이름은 '○○○ 학생'처럼 드러난 모양만 가려요. '보낼 글 보기'로 확인하고, 학생 이름으로 된 파일이 많은 폴더는 보내지 마세요."
+                : "이름은 '이름: ○○○', '○○○ 학생'처럼 드러난 모양만 찾아요. 다 못 찾을 수 있으니, 학생 개인정보가 많은 문서는 보내지 마세요.");
             warn.Margin = new Thickness(0, 14, 0, 0);
             body.Children.Add(warn);
 

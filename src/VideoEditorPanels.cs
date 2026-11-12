@@ -41,6 +41,7 @@ namespace Bakkum
             building = true;
             groupCounter = 0;
             focusBox = null;
+            liveSliders.Clear();
             try
             {
                 panel.Children.Clear();
@@ -67,6 +68,7 @@ namespace Bakkum
             {
                 building = false;
             }
+            RefreshBar();
             if (sameTab) Dispatcher.BeginInvoke(DispatcherPriority.Loaded, new Action(delegate { panelScroll.ScrollToVerticalOffset(offset); }));
             else panelScroll.ScrollToTop();
             if (focus && focusBox != null)
@@ -152,8 +154,9 @@ namespace Bakkum
             }
             s.ValueChanged += delegate
             {
-                if (building) return;
+                // 재생 위치를 옮겨 값만 맞출 때(building)도 숫자는 따라 바꾼다
                 val.Text = format(s.Value);
+                if (building) return;
                 set(s.Value);
             };
             panel.Children.Add(s);
@@ -900,12 +903,14 @@ namespace Bakkum
         {
             double t = CurrentTime, d = project.Duration;
             var style = SelectedItem != null && SelectedItem.Subtitle ? SelectedItem : project.Items.LastOrDefault(i => i.Subtitle);
-            var it = new VItem { Kind = "text", Subtitle = true, Text = "", X = 0.5, Y = 0.86, Start = t, End = Math.Min(d, t + 2.5), Box = false };
+            // 줄 너비는 화면의 86%: 예전 기본(30%)은 한 줄에 몇 글자 못 들어가 자막이 여러 줄로 쌓였다
+            var it = new VItem { Kind = "text", Subtitle = true, Text = "", X = 0.5, Y = 0.86, W = 0.86, Start = t, End = Math.Min(d, t + 2.5), Box = false };
             if (style != null)
             {
                 it.TakeStyleFrom(style);
                 it.X = style.X;
                 it.Y = style.Y;
+                it.W = style.W;
             }
             if (it.End - it.Start < 0.4)
             {
@@ -935,6 +940,7 @@ namespace Bakkum
                 Label("글");
                 focusBox = Field(it.Text, "자막을 써 주세요", true, v => SetItem("text", x => x.Text = v));
                 Hint(Clock(it.Start) + " ~ " + Clock(it.End) + " (" + Sec(it.Length) + ") · 1초에 " + Math.Round((it.Text ?? "").Replace(" ", "").Length / Math.Max(0.1, it.Length), 1) + "자");
+                Buttons(new[] { "복사 (Ctrl+D)", "지우기" }, new Action[] { Duplicate, DeleteSelected });
                 Buttons(new[] { "여기서 시작", "여기서 끝", "다음 자막" }, new Action[] { delegate
                 {
                     double t = CurrentTime;
@@ -976,6 +982,8 @@ namespace Bakkum
                         x.Keys.Clear();
                     });
                 });
+                Buttons(new[] { "모든 자막을 이 자리로" }, new Action[] { AllSubtitlesHere });
+                Hint("화면에서 자막 상자 양옆의 세로 손잡이를 끌면 한 줄 너비가, 모서리를 끌면 글자 크기가 바뀌어요.");
                 StyleControls(it);
                 Buttons(new[] { "이 모양을 모든 자막에" }, new Action[] { delegate
                 {
@@ -987,6 +995,7 @@ namespace Bakkum
                             x.TakeStyleFrom(src);
                             x.X = src.X;
                             x.Y = src.Y;
+                            x.W = src.W;
                         }
                     });
                     SetStatus("모든 자막을 같은 모양으로 맞췄어요.");
@@ -1320,6 +1329,7 @@ namespace Bakkum
                         s.TakeStyleFrom(style);
                         s.X = style.X;
                         s.Y = style.Y;
+                        s.W = style.W;
                     }
                     project.Items.Add(s);
                 }
@@ -1350,7 +1360,7 @@ namespace Bakkum
                 double a, b;
                 if (parts.Length < 2 || !SrtTime(parts[0], out a) || !SrtTime(parts[1], out b) || b <= a) continue;
                 string body = string.Join("\n", lines.Skip(ti + 1).Select(StripTags));
-                list.Add(new VItem { Kind = "text", Subtitle = true, Text = body, Start = a, End = b, X = 0.5, Y = 0.86 });
+                list.Add(new VItem { Kind = "text", Subtitle = true, Text = body, Start = a, End = b, X = 0.5, Y = 0.86, W = 0.86 });
             }
             return list;
         }
@@ -1503,47 +1513,8 @@ namespace Bakkum
                 Label("사라질 때");
                 Chips(new[] { "none", "fade" }, new[] { "바로", "서서히" }, it.Out, v => SetItem(null, x => x.Out = v));
             }
-            SliderRow("투명도", 0.1, 1, it.Opacity, 0.05, Pct, v => SetItem("op", x => x.Opacity = v));
-            SliderRow("기울기", -180, 180, it.Rot, 1, v => Math.Round(v) + "°", v => SetItem("rot", x => x.Rot = v));
-
-            Label("움직임");
-            Toggle("시간에 따라 움직이기", "켜고 나서 재생 위치를 옮겨 가며 화면에서 끌면, 그 시각마다 자리가 기억되고 사이는 부드럽게 이어져요", it.Keys.Count > 0, v =>
-            {
-                double t = CurrentTime;
-                SetItem(null, x =>
-                {
-                    if (v)
-                    {
-                        x.Keys.Clear();
-                        x.Keys.Add(new VKey { T = 0, X = x.X, Y = x.Y, Zoom = 1 });
-                        double local = Math.Max(0, t - x.Start);
-                        if (local > 0.05) x.Keys.Add(new VKey { T = local, X = x.X, Y = x.Y, Zoom = 1 });
-                    }
-                    else
-                    {
-                        var st = VAnim.Item(x, Math.Max(x.Start, Math.Min(x.End - 0.01, t)));
-                        x.X = st.X;
-                        x.Y = st.Y;
-                        x.Keys.Clear();
-                    }
-                });
-                RefreshPanel();
-            });
-            if (it.Keys.Count > 0)
-            {
-                Hint("움직임 표시 " + it.Keys.Count + "개 · 시간 막대의 ◆가 표시예요.");
-                Buttons(new[] { "이 시각 표시 지우기" }, new Action[] { delegate
-                {
-                    double local = CurrentTime - it.Start;
-                    SetItem(null, x =>
-                    {
-                        if (x.Keys.Count <= 1) return;
-                        var k = x.Keys.OrderBy(v => Math.Abs(v.T - local)).First();
-                        if (Math.Abs(k.T - local) < 0.25) x.Keys.Remove(k);
-                    });
-                    RefreshPanel();
-                } });
-            }
+            ItemLookSliders(it);
+            ItemMotionSection(it);
 
             Label("시간·순서");
             Buttons(new[] { "여기서 시작", "여기서 끝" }, new Action[] { delegate
@@ -1662,7 +1633,7 @@ namespace Bakkum
 
         void AddTitle()
         {
-            var it = new VItem { Kind = "text", Text = "제목을 써 주세요", Size = 0.085, X = 0.5, Y = 0.45, Rgb = 0xFFFFFF, Outline = 0.12, Shadow = true, In = "pop" };
+            var it = new VItem { Kind = "text", Text = "제목을 써 주세요", Size = 0.085, X = 0.5, Y = 0.45, W = 0.8, Rgb = 0xFFFFFF, Outline = 0.12, Shadow = true, In = "pop" };
             SpanAt(it, 3);
             AddItem(it);
         }
@@ -1836,27 +1807,39 @@ namespace Bakkum
             });
             double local, source, z = c.Zoom, px = c.PanX, py = c.PanY;
             if (LocalIn(c, out local, out source)) VAnim.ClipMotion(c, local, source, out z, out px, out py);
-            SliderRow("크기", 0.2, 4, z, 0.01, Pct, v => SetClip("zoom", x =>
+            var zs = SliderRow("크기", 0.2, 4, z, 0.01, Pct, v => SetClip("zoom", x =>
             {
                 double l2, s2, z2, px2, py2;
                 LocalIn(x, out l2, out s2);
                 VAnim.ClipMotion(x, l2, s2, out z2, out px2, out py2);
                 SetClipMotion(x, v, px2, py2);
             }));
-            SliderRow("가로 자리", -1, 1, px, 0.01, Signed, v => SetClip("panx", x =>
+            var xs = SliderRow("가로 자리", -1, 1, px, 0.01, Signed, v => SetClip("panx", x =>
             {
                 double l2, s2, z2, px2, py2;
                 LocalIn(x, out l2, out s2);
                 VAnim.ClipMotion(x, l2, s2, out z2, out px2, out py2);
                 SetClipMotion(x, z2, v, py2);
             }));
-            SliderRow("세로 자리", -1, 1, py, 0.01, Signed, v => SetClip("pany", x =>
+            var ys = SliderRow("세로 자리", -1, 1, py, 0.01, Signed, v => SetClip("pany", x =>
             {
                 double l2, s2, z2, px2, py2;
                 LocalIn(x, out l2, out s2);
                 VAnim.ClipMotion(x, l2, s2, out z2, out px2, out py2);
                 SetClipMotion(x, z2, px2, v);
             }));
+            // 움직임 표시가 있으면 재생 위치를 옮길 때 값이 따라 바뀐다
+            string motionId = c.Id;
+            liveSliders.Add(delegate
+            {
+                var x = project.FindClip(motionId);
+                double l2, s2, z2, px2, py2;
+                if (x == null || x.Keys.Count == 0 || !LocalIn(x, out l2, out s2)) return;
+                VAnim.ClipMotion(x, l2, s2, out z2, out px2, out py2);
+                SetLive(zs, z2);
+                SetLive(xs, px2);
+                SetLive(ys, py2);
+            });
             Buttons(new[] { "가운데로", "처음 크기" }, new Action[] { delegate
             {
                 SetClip(null, x =>
@@ -1875,32 +1858,7 @@ namespace Bakkum
                 });
                 RefreshPanel();
             } });
-            Toggle("시간에 따라 움직이기", "켜고 나서 재생 위치를 옮겨 가며 크기·자리를 바꾸면 그 사이를 부드럽게 다가가거나 옮겨 가요", c.Keys.Count > 0, v =>
-            {
-                SetClip(null, x =>
-                {
-                    double l2, s2, z2, px2, py2;
-                    LocalIn(x, out l2, out s2);
-                    VAnim.ClipMotion(x, l2, s2, out z2, out px2, out py2);
-                    x.Keys.Clear();
-                    if (v)
-                    {
-                        double t0 = x.Kind == "video" ? (x.Reverse ? x.Out : x.In) : 0;
-                        double kt = x.Kind == "video" ? s2 : l2;
-                        x.Keys.Add(new VKey { T = t0, Zoom = z2, PanX = px2, PanY = py2 });
-                        if (Math.Abs(kt - t0) > 0.05) x.Keys.Add(new VKey { T = kt, Zoom = z2, PanX = px2, PanY = py2 });
-                        x.Keys.Sort((a, b) => a.T.CompareTo(b.T));
-                    }
-                    else
-                    {
-                        x.Zoom = z2;
-                        x.PanX = px2;
-                        x.PanY = py2;
-                    }
-                });
-                RefreshPanel();
-            });
-            if (c.Keys.Count > 0) Hint("움직임 표시 " + c.Keys.Count + "개");
+            ClipMotionSection(c);
 
             Label("돌리기·뒤집기");
             Buttons(new[] { "왼쪽 90°", "오른쪽 90°", "좌우", "상하" }, new Action[]
@@ -1969,6 +1927,7 @@ namespace Bakkum
             if (s != null)
             {
                 Label(SoundTitle(s) + " · " + Clock(s.Start) + "부터 " + Sec(s.Length));
+                MusicCreditNote(s);
                 SliderRow("크기", 0, 2, s.Volume, 0.05, Pct, v => SetSound("vol", x => x.Volume = v));
                 SliderRow("서서히 커지기", 0, 5, s.FadeIn, 0.1, Sec, v => SetSound("fi", x => x.FadeIn = v));
                 SliderRow("서서히 작아지기", 0, 5, s.FadeOut, 0.1, Sec, v => SetSound("fo", x => x.FadeOut = v));
@@ -2015,6 +1974,7 @@ namespace Bakkum
 
             Label("넣기");
             Buttons(new[] { "배경 음악", "소리 파일" }, new Action[] { delegate { AddSoundDialog(true); }, delegate { AddSoundDialog(false); } });
+            PanelFreeMusic();
 
             Label("보면서 녹음하기");
             if (recorder == null)
@@ -2086,19 +2046,26 @@ namespace Bakkum
         {
             var dlg = new Microsoft.Win32.OpenFileDialog { Title = music ? "배경 음악 고르기" : "넣을 소리 고르기", Filter = "소리|*.mp3;*.m4a;*.wav;*.aac;*.wma;*.flac|모든 파일|*.*" };
             if (dlg.ShowDialog(this) != true) return;
-            var pr = VMedia.Probe(dlg.FileName);
+            AddSoundFile(dlg.FileName, music);
+        }
+
+        /// 소리 파일 넣기: 배경 음악은 처음부터 끝까지 되풀이, 소리 파일은 재생 위치에
+        void AddSoundFile(string file, bool music)
+        {
+            var pr = string.IsNullOrEmpty(file) || !File.Exists(file) ? null : VMedia.Probe(file);
             if (pr == null || !pr.HasAudio)
             {
-                SetStatus("소리를 읽지 못했어요: " + Path.GetFileName(dlg.FileName));
+                SetStatus("소리를 읽지 못했어요: " + Path.GetFileName(file ?? ""));
                 return;
             }
             var s = music
-                ? new VSound { Kind = "music", Path = dlg.FileName, Start = 0, In = 0, Out = pr.Seconds, Loop = true, Volume = 0.55, FadeOut = 1.5 }
-                : new VSound { Kind = "file", Path = dlg.FileName, Start = CurrentTime, In = 0, Out = pr.Seconds, Volume = 0.9, Name = Path.GetFileNameWithoutExtension(dlg.FileName) };
+                ? new VSound { Kind = "music", Path = file, Start = 0, In = 0, Out = pr.Seconds, Loop = true, Volume = 0.55, FadeOut = 1.5 }
+                : new VSound { Kind = "file", Path = file, Start = CurrentTime, In = 0, Out = pr.Seconds, Volume = 0.9, Name = Path.GetFileNameWithoutExtension(file) };
             Change(null, delegate { project.Sounds.Add(s); });
             selected = s.Id;
             timeline.Selected = s.Id;
-            SetStatus(music ? "배경 음악을 넣었어요. 말할 때는 음악이 저절로 줄어요." : "소리를 넣었어요.");
+            var site = music ? VMusic.SourceOf(file) : null;
+            SetStatus(music ? "배경 음악을 넣었어요. 말할 때는 음악이 저절로 줄어요." + (site != null && !site.NoCredit ? " 출처 밝히기를 잊지 마세요." : "") : "소리를 넣었어요.");
             RefreshPanel();
         }
 
@@ -2428,6 +2395,18 @@ namespace Bakkum
                     break;
             }
 
+            if (VideoExport.HasQuality(e.Preset))
+            {
+                Label("화질");
+                string cur = VideoExport.QualityId(e.Quality);
+                Chips(VideoExport.Qualities.Select(x => x[0]).ToArray(), VideoExport.Qualities.Select(x => x[1]).ToArray(), cur, v =>
+                {
+                    Change(null, delegate { project.Export.Quality = v; });
+                    RefreshPanel();
+                });
+                QualityHints(cur);
+            }
+
             if (e.Preset != "cover")
             {
                 Label("구간");
@@ -2482,6 +2461,28 @@ namespace Bakkum
             var go = Act("이대로 내보내기", "Primary", StartExport);
             go.IsEnabled = !checks.Any(x => x.Level == "stop");
             Hint("만들 파일: " + Path.GetFileName(plan.Output) + " (원본과 같은 폴더. 원본은 그대로예요)");
+        }
+
+        /// 화질 칩 아래: 고른 화질이 어떤지 쉬운 말 한 줄 + 화질마다 예상 크기
+        void QualityHints(string cur)
+        {
+            switch (cur)
+            {
+                case "max": Hint("최고: 원본에 가장 가깝게 만들어요(원본보다 좋아지지는 않아요). 파일이 가장 커요."); break;
+                case "high": Hint("높음: 칠판 글씨·작은 무늬까지 또렷해요. 파일이 중간보다 커요."); break;
+                case "low": Hint("낮음: 파일이 가장 작아요. 빠르게 움직이는 장면은 조금 뭉개질 수 있어요."); break;
+                default: Hint("중간: 보통은 이걸로 충분해요."); break;
+            }
+            try
+            {
+                // '최고 약 1.8MB'가 줄 끝에서 쪼개지지 않게 그 안의 빈칸은 붙는 빈칸(U+00A0)
+                var sizes = VideoExport.Qualities.Select(q => (q[1] + " 약 " + Conversions.Size(VideoExport.Plan(project, q[0]).EstimatedBytes)).Replace(' ', ' ')).ToList();
+                Hint("예상 크기: " + string.Join(" · ", sizes));
+            }
+            catch (Exception ex)
+            {
+                Log.Write("화질별 예상 크기 실패: " + ex.GetType().Name);
+            }
         }
 
         void CheckRow(VCheck ck)

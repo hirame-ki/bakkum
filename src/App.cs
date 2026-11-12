@@ -23,7 +23,7 @@ using System.Windows.Threading;
 [assembly: AssemblyDescription("파일을 끌다가 키를 누르면 뜨는 변환 메뉴")]
 [assembly: AssemblyProduct("바꿈")]
 [assembly: AssemblyCompany("hirame.ki")]
-[assembly: AssemblyCopyright("Copyright (c) 2026 hirame.ki")]
+[assembly: AssemblyCopyright("Copyright (c) 2026 hirame.ki, moonsune.zip")]
 [assembly: AssemblyVersion("0.3.7.0")]
 [assembly: AssemblyFileVersion("0.3.7.0")]
 [assembly: AssemblyInformationalVersion("0.3.7")]
@@ -666,9 +666,16 @@ namespace Bakkum
                 case "aiconsent":
                 {
                     var plan = new SendPlan { Files = 1, Chars = 1284, Pictures = state == "pictures" ? 2 : 0, Names = 3, Phones = 1, Others = 0, Plain = "담임교사: 김민수", Masked = "담임교사: [[N1]]" };
+                    if (state == "folder")
+                    {
+                        plan = new SendPlan { Files = 24, Chars = 860, Names = 1, FileNames = true, Plain = "1\t김민수 학생 상담.hwp\t2026-11-02", Masked = "1\t[[N1]] 학생 상담.hwp\t2026-11-02" };
+                    }
                     w = SendConsentWindow.ForPreview(plan);
                     break;
                 }
+                case "organize":
+                    w = AiTasks.OrganizePreview(state);
+                    break;
                 case "prompt":
                 {
                     // state: "칸/고를거리" (예: pdftool/lock)

@@ -25,6 +25,8 @@ namespace Bakkum
 
         static void VideoTests()
         {
+            // 파일 없이 도는 가벼운 시험(움직임 표시·자막 너비)을 먼저
+            KeyframeTests();
             Cli.Print("[영상 편집]");
             if (string.IsNullOrEmpty(AppInfo.DataDirOverride))
             {
@@ -36,6 +38,7 @@ namespace Bakkum
             Directory.CreateDirectory(w);
             VWaveOut.Silent = true;
             Check("자동 저장·마우스 기록은 임시 폴더에", VAutoSave.Folder.StartsWith(Path.GetTempPath(), StringComparison.OrdinalIgnoreCase), VAutoSave.Folder);
+            FreeMusicTests();
 
             // ── 재료: 무늬 그림 두 장, 삐 소리(쉼 1.2초·0.5초), 화음 음악 ──
             string bg = V("바탕.png"), tex = V("무늬.png"), beeps = V("삐소리.wav"), music = V("음악.wav");
@@ -1116,6 +1119,57 @@ namespace Bakkum
                 if (c.Name.Contains("구간")) ok = ok && Near(splan.Seconds, 600, 1e-9);
                 Check("점검: 용량 맞추기 25MB · " + c.Name + (c.Stop ? " → 멈추고 최소 용량·구간 안내" : " → 멈추지 않음"), ok, Conversions.Size(splan.EstimatedBytes) + " · 소리 " + splan.AudioBytesPerSec + " · " + (stop == null ? "멈춤 없음" : stop.Text));
             }
+            ExportQuality(moving);
+        }
+
+        /// 내보내기 화질(최고·높음·중간·낮음, 2026-11-12 사용자 요청): 중간은 예전과 똑같고, 크기·초당 장 수는 그대로 두고 용량만 달라진다
+        static void ExportQuality(string moving)
+        {
+            var qp = new VProject { Aspect = "16:9", SourceW = 640, SourceH = 360 };
+            qp.Clips.Add(new VClip { Path = moving, In = 0, Out = 5 });
+            qp.Export.Preset = "youtube";
+            qp.Export.Height = 1080;
+            var r = new Dictionary<string, VExportPlan>();
+            foreach (var q in new[] { "max", "high", "mid", "low" }) r[q] = VideoExport.Plan(qp, q);
+            var mid = r["mid"];
+            uint oldMid = (uint)Math.Max(1200000, Math.Min(24000000, mid.W * (double)mid.H * mid.Fps * 0.1));
+            Check("화질: 중간은 예전과 같은 비트레이트·소리", mid.VideoBps == oldMid && mid.AudioBytesPerSec == 24000 && mid.W == 1920 && mid.H == 1080,
+                mid.W + "×" + mid.H + " · " + (mid.VideoBps / 1e6).ToString("0.00") + "Mbps (예전 " + (oldMid / 1e6).ToString("0.00") + ")");
+            bool sameShape = r.Values.All(x => x.W == mid.W && x.H == mid.H && Near(x.Fps, mid.Fps, 1e-9));
+            Check("화질: 최고 > 높음 > 중간 > 낮음 (크기·초당 장 수는 같음)",
+                sameShape && r["max"].VideoBps > r["high"].VideoBps && r["high"].VideoBps > mid.VideoBps && mid.VideoBps > r["low"].VideoBps,
+                string.Join(" · ", r.Select(x => x.Key + " " + (x.Value.VideoBps / 1e6).ToString("0.00") + "Mbps")));
+            Check("화질: 예상 크기도 같은 차례, 낮음은 소리도 128kbps",
+                r["max"].EstimatedBytes > r["high"].EstimatedBytes && r["high"].EstimatedBytes > mid.EstimatedBytes && mid.EstimatedBytes > r["low"].EstimatedBytes && r["low"].AudioBytesPerSec == 16000,
+                string.Join(" · ", r.Select(x => x.Key + " " + Conversions.Size(x.Value.EstimatedBytes))));
+            qp.Export.Height = 2160;
+            var max4k = VideoExport.Plan(qp, "max");
+            uint want4k = (uint)Math.Max(4e6, Math.Min(60e6, max4k.W * (double)max4k.H * max4k.Fps * 0.25));
+            Check("화질: 4K 최고는 60Mbps를 넘지 않는다", max4k.W == 3840 && max4k.VideoBps == want4k && max4k.VideoBps <= 60000000,
+                max4k.W + "×" + max4k.H + " · " + (max4k.VideoBps / 1e6).ToString("0.0") + "Mbps");
+
+            qp.Export.Preset = "kakao";
+            var kMid = VideoExport.Plan(qp, "mid");
+            uint oldK = (uint)Math.Max(1200000, Math.Min(24000000, kMid.W * (double)kMid.H * kMid.Fps * 0.075));
+            Check("화질: 카카오톡 중간은 예전과 같고, 낮음·최고로 바뀐다",
+                kMid.VideoBps == oldK && VideoExport.Plan(qp, "low").VideoBps < kMid.VideoBps && VideoExport.Plan(qp, "max").VideoBps > kMid.VideoBps,
+                (kMid.VideoBps / 1e6).ToString("0.00") + "Mbps");
+
+            qp.Export.Preset = "size";
+            qp.Export.TargetMb = 25;
+            Check("화질: 용량 맞추기는 화질과 상관없이 목표 용량대로", VideoExport.Plan(qp, "max").VideoBps == VideoExport.Plan(qp, "low").VideoBps, "");
+            qp.Export.Preset = "audio";
+            qp.Export.Quality = "low";
+            Check("화질: 소리만 내보내기에는 남아 있던 '낮음'이 끼어들지 않는다", VideoExport.Plan(qp).AudioBytesPerSec == 24000 && !VideoExport.HasQuality("audio"), "");
+
+            // 저장: 고른 화질은 남고, 예전에 저장한 편집(화질 없음)은 중간
+            qp.Export.Preset = "same";
+            qp.Export.Quality = "high";
+            var back = VProject.FromJson(qp.ToJson());
+            string oldJson = new VProject().ToJson().Replace(",\"Quality\":\"mid\"", "").Replace("\"Quality\":\"mid\",", "");
+            var oldP = VProject.FromJson(oldJson);
+            Check("화질: 저장·불러오기에 남고, 예전 편집은 중간", back.Export.Quality == "high" && !oldJson.Contains("\"Quality\"") && oldP.Export.Quality == "mid" && VideoExport.QualityId("이상한 값") == "mid",
+                back.Export.Quality + " / " + oldP.Export.Quality);
         }
 
         static void ExportKinds(string moving, string bg, string tex, string music)
@@ -1132,6 +1186,24 @@ namespace Bakkum
             var j = ExportNow(p, plan, null);
             var pr = Probe(plan.Output);
             Check("내보내기: 고른 구간만(1~3초)", pr != null && Near(pr.Seconds, 2, 0.15) && pr.Width == 640 && Near(plan.From, 1, 1e-9), Say(pr) + " " + string.Join(" / ", j.Problems));
+
+            // 화질: 같은 2초를 낮음·최고로 내보내면 파일 크기가 화질대로 달라진다(고른 값이 인코더까지 들어감)
+            var qp = new VProject { Aspect = "16:9", SourceW = 640, SourceH = 360 };
+            qp.Clips.Add(new VClip { Path = moving, In = 0, Out = 2 });
+            qp.Opened.Add(moving);
+            qp.Export.Preset = "youtube";
+            qp.Export.Height = 720;
+            var qBytes = new Dictionary<string, long>();
+            var qSay = new List<string>();
+            foreach (var q in new[] { "low", "max" })
+            {
+                var qplan = VideoExport.Plan(qp, q);
+                qplan.Output = V("화질_" + q + ".mp4");
+                var qj = ExportNow(qp, qplan, null);
+                qBytes[q] = File.Exists(qplan.Output) ? new FileInfo(qplan.Output).Length : 0;
+                qSay.Add(q + " " + Conversions.Size(qBytes[q]) + " (" + (qplan.VideoBps / 1e6).ToString("0.0") + "Mbps) " + string.Join(" / ", qj.Problems));
+            }
+            Check("내보내기: 화질 최고는 낮음보다 파일이 크다(720p 2초)", qBytes["low"] > 0 && qBytes["max"] > qBytes["low"] * 1.5, string.Join(" · ", qSay));
 
             // 그래픽 인코더가 쓰는 도중 멈추면: 앞쪽(4번째 장)이면 CPU 인코더로 처음부터 다시, 뒤쪽(101번째 장)이면 알리고 만들던 파일을 지운다.
             // 어느 쪽이든 그 뒤의 내보내기는 CPU 인코더로 한다(VEncoder.CpuOnly).

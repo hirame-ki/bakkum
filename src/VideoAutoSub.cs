@@ -147,12 +147,13 @@ namespace Bakkum
                 double start = Math.Max(0, pc.Start), end = Math.Min(d, pc.End);
                 if (end - start < 0.2) continue;
                 if (keep.Any(k => k.Start < end - 0.05 && start + 0.05 < k.End)) continue;
-                var it = new VItem { Kind = "text", Subtitle = true, Text = pc.Text, Start = start, End = end, X = 0.5, Y = 0.86, Box = false };
+                var it = new VItem { Kind = "text", Subtitle = true, Text = pc.Text, Start = start, End = end, X = 0.5, Y = 0.86, W = 0.86, Box = false };
                 if (style != null)
                 {
                     it.TakeStyleFrom(style);
                     it.X = style.X;
                     it.Y = style.Y;
+                    it.W = style.W;
                 }
                 list.Add(it);
             }

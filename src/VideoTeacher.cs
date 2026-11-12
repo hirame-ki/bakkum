@@ -1816,12 +1816,13 @@ namespace Bakkum
                         var sound = new VSound { Kind = "voice", Path = s.Wav, Start = t, In = 0, Out = s.Len, Text = s.Text, Voice = s.Voice, Rate = s.Rate, Name = "노트 읽기" };
                         if (subs)
                         {
-                            var it = new VItem { Kind = "text", Subtitle = true, Text = s.Text, Start = t, End = t + s.Len + 0.2, X = 0.5, Y = 0.86 };
+                            var it = new VItem { Kind = "text", Subtitle = true, Text = s.Text, Start = t, End = t + s.Len + 0.2, X = 0.5, Y = 0.86, W = 0.86 };
                             if (style != null)
                             {
                                 it.TakeStyleFrom(style);
                                 it.X = style.X;
                                 it.Y = style.Y;
+                                it.W = style.W;
                             }
                             p.Items.Add(it);
                             sound.ItemId = it.Id;

@@ -294,7 +294,7 @@ namespace Bakkum
             expect.Remove("Thumbs.db");
             var expanded = Formats.Expand(new[] { folder });
             Check("폴더를 놓으면 폴더 자리와 안의 파일", expanded[0] == folder + "\\" && expanded.Contains(Path.Combine(folder, "첫 파일.txt")) && Formats.KindOf(expanded[0]) == Kind.Folder, string.Join(" | ", expanded.Select(Util.ShortName)));
-            Check("폴더 자리는 압축 칸만 받는다", ActionOf("archive").Usable(expanded).Contains(expanded[0]) && !ActionOf("pdf").Usable(expanded).Contains(expanded[0]) && !ActionOf("ai").Usable(expanded).Contains(expanded[0]), "");
+            Check("폴더 자리는 압축 칸과 AI 칸(폴더 정리)만 받는다", ActionOf("archive").Usable(expanded).Contains(expanded[0]) && !ActionOf("pdf").Usable(expanded).Contains(expanded[0]) && ActionOf("ai").Usable(expanded).Contains(expanded[0]), "");
             string zip = Out1(RunJob("archive", "zip", expanded, null));
             Check("폴더→ZIP", zip.EndsWith("묶음폴더.zip"), zip);
             var zipItems = new List<string>();
@@ -488,7 +488,8 @@ namespace Bakkum
                 return o == null ? "(없음)" : o.Sub;
             };
             Check("형식 칸 작은 줄: 마크다운은 사진이 빠진다고", sub(new[] { "a.docx" }, "md") == "사진은 빠져요" && sub(new[] { "a.hwp" }, "md") == "사진은 빠져요" && sub(new[] { "a.html" }, "md") == "사진은 빠져요", sub(new[] { "a.docx" }, "md"));
-            Check("형식 칸 작은 줄: 시트가 여럿일 수 있으면 첫 시트만", sub(new[] { "a.xlsx" }, "csv") == "첫 시트만" && sub(new[] { "a.ods" }, "tsv") == "첫 시트만" && sub(new[] { "a.tsv", "b.xlsx" }, "csv") == "첫 시트만", sub(new[] { "a.xlsx" }, "csv") + " / " + sub(new[] { "a.tsv", "b.xlsx" }, "csv"));
+            Check("형식 칸 작은 줄: 시트가 여럿일 수 있으면 첫 시트만", sub(new[] { "a.xlsx" }, "csv") == "첫 시트만" && sub(new[] { "a.ods" }, "tsv") == "첫 시트만" && sub(new[] { "a.tsv", "b.xlsx" }, "csv") == "첫 시트만"
+                && sub(new[] { "a.xls" }, "csv") == "첫 시트만" && sub(new[] { "a.cell" }, "tsv") == "첫 시트만", sub(new[] { "a.xlsx" }, "csv") + " / " + sub(new[] { "a.tsv", "b.xlsx" }, "csv") + " / " + sub(new[] { "a.xls" }, "csv"));
             Check("형식 칸 작은 줄: 시트가 하나뿐인 CSV·TSV는 그대로", sub(new[] { "a.csv" }, "tsv") == "탭으로 나눈 표" && sub(new[] { "a.tsv" }, "csv") == "쉼표로 나눈 표", sub(new[] { "a.csv" }, "tsv"));
             Check("형식 칸: PDF와 워드를 같이 놓으면 워드 몫은 남는다", ActionOf("format").OptionsFor(new[] { F2("a.pdf"), F2("b.docx") }).Any(o => o.Id == "html"), "");
             Func<string[], string> packs = delegate (string[] names)

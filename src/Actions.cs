@@ -197,7 +197,9 @@ namespace Bakkum
                 if (Array.IndexOf(Accepts, Formats.KindOf(f)) < 0) continue;
                 if (Id == "shrink" && !CanShrink(f)) continue;
                 if (Id == "text" && !CanReadText(f)) continue;
-                if (Id == "format" && Formats.KindOf(f) == Kind.Excel && !DocConvert.IsTable(f)) continue;
+                if (Id == "format" && Formats.KindOf(f) == Kind.Excel && !DocConvert.IsSheet(f)) continue;
+                // PPT는 옛 형식(.ppt)·한쇼(.show)만 PPTX로 바꾼다
+                if (Id == "format" && Formats.KindOf(f) == Kind.Ppt && Formats.Ext(f) != ".ppt" && Formats.Ext(f) != ".show") continue;
                 if (Id == "pdf" && DocConvert.IsCue(f)) continue;
                 list.Add(f);
             }
@@ -493,6 +495,8 @@ namespace Bakkum
                         break;
                 }
             }
+            // 옛 PPT·한쇼 → PPTX. 한글·워드·PDF를 같이 놓았으면 그쪽 이름('PPT로')이 먼저 들어가 있다(같은 칸이 둘 다 한다)
+            if (usable.Any(f => Formats.Ext(f) == ".ppt" || Formats.Ext(f) == ".show")) AddOnce(opts, new ActionOption("pptx", "PPTX", "새 PPT 형식"));
             // 표 → 글자 파일은 넣지 않는다. TSV로 바꾼 파일과 바이트까지 똑같다(2026-11-13 시험).
             foreach (var f in usable.Where(x => Formats.KindOf(x) == Kind.Excel))
             {
@@ -509,8 +513,8 @@ namespace Bakkum
             }
         }
 
-        /// 시트가 여럿일 수 있는 표 파일: CSV를 뺀 엑셀 갈래 모두. 지금 형식 바꾸기에 들어오는 것은 .xlsx·.xlsm·.ods이고
-        /// (.xls·.cell은 Usable에서 DocConvert.IsTable로 걸러짐), 나중에 .xls·.cell이 들어와도 '첫 시트만'이 같이 붙는다.
+        /// 시트가 여럿일 수 있는 표 파일: CSV를 뺀 엑셀 갈래 모두(.xlsx·.xlsm·.ods, 옛 엑셀 .xls·한셀 .cell).
+        /// TSV는 갈래가 글 파일이라 여기 들지 않는다.
         static bool IsWorkbook(string f)
         {
             return Formats.KindOf(f) == Kind.Excel && Formats.Ext(f) != ".csv";
@@ -518,6 +522,23 @@ namespace Bakkum
 
         static void AiOptions(List<string> usable, List<ActionOption> opts)
         {
+            // 폴더를 놓으면 폴더 정리를 맨 앞에 둔다. 폴더만 놓았으면(안에 아는 파일이 없으면) 정리만 고른다.
+            if (usable.Any(ArchiveJobs.IsFolder))
+            {
+                var org = new[]
+                {
+                    new ActionOption("orgsort", "폴더로 나누기", "비슷한 것끼리"),
+                    new ActionOption("orgname", "이름 다듬기", "알아보기 쉽게"),
+                    new ActionOption("orgboth", "둘 다", "나누고 이름도")
+                };
+                usable = usable.Where(f => !ArchiveJobs.IsFolder(f)).ToList();
+                if (usable.Count == 0)
+                {
+                    opts.AddRange(org);
+                    return;
+                }
+                opts.Add(new ActionOption("organize", "폴더 정리", "나누기·이름 다듬기").With(org));
+            }
             opts.Add(new ActionOption("summary", "요약", "3줄·한 쪽").With(
                 new ActionOption("sum3", "3줄로", "핵심만"),
                 new ActionOption("sum1", "한 쪽으로", "항목으로 정리")));
@@ -572,7 +593,7 @@ namespace Bakkum
         {
             new MenuAction("pdf", "PDF로", "문서·그림을 PDF로", Kind.Hwp, Kind.Word, Kind.Excel, Kind.Ppt, Kind.Image, Kind.Pdf, Kind.Text),
             new MenuAction("image", "그림으로", "쪽마다 그림 파일", Kind.Pdf, Kind.Hwp, Kind.Word, Kind.Excel, Kind.Ppt),
-            new MenuAction("format", "형식 바꾸기", "워드·엑셀·PNG…", Kind.Image, Kind.Hwp, Kind.Word, Kind.Pdf, Kind.Text, Kind.Excel),
+            new MenuAction("format", "형식 바꾸기", "워드·엑셀·PNG…", Kind.Image, Kind.Hwp, Kind.Word, Kind.Pdf, Kind.Text, Kind.Excel, Kind.Ppt),
             new MenuAction("shrink", "용량 줄이기", "그림·PDF·문서", Kind.Image, Kind.Pdf, Kind.Word, Kind.Excel, Kind.Ppt, Kind.Hwp),
             new MenuAction("text", "글자 뽑기", "그림·PDF·문서", Kind.Image, Kind.Pdf, Kind.Hwp, Kind.Word, Kind.Ppt, Kind.Excel),
             new MenuAction("photo", "사진 손질", "가리기·자르기·보정", Kind.Image),
@@ -580,7 +601,7 @@ namespace Bakkum
             new MenuAction("media", "영상·소리", "변환·편집·줄이기", Kind.Video, Kind.Audio),
             new MenuAction("record", "화면 녹화", "내 화면을 영상으로"),
             new MenuAction("archive", "압축", "묶기·풀기", Kind.Unknown, Kind.Hwp, Kind.Word, Kind.Excel, Kind.Ppt, Kind.Pdf, Kind.Image, Kind.Text, Kind.Archive, Kind.Folder, Kind.Video, Kind.Audio),
-            new MenuAction("ai", "AI로", "요약·번역·문제", Kind.Pdf, Kind.Hwp, Kind.Word, Kind.Excel, Kind.Ppt, Kind.Image, Kind.Text),
+            new MenuAction("ai", "AI로", "요약·번역·문제", Kind.Pdf, Kind.Hwp, Kind.Word, Kind.Excel, Kind.Ppt, Kind.Image, Kind.Text, Kind.Folder),
             new MenuAction("settings", "설정", "모양·키·AI")
         };
 

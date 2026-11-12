@@ -21,6 +21,9 @@ namespace Bakkum
         public double X, Y, W, H;
         public double Zoom = 1, PanX, PanY;
         public double Opacity = 1;
+        /// 얹은 것의 기울기(도). HasRot이 false인 예전 표시는 얹은 것의 기울기(VItem.Rot)를 그대로 쓴다.
+        public double Rot;
+        public bool HasRot;
 
         public VKey Copy()
         {
@@ -336,6 +339,9 @@ namespace Bakkum
         public double RangeStart, RangeEnd;
         /// 소리만: m4a · mp3 · wav
         public string AudioFormat = "m4a";
+        /// 화질: max(최고) · high(높음) · mid(중간, 예전과 같음) · low(낮음). 용량 맞추기·소리만·표지 그림에는 쓰지 않는다.
+        /// 예전에 저장한 편집에는 이 값이 없어 mid가 된다.
+        public string Quality = "mid";
         public double CoverAt;
         public bool KeepLocation;
     }

@@ -150,8 +150,9 @@ namespace Bakkum
             if (st.Opacity <= 0.003 && it.In != "type") return;
             var box = Box(it, st, W, H);
             double cx = box.X + box.Width / 2, cy = box.Y + box.Height / 2;
-            bool rot = Math.Abs(it.Rot) > 0.01 && it.Kind != "pip";
-            if (rot) dc.PushTransform(new RotateTransform(it.Rot, cx, cy));
+            // 작은 화면도 영상(VRenderer.Pip)과 같이 돌린 테두리를 그린다
+            bool rot = Math.Abs(st.Rot) > 0.01;
+            if (rot) dc.PushTransform(new RotateTransform(st.Rot, cx, cy));
             dc.PushOpacity(Math.Max(0, Math.Min(1, st.Opacity)));
             try
             {
@@ -613,10 +614,10 @@ namespace Bakkum
                 if (!st.Visible) continue;
                 var box = Box(it, st, W, H);
                 var q = pt;
-                if (Math.Abs(it.Rot) > 0.01 && it.Kind != "pip")
+                if (Math.Abs(st.Rot) > 0.01)
                 {
                     var m = Matrix.Identity;
-                    m.RotateAt(-it.Rot, box.X + box.Width / 2, box.Y + box.Height / 2);
+                    m.RotateAt(-st.Rot, box.X + box.Width / 2, box.Y + box.Height / 2);
                     q = m.Transform(pt);
                 }
                 var hit = box;
@@ -659,7 +660,7 @@ namespace Bakkum
                 any = true;
                 sb.Append(it.Id).Append(':').Append(st.X.ToString("F4")).Append(',').Append(st.Y.ToString("F4")).Append(',')
                   .Append(st.Scale.ToString("F4")).Append(',').Append(st.Opacity.ToString("F3")).Append(',').Append(st.Dx.ToString("F4")).Append(',')
-                  .Append(st.Dy.ToString("F4")).Append(',').Append(st.Reveal.ToString("F3"));
+                  .Append(st.Dy.ToString("F4")).Append(',').Append(st.Reveal.ToString("F3")).Append(',').Append(st.Rot.ToString("F2"));
                 if (it.Kind == "shape" && it.Shape == "ripple") sb.Append(',').Append(t.ToString("F3"));
                 sb.Append(';');
             }

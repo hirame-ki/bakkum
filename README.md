@@ -15,7 +15,7 @@
 |---|---|---|
 | PDF로 | 한글·워드·엑셀·PPT·그림 | PDF (여러 개는 하나로 묶거나 따로) |
 | 그림으로 | PDF·한글·워드·엑셀·PPT | 쪽마다 PNG 또는 JPG, 문서 속 사진 뽑기 |
-| 형식 바꾸기 | 그림·PDF·한글·워드·표 파일·글 파일·전자책 | PNG·JPG·WEBP·BMP·GIF·TIFF·ICO(SVG도 넣을 수 있음), HWP ↔ HWPX, PDF → 워드·엑셀, PDF·한글·워드 → 글자 고칠 수 있는 PPT, PDF → 그림 PPT, 한글 → 워드, 한글 표 → 엑셀, 사진 → 워드·PPT, 한글·워드 → 마크다운·HTML·EPUB, MD·HTML·EPUB·워드 사이, SRT ↔ VTT, 엑셀·CSV·TSV·ODS 사이. 결과가 쓸모없는 변환(PDF → 마크다운·HTML·EPUB, 표 → 글자 파일 등)은 고를 거리에 두지 않는다 |
+| 형식 바꾸기 | 그림·PDF·한글·워드·표 파일·글 파일·전자책·옛 PPT | PNG·JPG·WEBP·BMP·GIF·TIFF·ICO(SVG도 넣을 수 있음), HWP ↔ HWPX, PDF → 워드·엑셀, PDF·한글·워드 → 글자 고칠 수 있는 PPT, PDF → 그림 PPT, 한글 → 워드, 한글 표 → 엑셀, 사진 → 워드·PPT, 한글·워드 → 마크다운·HTML·EPUB, MD·HTML·EPUB·워드 사이, SRT ↔ VTT, 엑셀·CSV·TSV·ODS 사이(한셀·옛 엑셀 .xls도), 한쇼·옛 PPT(.ppt) → PPTX. 결과가 쓸모없는 변환(PDF → 마크다운·HTML·EPUB, 표 → 글자 파일 등)은 고를 거리에 두지 않는다 |
 | 용량 줄이기 | 그림·PDF·문서 | 조금(긴 변 3000)·보통(2000)·많이(1400)·목표 용량 |
 | 글자 뽑기 | 그림·PDF·문서 | 이 PC에서(윈도우 글자 인식), 워드로, AI로(표까지) |
 | 사진 손질 | 그림 | 가리기(블러·모자이크·색 칸, 전체·일부), 얼굴 가리기, 자르기·회전·뒤집기·크기, 밝기·대비·채도·선명도, 글자·화살표·형광펜, 배경·여백·둥근 모서리, 문서 펴기, 콜라주, 사진 정보 보기·지우기 |
@@ -23,7 +23,7 @@
 | 영상·소리 | 영상·소리 파일 | 영상: MP4·MOV·MKV, 용량 줄이기, 영상 편집(아래), GIF, 소리만 MP3·WAV / 소리: MP3·M4A·WAV·FLAC, 자르기 |
 | 화면 녹화 | (파일 없이) | 화면 전체나 고른 영역을 MP4로, 소리 없음·마이크·컴퓨터 소리·둘 다, 잠시 멈춤, 웹캠 같이 찍기(얼굴 영상은 따로 저장되고 영상 편집에서 동그랗게 얹힘). 비디오 폴더에 저장 |
 | 압축 | 모든 파일·폴더 | ZIP·TAR로 묶기, 파일 하나 GZIP, ZIP·TAR·GZ·TGZ 풀기 |
-| AI로 | 문서·그림·PDF | 요약, 요점 정리(공문의 마감·할 일, 일정은 엑셀·달력 파일로, 공문 여러 개는 마감순 할 일표 한 장으로), 9개 언어 번역, 문서 쓰기(기안문·계획서·결과 보고서·가정 통신문 초안, 쉬운 말·맞춤법), 표 → 엑셀, 문제와 시험지를 본뜬 비슷한 문제, 학습지, 디자인을 입힌 수업 PPT(네 가지 디자인, 발표자 노트), 수준별 자료, 지도안, 채점 기준표, 손글씨 읽기, 이름 짓기 |
+| AI로 | 문서·그림·PDF·폴더 | 요약, 요점 정리(공문의 마감·할 일, 일정은 엑셀·달력 파일로, 공문 여러 개는 마감순 할 일표 한 장으로), 9개 언어 번역, 문서 쓰기(기안문·계획서·결과 보고서·가정 통신문 초안, 쉬운 말·맞춤법), 표 → 엑셀, 문제와 시험지를 본뜬 비슷한 문제, 학습지, 디자인을 입힌 수업 PPT(네 가지 디자인, 발표자 노트), 수준별 자료, 지도안, 채점 기준표, 손글씨 읽기, 이름 짓기, 폴더 정리(파일 이름만 보고 하위 폴더로 나누기·이름 다듬기, 옮기기 전에 고칠 수 있게 묻기) |
 
 받는 형식: `hwp hwpx` · `doc docx rtf odt` · `xls xlsx xlsm csv cell ods` · `ppt pptx show` · `pdf` · `png jpg jpeg jfif bmp gif tif tiff webp heic heif avif svg` · `txt md markdown html htm srt vtt tsv epub` · `zip tar gz tgz` · `mp4 m4v mov mkv avi wmv asf webm mpg mpeg ts mts m2ts 3gp` · `mp3 wav m4a aac flac ogg oga opus wma`
 
@@ -153,6 +153,7 @@ build\Bakkum.exe /run text local 스캔.pdf
 | `src/VideoProxy.cs`, `src/VideoEditorProxy.cs` | 미리 보기용 가벼운 사본 |
 | `src/ScreenRecorder.cs`, `src/RecordWindows.cs`, `src/Webcam.cs` | 화면 녹화, 웹캠 같이 찍기 |
 | `src/AiTasks.cs` | 'AI로' 칸(이름 가리기·보내기 전 확인·작업별 지시) |
+| `src/AiOrganize.cs` | 'AI로' 칸의 폴더 정리(파일 이름 목록 보내기·확인 창·옮기기) |
 | `src/Compare.cs`, `src/Guide.cs`, `src/Favorites.cs`, `src/Updater.cs` | 전후 비교, 사용법, 즐겨찾기, 앱 안 업데이트 |
 | `src/Installer.cs` | 설치·지우기·앱 목록 등록 |
 | `src/SelfTest.cs`, `src/ToolTest*.cs`, `tools/` | 자체 시험과 가짜 서버 |

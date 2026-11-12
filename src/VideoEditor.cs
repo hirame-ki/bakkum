@@ -85,8 +85,10 @@ namespace Bakkum
             project = p;
             Title = "영상 편집 · " + AppInfo.Name;
             var wa = SystemParameters.WorkArea;
-            MinWidth = 1060;
-            MinHeight = 700;
+            // 작은 화면(예: 1366×768에 125%, 1920×1080에 150%)에서는 작업 영역이 700보다 낮다.
+            // 가장 작은 크기를 작업 영역에 맞춰야 아래 [내보내기]가 작업 표시줄 뒤로 숨지 않는다.
+            MinWidth = Math.Min(1060, wa.Width);
+            MinHeight = Math.Min(700, wa.Height);
             Width = Math.Max(MinWidth, Math.Min(1480, wa.Width * 0.96));
             Height = Math.Max(MinHeight, Math.Min(930, wa.Height * 0.95));
             WindowStartupLocation = WindowStartupLocation.CenterScreen;
@@ -94,6 +96,7 @@ namespace Bakkum
             try { Icon = App.WindowIcon; } catch { }
             preview = new VPreview();
             Content = BuildRoot();
+            SizeChanged += delegate { FitTimelineRow(); };
             AllowDrop = true;
             Drop += OnDrop;
             autosaveTimer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(2) };
@@ -249,8 +252,8 @@ namespace Bakkum
         static void AddDemo(VProject p)
         {
             double d = p.Duration;
-            p.Items.Add(new VItem { Kind = "text", Subtitle = true, Start = 0.5, End = Math.Min(d, 3.4), Text = "오늘은 물의 순환을 알아봐요", X = 0.5, Y = 0.86 });
-            p.Items.Add(new VItem { Kind = "text", Subtitle = true, Start = 3.5, End = Math.Min(d, 6.5), Text = "구름은 어떻게 만들어질까요?", X = 0.5, Y = 0.86, Emph = "구름", EmphRgb = 0xFFD447 });
+            p.Items.Add(new VItem { Kind = "text", Subtitle = true, Start = 0.5, End = Math.Min(d, 3.4), Text = "오늘은 물의 순환을 알아봐요", X = 0.5, Y = 0.86, W = 0.86 });
+            p.Items.Add(new VItem { Kind = "text", Subtitle = true, Start = 3.5, End = Math.Min(d, 6.5), Text = "구름은 어떻게 만들어질까요?", X = 0.5, Y = 0.86, W = 0.86, Emph = "구름", EmphRgb = 0xFFD447 });
             p.Items.Add(new VItem { Kind = "sticker", Sticker = "t_point", Start = 0.8, End = Math.Min(d, 5), X = 0.84, Y = 0.16, W = 0.16, In = "pop" });
             p.Items.Add(new VItem { Kind = "shape", Shape = "arrow", Start = 1, End = Math.Min(d, 5), X = 0.3, Y = 0.36, W = 0.16, H = -0.12, Rgb = 0xFF8473, Thick = 0.012 });
             p.Markers.Add(new VMarker { T = Math.Min(d * 0.3, 20), Label = "도입" });
@@ -397,7 +400,8 @@ namespace Bakkum
             var root = new Grid { Margin = new Thickness(14, 12, 14, 12) };
             root.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
             root.RowDefinitions.Add(new RowDefinition { Height = new GridLength(1, GridUnitType.Star) });
-            root.RowDefinitions.Add(new RowDefinition { Height = new GridLength(250) });
+            timelineRow = new RowDefinition { Height = new GridLength(250) };
+            root.RowDefinitions.Add(timelineRow);
             root.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
             // 왼쪽 칸 메뉴는 시간 막대 옆까지 길게 둔다. 칸이 아홉 개라 화면 위쪽에만 두면
             // 보통 노트북(창 높이 700~780)에서 가리기·선생님 도구·내보내기가 아래로 숨었다(2026-11-12 그림 확인).
@@ -446,6 +450,17 @@ namespace Bakkum
             Grid.SetColumnSpan(foot, 2);
             root.Children.Add(foot);
             return root;
+        }
+
+        RowDefinition timelineRow;
+
+        /// 창 높이가 700보다 낮으면(작은 노트북) 화면(영상)이 너무 작아지지 않게 시간 막대를 250에서 200까지 줄인다.
+        /// 200 아래로는 줄이지 않는다: 더 줄이면 시간 막대 칸이 눌려 글자까지 작아진다.
+        void FitTimelineRow()
+        {
+            if (timelineRow == null || ActualHeight <= 0) return;
+            double h = Math.Max(200, Math.Min(250, 250 - (700 - ActualHeight)));
+            if (Math.Abs(timelineRow.Height.Value - h) > 0.5) timelineRow.Height = new GridLength(h);
         }
 
         FrameworkElement BuildHead()
@@ -669,48 +684,6 @@ namespace Bakkum
             return g;
         }
 
-        FrameworkElement BuildTransport()
-        {
-            var dock = new DockPanel { Margin = new Thickness(0, 10, 0, 0), LastChildFill = false };
-            var left = new StackPanel { Orientation = Orientation.Horizontal, VerticalAlignment = VerticalAlignment.Center };
-            left.Children.Add(IconButton("first", "처음으로 (Home)", delegate { SeekTo(0); }));
-            left.Children.Add(IconButton("stepback", "한 장 뒤로 (←, Shift+←는 1초)", delegate { Step(-FrameSec); }));
-            playBtn = new Button
-            {
-                Style = Theme.GetStyle("Primary"),
-                Width = 50,
-                Height = 44,
-                Padding = new Thickness(0),
-                Margin = new Thickness(6, 0, 3, 0),
-                ToolTip = "재생·멈춤 (Space)",
-                Content = Theme.Glyph("play", 20, Theme.Sheet, 2.2)
-            };
-            playBtn.Click += delegate { TogglePlay(); };
-            left.Children.Add(playBtn);
-            left.Children.Add(IconButton("stepfwd", "한 장 앞으로 (→, Shift+→는 1초)", delegate { Step(FrameSec); }));
-            left.Children.Add(IconButton("last", "끝으로 (End)", delegate { SeekTo(project.Duration); }));
-            timeText = Theme.Text("0:00.0 / 0:00.0", 14.5, FontWeights.Bold, Theme.Ink);
-            timeText.FontFamily = Theme.MonoFont;
-            timeText.VerticalAlignment = VerticalAlignment.Center;
-            timeText.Margin = new Thickness(12, 0, 0, 0);
-            left.Children.Add(timeText);
-            DockPanel.SetDock(left, Dock.Left);
-            dock.Children.Add(left);
-
-            var right = new StackPanel { Orientation = Orientation.Horizontal, VerticalAlignment = VerticalAlignment.Center };
-            var split = Theme.MakeButton("여기서 나누기", "Line");
-            split.ToolTip = "재생 위치에서 조각을 둘로 나눠요 (S)";
-            split.Height = 40;
-            split.Click += delegate { SplitHere(); };
-            right.Children.Add(split);
-            right.Children.Add(IconButton("zoomout", "시간 막대 줄이기 (-)", delegate { timeline.ZoomBy(0.75, CurrentTime); }));
-            right.Children.Add(IconButton("zoomin", "시간 막대 늘리기 (+)", delegate { timeline.ZoomBy(1.33, CurrentTime); }));
-            right.Children.Add(IconButton("range", "전체가 한눈에 보이게 (0)", delegate { timeline.FitAll(); }));
-            DockPanel.SetDock(right, Dock.Right);
-            dock.Children.Add(right);
-            return dock;
-        }
-
         FrameworkElement BuildFoot()
         {
             var dock = new DockPanel { Margin = new Thickness(0, 10, 0, 0) };
@@ -820,6 +793,7 @@ namespace Bakkum
         {
             double t = CurrentTime;
             timeText.Text = VProject.Clock(t, true) + " / " + VProject.Clock(project.Duration, true);
+            UpdateLive();
         }
 
         void TogglePlay()
@@ -1281,6 +1255,10 @@ namespace Bakkum
                     if (ctrl) return;
                     AddMarker();
                     break;
+                case Key.K:
+                    if (ctrl) return;
+                    ToggleKey();
+                    break;
                 case Key.I:
                     if (ctrl) return;
                     SetRange(true);
@@ -1349,6 +1327,7 @@ namespace Bakkum
             new[] { "Ctrl + D", "고른 것 복제" },
             new[] { "T", "재생 위치에 자막 넣기" },
             new[] { "M", "재생 위치에 표시 넣기" },
+            new[] { "K", "고른 것에 움직임 표시(◆, 키프레임) 넣기 · 빼기" },
             new[] { "I  /  O", "구간 시작 / 끝 (구간은 되풀이 재생)" },
             new[] { "Shift + 눈금 끌기", "구간 고르기" },
             new[] { "+  -  0", "시간 막대 늘리기 · 줄이기 · 한눈에" },
@@ -1453,12 +1432,12 @@ namespace Bakkum
             }
         }
 
-        enum StageDrag { None, Move, Resize, Rotate, End1, End2, Pan, RedactNew, RedactMove, RedactResize }
+        enum StageDrag { None, Move, Resize, Width, Rotate, End1, End2, Pan, RedactNew, RedactMove, RedactResize }
 
         StageDrag stageDrag;
         Point dragFrom;
         bool stageBegun;
-        double origX, origY, origW, origH, origSize, origRot, origZoom, origPanX, origPanY;
+        double origX, origY, origW, origH, origSize, origRot, origZoom, origKeyZoom, origPanX, origPanY;
         Rect origBox, redactDraft;
         bool guideV, guideH;
         int resizeCorner;
@@ -1498,6 +1477,9 @@ namespace Bakkum
             return p;
         }
 
+        /// 글자 옆 손잡이가 상자 가장자리에서 바깥으로 떨어진 거리(화면 점)
+        const double SideOut = 13;
+
         void Handle(DrawingContext dc, Point at)
         {
             dc.DrawEllipse(Theme.Sheet, new Pen(Theme.Ink, 1.8), at, 6, 6);
@@ -1520,14 +1502,35 @@ namespace Bakkum
             }
             var box = VOverlay.Box(it, st, W, Hh);
             var c = new Point(box.X + box.Width / 2, box.Y + box.Height / 2);
-            if (Math.Abs(it.Rot) > 0.01) dc.PushTransform(new RotateTransform(it.Rot, c.X, c.Y));
+            bool turned = Math.Abs(st.Rot) > 0.01;
+            if (turned) dc.PushTransform(new RotateTransform(st.Rot, c.X, c.Y));
+            if (it.Kind == "text" && stageDrag == StageDrag.Width)
+            {
+                // 줄 너비를 끄는 동안: 글이 이 두 선 안에서 줄을 바꾼다
+                var lay = VOverlay.Layout(it, W, Hh);
+                double half = Math.Max(lay.FontPx * 1.5, it.W * W) / 2 * st.Scale;
+                var wp = DashPen(Theme.Frozen(Theme.Hex(0xFF8FC2)), 1.4);
+                dc.DrawLine(wp, new Point(c.X - half, box.Top - 14), new Point(c.X - half, box.Bottom + 14));
+                dc.DrawLine(wp, new Point(c.X + half, box.Top - 14), new Point(c.X + half, box.Bottom + 14));
+            }
             dc.DrawRectangle(null, DashPen(Theme.Ink, 1.4), box);
             dc.DrawRectangle(null, DashPen(Theme.Sheet, 1.4), new Rect(box.X - 1, box.Y - 1, box.Width + 2, box.Height + 2));
             foreach (var h in Corners(box)) Handle(dc, h);
+            if (it.Kind == "text")
+            {
+                // 옆 손잡이: 줄 너비만 바꾼다(글자 크기는 그대로). 한 줄 자막처럼 낮은 상자에서도
+                // 모서리 손잡이와 겹치지 않게 상자 바깥 양옆에 두고 짧은 선으로 잇는다.
+                foreach (int side in new[] { -1, 1 })
+                {
+                    double edge = side < 0 ? box.Left : box.Right, x = edge + side * SideOut;
+                    dc.DrawLine(new Pen(Theme.Ink, 1.2), new Point(edge, c.Y), new Point(x - side * 4, c.Y));
+                    dc.DrawRoundedRectangle(Theme.Sheet, new Pen(Theme.Ink, 1.8), new Rect(x - 4, c.Y - 10, 8, 20), 4, 4);
+                }
+            }
             var rot = new Point(c.X, box.Top - 26);
             dc.DrawLine(new Pen(Theme.Ink, 1.2), new Point(c.X, box.Top), rot);
             dc.DrawEllipse(H.VividBrush, new Pen(Theme.Ink, 1.8), rot, 7, 7);
-            if (Math.Abs(it.Rot) > 0.01) dc.Pop();
+            if (turned) dc.Pop();
         }
 
         static Point[] Corners(Rect b)
@@ -1555,7 +1558,7 @@ namespace Bakkum
             };
             foreach (var z in zones) dc.DrawRectangle(fill, pen, z);
             var t = new FormattedText("앱 단추·글에 가려지는 곳", System.Globalization.CultureInfo.GetCultureInfo("ko-KR"), FlowDirection.LeftToRight,
-                new Typeface(Theme.Font, FontStyles.Normal, FontWeights.Bold, FontStretches.Normal), Math.Max(10, Math.Min(13, W / 30)), Theme.Frozen(Theme.Hex(0x7A2214)), 1.0);
+                new Typeface(Theme.Font, FontStyles.Normal, FontWeights.Bold, FontStretches.Normal), Math.Max(12, Math.Min(14, W / 30)), Theme.Frozen(Theme.Hex(0x7A2214)), 1.0);
             dc.DrawText(t, new Point(8, Hh * 0.78 + 6));
         }
 
@@ -1608,7 +1611,7 @@ namespace Bakkum
                 if (rd.Face)
                 {
                     var label = new FormattedText(rd.Off ? "보이게 둠" : "얼굴", System.Globalization.CultureInfo.GetCultureInfo("ko-KR"), FlowDirection.LeftToRight,
-                        new Typeface(Theme.Font, FontStyles.Normal, FontWeights.Bold, FontStretches.Normal), 11, rd.Off ? Theme.Ink2 : Theme.Ink, 1.0);
+                        new Typeface(Theme.Font, FontStyles.Normal, FontWeights.Bold, FontStretches.Normal), 12, rd.Off ? Theme.Ink2 : Theme.Ink, 1.0);
                     var at = new Point(Math.Min(pts.Min(p => p.X), W - label.Width - 8), Math.Max(0, pts.Min(p => p.Y) - label.Height - 4));
                     dc.DrawRoundedRectangle(rd.Off ? Theme.Frozen(Theme.Hex(0xEEF0F4)) : H.VividBrush, null, new Rect(at.X - 4, at.Y - 1, label.Width + 8, label.Height + 2), 6, 6);
                     dc.DrawText(label, at);
@@ -1662,7 +1665,9 @@ namespace Bakkum
             }
             var it = SelectedItem;
             double t = CurrentTime;
-            if (it != null && HandleAt(it, q, t) != StageDrag.None) return Cursors.SizeNWSE;
+            var handle = it == null ? StageDrag.None : HandleAt(it, q, t);
+            if (handle == StageDrag.Width) return Cursors.SizeWE;
+            if (handle != StageDrag.None) return Cursors.SizeNWSE;
             var hit = VOverlay.HitTest(project, t, canvasRect.Width, canvasRect.Height, q);
             if (hit != null) return Cursors.SizeAll;
             if (tab == "ratio") return Cursors.Hand;
@@ -1685,13 +1690,17 @@ namespace Bakkum
             var box = VOverlay.Box(it, st, W, Hh);
             var c = new Point(box.X + box.Width / 2, box.Y + box.Height / 2);
             var p = q;
-            if (Math.Abs(it.Rot) > 0.01)
+            if (Math.Abs(st.Rot) > 0.01)
             {
                 var m = Matrix.Identity;
-                m.RotateAt(-it.Rot, c.X, c.Y);
+                m.RotateAt(-st.Rot, c.X, c.Y);
                 p = m.Transform(q);
             }
             if ((new Point(c.X, box.Top - 26) - p).Length < 11) return StageDrag.Rotate;
+            // 글자의 옆 손잡이(상자 바깥 양옆): 줄 너비. 낮은 상자에서는 모서리와 가까워 모서리보다 먼저 본다.
+            // 보이는 모서리 손잡이(반지름 6) 안쪽은 들어가지 않게 가장자리에서 6 넘게 떨어진 곳만 잡는다.
+            if (it.Kind == "text" && Math.Abs(p.Y - c.Y) <= 13
+                && (Math.Abs(p.X - (box.Left - SideOut)) < 7 || Math.Abs(p.X - (box.Right + SideOut)) < 7)) return StageDrag.Width;
             var cs = Corners(box);
             for (int k = 0; k < 4; k++)
             {
@@ -1701,6 +1710,9 @@ namespace Bakkum
                     return StageDrag.Resize;
                 }
             }
+            // 여러 줄 글처럼 높은 상자는 왼쪽·오른쪽 가장자리 어디를 잡아도 줄 너비
+            if (it.Kind == "text" && Math.Abs(p.Y - c.Y) <= Math.Max(9, box.Height / 2 - 2)
+                && (Math.Abs(p.X - box.Left) < 6 || Math.Abs(p.X - box.Right) < 6)) return StageDrag.Width;
             return StageDrag.None;
         }
 
@@ -1765,8 +1777,10 @@ namespace Bakkum
             origW = it.W;
             origH = it.H;
             origSize = it.Size;
-            origRot = it.Rot;
+            origRot = st.Rot;
             origZoom = st.Scale;
+            var key = VAnim.At(it.Keys, VKeys.LocalOf(it, t));
+            origKeyZoom = key != null ? key.Zoom : 1;
             origBox = VOverlay.Box(it, st, canvasRect.Width, canvasRect.Height);
             stageDrag = kind;
         }
@@ -1779,24 +1793,14 @@ namespace Bakkum
             lastKey = null;
         }
 
-        /// 움직임 표시가 있으면 지금 시각의 표시를 고치고(없으면 새로), 없으면 기본값을 고친다
-        void SetItemPlace(VItem it, double x, double y, double scale, double t)
+        /// 움직임 표시가 있으면 지금 시각의 표시를 고치고(없으면 그 시각 모습으로 새로), 없으면 기본값을 고친다
+        void SetItemPlace(VItem it, double x, double y, double t)
         {
             if (it.Keys.Count > 0)
             {
-                double local = Math.Max(0, t - it.Start);
-                var k = it.Keys.FirstOrDefault(v => Math.Abs(v.T - local) < 0.04);
-                if (k == null)
-                {
-                    var cur = VAnim.At(it.Keys, local);
-                    k = cur == null ? new VKey { T = local } : cur.Copy();
-                    k.T = local;
-                    it.Keys.Add(k);
-                    it.Keys.Sort((a, b) => a.T.CompareTo(b.T));
-                }
+                var k = VKeys.Ensure(it, VKeys.LocalOf(it, t));
                 k.X = x;
                 k.Y = y;
-                k.Zoom = scale;
             }
             else
             {
@@ -1826,7 +1830,7 @@ namespace Bakkum
                     else guideV = false;
                     if (guideH && !Keyboard.Modifiers.HasFlag(ModifierKeys.Alt)) y = 0.5;
                     else guideH = false;
-                    SetItemPlace(it, Math.Max(-0.3, Math.Min(1.3, x)), Math.Max(-0.3, Math.Min(1.3, y)), it.Keys.Count > 0 ? origZoom : 1, t);
+                    SetItemPlace(it, Math.Max(-0.3, Math.Min(1.3, x)), Math.Max(-0.3, Math.Min(1.3, y)), t);
                     StageChanged(it);
                     break;
                 }
@@ -1838,7 +1842,14 @@ namespace Bakkum
                     var c = new Point(origBox.X + origBox.Width / 2, origBox.Y + origBox.Height / 2);
                     double d0 = Math.Max(4, (dragFrom - c).Length), d1 = Math.Max(2, (q - c).Length);
                     double k = Math.Max(0.1, Math.Min(10, d1 / d0));
-                    if (it.Kind == "text") it.Size = Math.Max(0.015, Math.Min(0.3, origSize * k));
+                    if (it.Keys.Count > 0)
+                    {
+                        // 움직임 표시가 있으면 이 시각의 크기만 바꾼다(다른 표시의 크기는 그대로)
+                        var key = VKeys.Ensure(it, VKeys.LocalOf(it, t));
+                        key.Zoom = VKeys.Clamp(origKeyZoom * k, 0.05, 20);
+                    }
+                    // 글자는 글자 크기와 줄 너비를 같이 키운다. 크기만 키우면 줄이 짧아져 글이 세로로 쌓였다.
+                    else if (it.Kind == "text") VKeys.ScaleText(it, origSize, origW, k);
                     else if (it.Kind == "shape" && (it.Shape == "box" || it.Shape == "circle" || it.Shape == "marker" || it.Shape == "bar"))
                     {
                         double kx = Math.Abs(q.X - c.X) / Math.Max(2, Math.Abs(dragFrom.X - c.X));
@@ -1847,6 +1858,23 @@ namespace Bakkum
                         it.H = Math.Max(0.02, Math.Min(1.5, origH * Math.Max(0.05, Math.Min(20, ky))));
                     }
                     else it.W = Math.Max(0.02, Math.Min(1.5, origW * k));
+                    StageChanged(it);
+                    break;
+                }
+                case StageDrag.Width:
+                {
+                    var it = SelectedItem;
+                    if (it == null || it.Kind != "text") return;
+                    StageBegin();
+                    var c = new Point(origBox.X + origBox.Width / 2, origBox.Y + origBox.Height / 2);
+                    var m = Matrix.Identity;
+                    m.RotateAt(-origRot, c.X, c.Y);
+                    double from = Math.Abs(m.Transform(dragFrom).X - c.X), now = Math.Abs(m.Transform(q).X - c.X);
+                    // 끄는 만큼 양옆이 같이 넓어지거나 좁아진다(글이 가운데 맞춤이라). 지금 글 너비에서 시작한다.
+                    var lay = VOverlay.Layout(it, W, Hh);
+                    double scale = Math.Max(0.05, origZoom);
+                    double pad = it.Box ? lay.FontPx * 0.55 : lay.FontPx * 0.1;
+                    it.W = VKeys.TextWidthFor(origBox.Width / scale - pad * 2, (now - from) / scale, W);
                     StageChanged(it);
                     break;
                 }
@@ -1860,7 +1888,13 @@ namespace Bakkum
                     double rot = origRot + (a1 - a0) * 180 / Math.PI;
                     rot = ((rot + 180) % 360 + 360) % 360 - 180;
                     foreach (double snap in new double[] { -180, -90, 0, 90, 180 }) if (Math.Abs(rot - snap) < 4) rot = snap;
-                    it.Rot = rot;
+                    if (it.Keys.Count > 0)
+                    {
+                        var key = VKeys.Ensure(it, VKeys.LocalOf(it, t));
+                        key.Rot = rot;
+                        key.HasRot = true;
+                    }
+                    else it.Rot = rot;
                     StageChanged(it);
                     break;
                 }
@@ -1875,11 +1909,10 @@ namespace Bakkum
                     Ends(it, st, W, Hh, out a, out b);
                     if (stageDrag == StageDrag.End1) a = q;
                     else b = q;
-                    it.X = (a.X + b.X) / 2 / W - st.Dx;
-                    it.Y = (a.Y + b.Y) / 2 / Hh - st.Dy;
+                    // 화살표·선의 방향·길이는 모든 시각에 같이 바뀌고, 움직임 표시가 있으면 자리만 이 시각의 표시에 담긴다
                     it.W = (b.X - a.X) / W / Math.Max(0.05, st.Scale);
                     it.H = (b.Y - a.Y) / Hh / Math.Max(0.05, st.Scale);
-                    it.Keys.Clear();
+                    SetItemPlace(it, (a.X + b.X) / 2 / W - st.Dx, (a.Y + b.Y) / 2 / Hh - st.Dy, t);
                     StageChanged(it);
                     break;
                 }
@@ -1925,14 +1958,7 @@ namespace Bakkum
             {
                 double local, source;
                 LocalIn(c, out local, out source);
-                double kt = c.Kind == "video" ? source : local;
-                var k = c.Keys.FirstOrDefault(v => Math.Abs(v.T - kt) < 0.04);
-                if (k == null)
-                {
-                    k = new VKey { T = kt };
-                    c.Keys.Add(k);
-                    c.Keys.Sort((a, b) => a.T.CompareTo(b.T));
-                }
+                var k = VKeys.EnsureClip(c, local, source);
                 k.Zoom = zoom;
                 k.PanX = panX;
                 k.PanY = panY;

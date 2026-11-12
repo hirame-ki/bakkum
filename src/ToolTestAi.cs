@@ -566,6 +566,7 @@ namespace Bakkum
                 Check("JSON이 틀리면 한 번 더 묻는다", OutputOf(job, ".ics") != null && AiCalls().Count == 2, AiCalls().Count + "번");
 
                 AiNewTaskChecks();
+                AiOrganizeChecks();
 
                 var fails = AiLines().Where(x => x.ContainsKey("fail")).Select(x => Json.S(x, "fail")).ToList();
                 Check("가짜 Claude Code가 지적한 것 없음", fails.Count == 0, string.Join(" / ", fails));
@@ -576,6 +577,62 @@ namespace Bakkum
                 foreach (string v in new[] { "MOCK_CLAUDE_MODE", "MOCK_CLAUDE_SCRIPT", "MOCK_CLAUDE_REPORT" }) Environment.SetEnvironmentVariable(v, null);
                 Util.TryDeleteDir(temp);
             }
+        }
+
+        /// 폴더 정리: 이름과 날짜만 보내고, 고른 폴더 안에서만 옮기고, 있던 파일을 덮어쓰지 않는다.
+        static void AiOrganizeChecks()
+        {
+            var ai = ActionOf("ai");
+            string dir = Path.Combine(aiWork, "정리할 폴더");
+            Directory.CreateDirectory(Path.Combine(dir, "가정통신문"));
+            var only = ai.OptionsFor(new[] { dir + "\\" });
+            Check("폴더 정리: 폴더만 놓으면 정리 세 가지", only.Count == 3 && only.All(o => AiTasks.IsOrganize(o.Id)), string.Join(",", only.Select(o => o.Id)));
+            var both = ai.OptionsFor(new[] { dir + "\\", Path.Combine(dir, "a.hwp") });
+            Check("폴더 정리: 안에 문서가 있으면 맨 앞 칸에", both[0].Id == "organize" && both.Count == 9 && ai.OptionsFor(new[] { "a.hwp" }).All(o => o.Id != "organize"), both.Count + "칸");
+
+            Func<string, string> at = rel => Path.Combine(dir, rel);
+            Action<string, string> put = (rel, body) => File.WriteAllText(at(rel), body, new UTF8Encoding(true));
+            put(@"가정통신문\3월 가정통신문.txt", "먼저 있던 통신문");
+            put("3월 가정통신문 (1).txt", "새 통신문");
+            put("과학 수업 최종.txt", "속내용비밀");
+            put("김민수 학생 상담.txt", "상담");
+            put("기타 메모.txt", "메모");
+            put("탈출.txt", "밖으로");
+            put("장치 이름.txt", "장치");
+            put("~$열린 문서.txt", "임시");
+            put("바로 가기.lnk", "lnk");
+            put("숨김.txt", "숨김");
+            File.SetAttributes(at("숨김.txt"), FileAttributes.Hidden);
+            var job = AiRun("orgboth", new[] { dir + "\\" });
+            string prompt = string.Join("\n", AiCalls().Select(c => Json.S(c, "prompt")));
+            Check("폴더 정리: 이름과 날짜만 보낸다", prompt.Contains("과학 수업 최종.txt") && !prompt.Contains("속내용비밀") && prompt.Contains("이미 있는 폴더: 가정통신문"), null);
+            Check("폴더 정리: 임시·숨긴 파일·바로 가기는 보내지도 옮기지도 않는다", !prompt.Contains("~$") && !prompt.Contains("숨김") && !prompt.Contains("바로 가기") && File.Exists(at("~$열린 문서.txt")) && File.Exists(at("숨김.txt")) && File.Exists(at("바로 가기.lnk")), null);
+            Check("폴더 정리: 이름을 가려 보내고 되돌린다", !prompt.Contains("김민수") && File.Exists(at(@"상담 기록\김민수 학생 상담 기록.txt")), null);
+            Check("폴더 정리: 나누고 이름을 다듬는다", File.Exists(at(@"수업 자료\과학 수업.txt")) && !File.Exists(at("과학 수업 최종.txt")), null);
+            Check("폴더 정리: 있던 파일은 덮어쓰지 않는다", File.ReadAllText(at(@"가정통신문\3월 가정통신문.txt")) == "먼저 있던 통신문" && File.Exists(at(@"가정통신문\3월 가정통신문 (2).txt")), null);
+            Check("폴더 정리: 맞는 폴더가 없으면 그대로", File.Exists(at("기타 메모.txt")), null);
+            Check("폴더 정리: NUL 같은 장치 이름으로는 옮기지 않는다", File.Exists(at("장치 이름.txt")), null);
+            Check("이름 다듬기: 장치 이름은 비운다", AiTasks.CleanName("NUL") == "" && AiTasks.CleanName("con.txt") == "" && AiTasks.CleanName("COM1 .hwp") == "" && AiTasks.CleanName("Nullable") == "Nullable", AiTasks.CleanName("con.txt"));
+            Check("폴더 정리: 고른 폴더 밖으로 못 나간다", File.Exists(at(@"밖\탈출.txt")) && !Directory.Exists(Path.Combine(aiWork, "밖")) && !Directory.Exists(Path.Combine(Path.GetDirectoryName(aiWork), "밖")), null);
+            Check("폴더 정리: 결과는 나눈 폴더들", job.Outputs.Count == 4 && job.Outputs.All(Directory.Exists) && job.Problems.Count == 0, job.Outputs.Count + "개 · 문제 " + job.Problems.Count);
+
+            string sortOnly = Path.Combine(aiWork, "나누기만"), nameOnly = Path.Combine(aiWork, "이름만"), empty = Path.Combine(aiWork, "빈 폴더");
+            foreach (var d in new[] { sortOnly, nameOnly, empty }) Directory.CreateDirectory(d);
+            File.WriteAllText(Path.Combine(sortOnly, "과학 수업 최종.txt"), "가");
+            string longName = "2026학년도 1학기 과학 수업 공개 및 동료 장학 실시 계획과 결과 보고 자료 모음 정리본.txt";
+            File.WriteAllText(Path.Combine(sortOnly, longName), "가");
+            File.WriteAllText(Path.Combine(nameOnly, "과학 수업 최종.txt"), "가");
+            AiRun("orgsort", new[] { sortOnly + "\\" });
+            prompt = string.Join("\n", AiCalls().Select(c => Json.S(c, "prompt")));
+            Check("폴더로 나누기: 이름은 그대로", File.Exists(Path.Combine(sortOnly, @"수업 자료\과학 수업 최종.txt")) && !prompt.Contains("name ("), null);
+            Check("폴더로 나누기: 긴 이름도 자르지 않는다", File.Exists(Path.Combine(sortOnly, "수업 자료", longName)), null);
+            job = AiRun("orgname", new[] { nameOnly + "\\" });
+            prompt = string.Join("\n", AiCalls().Select(c => Json.S(c, "prompt")));
+            Check("이름 다듬기: 폴더는 만들지 않는다", File.Exists(Path.Combine(nameOnly, "과학 수업.txt")) && Directory.GetDirectories(nameOnly).Length == 0 && !prompt.Contains("folder (") && job.Outputs.Count == 1, null);
+            job = AiRun("sum3", new[] { nameOnly + "\\", Path.Combine(nameOnly, "과학 수업.txt") });
+            Check("다른 AI 일에는 폴더 자리가 가지 않는다", AiCalls().Count == 1 && job.Problems.Count == 0 && job.Outputs.Count == 1, job.Problems.Count + "건");
+            job = AiRun("orgboth", new[] { empty + "\\" });
+            Check("빈 폴더는 AI를 부르지 않는다", job.Problems.Count == 1 && AiCalls().Count == 0, job.Problems.Count + "건");
         }
 
         static int CountOf(string s, string what)

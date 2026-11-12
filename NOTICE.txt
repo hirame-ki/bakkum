@@ -1,5 +1,6 @@
 ﻿바꿈
-Copyright (C) 2026 hirame.ki
+Copyright (C) 2026 hirame.ki, moonsune.zip
+만든 사람: hirame.ki, moonsune.zip
 
 바꿈은 GNU 일반 공중 사용 허가서 3판(GNU General Public License version 3,
 줄여서 GPL-3.0)과 아래 1장의 추가 조건으로 배포하는 자유 소프트웨어입니다.
@@ -25,18 +26,19 @@ GPL-3.0 전문은 이 파일 맨 아래에 있습니다.
  다. "바꿈"이라는 이름과 바꿈의 아이콘·로고에 대한 상표상의 권리는 주지 않습니다.
      고친 판에는 다른 이름과 아이콘을 씁니다.
      고치지 않은 원본을 나눌 때는 이름과 아이콘을 그대로 둡니다. (제7조 c·e)
- 라. 만든 사람(hirame.ki)의 이름을 고친 판이나 다른 제품을 홍보하는 데 쓰지 않습니다. (제7조 d)
+ 라. 만든 사람(hirame.ki, moonsune.zip)의 이름을 고친 판이나 다른 제품을 홍보하는 데
+     쓰지 않습니다. (제7조 d)
 
 Additional terms under section 7 of the GNU GPL version 3:
- a. Keep the copyright notice and author attribution in this file and in the
+ a. Keep the copyright notice and author attributions in this file and in the
     program's license-and-notices window. (7b)
  b. Mark modified versions as different from the original in their name and
     description, and do not present them as made by the original author. (7c)
  c. No rights are granted under trademark law to the name "바꿈" (Bakkum) or
     to its icon and logo. Modified versions must use a different name and
     icon; unmodified copies keep them. (7c, 7e)
- d. Do not use the author's name (hirame.ki) to promote modified versions or
-    other products. (7d)
+ d. Do not use the authors' names (hirame.ki, moonsune.zip) to promote
+    modified versions or other products. (7d)
 
 ========================================================================
 2. 함께 쓰는 프로그램과 서비스
