@@ -123,6 +123,90 @@ namespace Bakkum
             var lines = new Masker();
             string br = lines.Apply("이름:\n제출 기한");
             Check("다음 줄 글자를 이름으로 보지 않는다", br == "이름:\n제출 기한", br);
+
+            // 이슈 #4에서 놓쳤던 꼴(이름은 모두 지어낸 것)
+            MaskHides("번호와 붙은 이름", "3번김하늘 결석, 12번 박서준 지각", "김하늘", "박서준");
+            MaskHides("번호 목록", "1. 최유나\n2. 이도윤", "최유나", "이도윤");
+            MaskHides("한 칸 띄어 쓴 명렬표", "번호 이름 성별\n1 김하늘 여\n2 이도윤 남", "김하늘", "이도윤");
+            MaskHides("두 칸 띄어 쓴 명렬표", "번호  이름  성별\n1  김하늘  여", "김하늘");
+            MaskHides("| 표 명렬표", "| 번호 | 이름 |\n|---|---|\n| 1 | 김하늘 |", "김하늘");
+            MaskHides("좌우 2단 명렬표", "번호\t이름\t번호\t이름\n1\t김하늘\t16\t박서준\n번호 이름 번호 이름\n2 이도윤 17 최유나", "김하늘", "박서준", "이도윤", "최유나");
+            MaskHides("'학생 성명' 머리글", "번호\t학생 성명\n1\t김하늘\n번호 학생 성명 성별\n2 박서준 남", "김하늘", "박서준");
+            MaskHides("빈 줄·쪽 나눔 뒤에도 이름 열을 본다", "번호\t이름\n1\t김하늘\n\n--- 2쪽 ---\n\n2\t박서준", "김하늘", "박서준");
+            MaskHides("탭 명렬표의 외자 이름", "번호\t이름\n1\t김솔\n2\t이빈", "김솔", "이빈");
+            MaskHides("알아낸 이름은 앞 글자와 상관없이", "이름: 김하늘\n반장김하늘이 왔다.", "김하늘");
+            MaskHides("성을 뺀 이름을 부르는 꼴", "이름: 김하늘\n하늘이가 늦었어요. 하늘아, 고마워. 박서준 학생\n서준이는 일찍 왔어요.", "김하늘", "하늘이가", "하늘아", "박서준", "서준이는");
+            MaskHides("쉼표로 늘어놓은 이름", "김하늘, 박서준, 이도윤이 대회에 나갑니다. 최유나·정민서도 갑니다.", "김하늘", "박서준", "이도윤", "최유나", "정민서");
+            MaskHides("군·양·님", "김하늘 군과 최유나 양이 상을 받았어요. 박민수님께 알립니다.", "김하늘", "최유나", "박민수");
+            MaskHides("괄호 속 반 번호", "김하늘(3-2)이 수상했습니다. 박서준(3학년 2반), 최유나(여)", "김하늘", "박서준", "최유나");
+            MaskHides("학생:·성함:·담임", "학생: 김하늘\n성함: 최유나\n담임 김민수\n담당교사: 박서준\n작성자 이지은", "김하늘", "최유나", "김민수", "박서준", "이지은");
+            MaskHides("네 글자 복성", "독고영재 학생, 남궁민 학생", "독고영재", "남궁민");
+            MaskHides("외자 이름 학생", "김솔 학생과 이빈 학생", "김솔", "이빈");
+            MaskHides("나라 번호를 붙인 전화", "연락처 +82 10-1234-5678", "1234-5678");
+            // 성 글자로 시작하는 흔한 말
+            MaskKeeps("꾸밈말·때를 이름으로 보지 않는다", "이번주 학생 발표, 오늘 정리한 학생, 고학년 학생, 남자 학생 12명, 형편이 어려운 학생, 선정된 학생");
+            MaskKeeps("문제 번호 뒤 낱말", "2번 정답은 3이고, 1번 문제는 쉬워요. 3번 선택지를 보세요.");
+            MaskKeeps("쉼표로 늘어놓은 흔한 말", "고구마, 옥수수, 감자를 심고 강아지, 고양이를 키워요. 고등어, 오징어. 한라산, 지리산");
+            MaskKeeps("인사말", "학부모님, 안녕하세요. 여러분, 오늘은 고마워요. 하늘아, 고마워.");
+            MaskKeeps("번호 목록 제목", "1. 목적\n2. 유의점\n3. 준비물");
+            MaskKeeps("수업 대본의 학생:·교사:", "학생: 오늘은 무엇을 배울까요?\n교사: 이번 시간에는 분수를 배워요.");
+            MaskKeeps("직함·날짜·양", "이사장님, 장학사님께 보고. 마감일(11/30). 엄청난 양의 숙제, 신청서 양식, 보호자 동의를 받아요. 모둠 이름 정하기");
+            MaskKeeps("두 글자 낱말 + 학생·양", "남은 학생은 현재 학생 수에 넣고, 제출 학생은 적어요. 학습 부진 학생, 신청·선정·추천 학생. 설탕 양을 줄이고 우유 양이 늘었어요. 소금물 양");
+            MaskKeeps("-자님", "봉사자님, 진행자님, 사회자님, 사용자님께 알립니다.");
+            MaskKeeps("담임·작성자 뒤 낱말", "담임 배정은 3월에 해요. 작성자 서명은 아래에, 담당자 지정은 다음에.");
+            MaskKeeps("글월 속 '이름'", "이름을 적어 주세요.\n2 모둠 활동\n이름 쓰는 칸에 적어요\n3 모둠 활동");
+            string sky = new Masker().Apply("이름: 김하늘\n하늘이 맑아요. 고양이가 놀아요.");
+            Check("가리지 않는다: 아는 이름이라도 이름이 아닐 수 있는 꼴", sky.EndsWith("\n하늘이 맑아요. 고양이가 놀아요."), sky.Replace("\n", " / "));
+            string other = new Masker().Apply("이름\t번호\n박서준\t1\n\n과목\t점수\n국어\t90");
+            Check("가리지 않는다: 명단 뒤 다른 표의 칸", other.EndsWith("과목\t점수\n국어\t90"), other.Replace("\n", " / "));
+
+            // 20만 자 문서
+            var big = new StringBuilder("번호\t이름\t번호\t이름\n");
+            string[] fake = { "김하늘", "박서준", "이도윤", "최유나", "정민서", "강지우" };
+            for (int i = 0; i < 30; i++) big.Append(i + 1).Append('\t').Append(fake[i % 6]).Append('\t').Append(i + 31).Append('\t').Append(fake[(i + 3) % 6]).Append('\n');
+            while (big.Length < 200000) big.Append("3번김하늘 결석, 12번 박서준 지각. 김하늘, 박서준, 이도윤이 나가요. 하늘이가 늦었고 서준아 고마워. 이번주 학생 발표, 정리한 학생.\n");
+            var sw = System.Diagnostics.Stopwatch.StartNew();
+            var pm = new Masker();
+            string bigOut = pm.Apply(big.ToString());
+            bool bigOk = !fake.Any(bigOut.Contains) && pm.Restore(bigOut) == big.ToString();
+            long realMs = sw.ElapsedMilliseconds;
+            Check("20만 자도 빨리 가린다", bigOk && realMs < 3000, big.Length + "자 " + realMs + "ms");
+
+            // 되돌아가며 길이의 제곱만큼 돌 수 있는 꼴. 하나마다 1초 안에 끝나야 한다.
+            var hard = new Dictionary<string, string>
+            {
+                { "괄호 뒤 빈칸 1만 6천", "김하늘(3-2" + new string(' ', 16000) },
+                { "빈칸 2천 줄 100개", string.Join("\n", Enumerable.Repeat("김하늘(3-2" + new string(' ', 2000), 100)) },
+                { "@ 없는 영문 2만", new string('a', 20000) },
+                { "쉼표 4만 개", string.Join(", ", Enumerable.Repeat("가나다", 40000)) + "라마바사아" },
+                { "빈칸·한글 20만씩", "김하늘" + new string(' ', 200000) + "x" + new string('가', 200000) }
+            };
+            var times = new List<string>();
+            bool fast = true;
+            foreach (var h in hard)
+            {
+                sw.Restart();
+                new Masker().Apply(h.Value);
+                long ms = sw.ElapsedMilliseconds;
+                fast &= ms < 1000;
+                times.Add(h.Key + " " + ms + "ms");
+            }
+            Check("되돌아가며 오래 도는 꼴이 없다", fast, string.Join(" · ", times));
+        }
+
+        /// 가린 글에 hidden이 하나도 남지 않고, 되돌리면 처음과 같은지
+        static void MaskHides(string name, string text, params string[] hidden)
+        {
+            var m = new Masker();
+            string s = m.Apply(text);
+            string left = string.Join(", ", hidden.Where(s.Contains));
+            Check("가린다: " + name, left.Length == 0 && m.Restore(s) == text, (left.Length > 0 ? "남음: " + left + " · " : "") + s.Replace("\n", " / "));
+        }
+
+        static void MaskKeeps(string name, string text)
+        {
+            string s = new Masker().Apply(text);
+            Check("가리지 않는다: " + name, s == text, s == text ? null : s.Replace("\n", " / "));
         }
 
         static void AiToolChecks()
