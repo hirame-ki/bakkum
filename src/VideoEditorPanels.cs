@@ -1927,6 +1927,7 @@ namespace Bakkum
             if (s != null)
             {
                 Label(SoundTitle(s) + " · " + Clock(s.Start) + "부터 " + Sec(s.Length));
+                MusicCreditNote(s);
                 SliderRow("크기", 0, 2, s.Volume, 0.05, Pct, v => SetSound("vol", x => x.Volume = v));
                 SliderRow("서서히 커지기", 0, 5, s.FadeIn, 0.1, Sec, v => SetSound("fi", x => x.FadeIn = v));
                 SliderRow("서서히 작아지기", 0, 5, s.FadeOut, 0.1, Sec, v => SetSound("fo", x => x.FadeOut = v));
@@ -1973,6 +1974,7 @@ namespace Bakkum
 
             Label("넣기");
             Buttons(new[] { "배경 음악", "소리 파일" }, new Action[] { delegate { AddSoundDialog(true); }, delegate { AddSoundDialog(false); } });
+            PanelFreeMusic();
 
             Label("보면서 녹음하기");
             if (recorder == null)
@@ -2044,19 +2046,26 @@ namespace Bakkum
         {
             var dlg = new Microsoft.Win32.OpenFileDialog { Title = music ? "배경 음악 고르기" : "넣을 소리 고르기", Filter = "소리|*.mp3;*.m4a;*.wav;*.aac;*.wma;*.flac|모든 파일|*.*" };
             if (dlg.ShowDialog(this) != true) return;
-            var pr = VMedia.Probe(dlg.FileName);
+            AddSoundFile(dlg.FileName, music);
+        }
+
+        /// 소리 파일 넣기: 배경 음악은 처음부터 끝까지 되풀이, 소리 파일은 재생 위치에
+        void AddSoundFile(string file, bool music)
+        {
+            var pr = string.IsNullOrEmpty(file) || !File.Exists(file) ? null : VMedia.Probe(file);
             if (pr == null || !pr.HasAudio)
             {
-                SetStatus("소리를 읽지 못했어요: " + Path.GetFileName(dlg.FileName));
+                SetStatus("소리를 읽지 못했어요: " + Path.GetFileName(file ?? ""));
                 return;
             }
             var s = music
-                ? new VSound { Kind = "music", Path = dlg.FileName, Start = 0, In = 0, Out = pr.Seconds, Loop = true, Volume = 0.55, FadeOut = 1.5 }
-                : new VSound { Kind = "file", Path = dlg.FileName, Start = CurrentTime, In = 0, Out = pr.Seconds, Volume = 0.9, Name = Path.GetFileNameWithoutExtension(dlg.FileName) };
+                ? new VSound { Kind = "music", Path = file, Start = 0, In = 0, Out = pr.Seconds, Loop = true, Volume = 0.55, FadeOut = 1.5 }
+                : new VSound { Kind = "file", Path = file, Start = CurrentTime, In = 0, Out = pr.Seconds, Volume = 0.9, Name = Path.GetFileNameWithoutExtension(file) };
             Change(null, delegate { project.Sounds.Add(s); });
             selected = s.Id;
             timeline.Selected = s.Id;
-            SetStatus(music ? "배경 음악을 넣었어요. 말할 때는 음악이 저절로 줄어요." : "소리를 넣었어요.");
+            var site = music ? VMusic.SourceOf(file) : null;
+            SetStatus(music ? "배경 음악을 넣었어요. 말할 때는 음악이 저절로 줄어요." + (site != null && !site.NoCredit ? " 출처 밝히기를 잊지 마세요." : "") : "소리를 넣었어요.");
             RefreshPanel();
         }
 

@@ -38,6 +38,7 @@ namespace Bakkum
             Directory.CreateDirectory(w);
             VWaveOut.Silent = true;
             Check("자동 저장·마우스 기록은 임시 폴더에", VAutoSave.Folder.StartsWith(Path.GetTempPath(), StringComparison.OrdinalIgnoreCase), VAutoSave.Folder);
+            FreeMusicTests();
 
             // ── 재료: 무늬 그림 두 장, 삐 소리(쉼 1.2초·0.5초), 화음 음악 ──
             string bg = V("바탕.png"), tex = V("무늬.png"), beeps = V("삐소리.wav"), music = V("음악.wav");
