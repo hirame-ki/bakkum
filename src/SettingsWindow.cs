@@ -156,11 +156,15 @@ namespace Bakkum
         /// 왼쪽 판: 로고 + '설정' + 버전, 그 아래 메뉴 다섯 줄, 맨 아래 구석에 만든 사람
         static FrameworkElement Sidebar(StackPanel nav)
         {
-            var side = new DockPanel();
-            var credit = Credit();
-            DockPanel.SetDock(credit, Dock.Bottom);
-            side.Children.Add(credit);
+            // 행 [위 | 빈칸 | 만든 사람]: 창이 낮으면 메뉴 줄이 아니라 아래 구석이 먼저 잘린다. Tab도 메뉴 다음에 온다.
+            var side = new Grid();
+            side.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
+            side.RowDefinitions.Add(new RowDefinition { Height = new GridLength(1, GridUnitType.Star) });
+            side.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
             side.Children.Add(SidebarTop(nav));
+            var credit = Credit();
+            Grid.SetRow(credit, 2);
+            side.Children.Add(credit);
             return side;
         }
 
@@ -192,7 +196,8 @@ namespace Bakkum
             content.Children.Add(new TextBlock { Text = handle, VerticalAlignment = VerticalAlignment.Center });
             var b = new Button
             {
-                Style = Theme.GetStyle("Line"),
+                // 테두리 단추는 '지금 할 일'에만 쓴다(DESIGN.md). 구석 링크는 조용한 단추, 마우스를 올리면 옅은 면.
+                Style = Theme.GetStyle("Quiet"),
                 Content = content,
                 Height = 28,
                 FontSize = 12,
