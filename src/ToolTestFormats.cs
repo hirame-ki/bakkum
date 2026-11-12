@@ -286,7 +286,7 @@ namespace Bakkum
             expect.Remove("Thumbs.db");
             var expanded = Formats.Expand(new[] { folder });
             Check("폴더를 놓으면 폴더 자리와 안의 파일", expanded[0] == folder + "\\" && expanded.Contains(Path.Combine(folder, "첫 파일.txt")) && Formats.KindOf(expanded[0]) == Kind.Folder, string.Join(" | ", expanded.Select(Util.ShortName)));
-            Check("폴더 자리는 압축 칸만 받는다", ActionOf("archive").Usable(expanded).Contains(expanded[0]) && !ActionOf("pdf").Usable(expanded).Contains(expanded[0]) && !ActionOf("ai").Usable(expanded).Contains(expanded[0]), "");
+            Check("폴더 자리는 압축 칸과 AI 칸(폴더 정리)만 받는다", ActionOf("archive").Usable(expanded).Contains(expanded[0]) && !ActionOf("pdf").Usable(expanded).Contains(expanded[0]) && ActionOf("ai").Usable(expanded).Contains(expanded[0]), "");
             string zip = Out1(RunJob("archive", "zip", expanded, null));
             Check("폴더→ZIP", zip.EndsWith("묶음폴더.zip"), zip);
             var zipItems = new List<string>();

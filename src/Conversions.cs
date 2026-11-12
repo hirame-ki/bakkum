@@ -26,12 +26,13 @@ namespace Bakkum
         {
             // 경로가 너무 길거나, 놓은 뒤에 옮겨지거나 지워진 파일은 열 수 없으니 먼저 알려 주고 뺀다.
             var reachable = new List<string>();
+            bool organize = job.Action.Id == "ai" && AiTasks.IsOrganize(job.Option.Id);
             foreach (var f in job.Files)
             {
-                // 폴더째 다루는 칸은 압축뿐이다. 다른 칸에는 폴더 안의 파일이 따로 들어 있다.
+                // 폴더째 다루는 것은 압축과 AI 폴더 정리뿐이다. 다른 일에는 폴더 안의 파일이 따로 들어 있다.
                 if (ArchiveJobs.IsFolder(f))
                 {
-                    if (job.Action.Id == "archive" && Directory.Exists(f)) reachable.Add(f);
+                    if ((job.Action.Id == "archive" || organize) && Directory.Exists(f)) reachable.Add(f);
                     continue;
                 }
                 if (Util.TooLong(f)) job.Problem(f, Util.LongPathMessage);
@@ -45,8 +46,9 @@ namespace Bakkum
                 throw new UserFacingException("이 칸에서 바꿀 수 있는 파일이 없어요. (" + job.Action.Hint + ")");
             }
             // 놓은 파일 가운데 이 칸이 못 받는 것은 이름을 알려 준다(말없이 빠지면 빠진 줄 모른다).
+            // 폴더 정리는 폴더 안 파일을 형식과 상관없이 다루므로 건너뛴 것이 없다.
             var left = reachable.Where(f => !files.Contains(f)).ToList();
-            if (left.Count > 0)
+            if (left.Count > 0 && !organize)
             {
                 string names = string.Join(", ", left.Take(3).Select(Util.ShortName));
                 if (left.Count > 3) names += " 외 " + (left.Count - 3) + "개";

@@ -504,6 +504,23 @@ namespace Bakkum
 
         static void AiOptions(List<string> usable, List<ActionOption> opts)
         {
+            // 폴더를 놓으면 폴더 정리를 맨 앞에 둔다. 폴더만 놓았으면(안에 아는 파일이 없으면) 정리만 고른다.
+            if (usable.Any(ArchiveJobs.IsFolder))
+            {
+                var org = new[]
+                {
+                    new ActionOption("orgsort", "폴더로 나누기", "비슷한 것끼리"),
+                    new ActionOption("orgname", "이름 다듬기", "알아보기 쉽게"),
+                    new ActionOption("orgboth", "둘 다", "나누고 이름도")
+                };
+                usable = usable.Where(f => !ArchiveJobs.IsFolder(f)).ToList();
+                if (usable.Count == 0)
+                {
+                    opts.AddRange(org);
+                    return;
+                }
+                opts.Add(new ActionOption("organize", "폴더 정리", "나누기·이름 다듬기").With(org));
+            }
             opts.Add(new ActionOption("summary", "요약", "3줄·한 쪽").With(
                 new ActionOption("sum3", "3줄로", "핵심만"),
                 new ActionOption("sum1", "한 쪽으로", "항목으로 정리")));
@@ -566,7 +583,7 @@ namespace Bakkum
             new MenuAction("media", "영상·소리", "변환·편집·줄이기", Kind.Video, Kind.Audio),
             new MenuAction("record", "화면 녹화", "내 화면을 영상으로"),
             new MenuAction("archive", "압축", "묶기·풀기", Kind.Unknown, Kind.Hwp, Kind.Word, Kind.Excel, Kind.Ppt, Kind.Pdf, Kind.Image, Kind.Text, Kind.Archive, Kind.Folder, Kind.Video, Kind.Audio),
-            new MenuAction("ai", "AI로", "요약·번역·문제", Kind.Pdf, Kind.Hwp, Kind.Word, Kind.Excel, Kind.Ppt, Kind.Image, Kind.Text),
+            new MenuAction("ai", "AI로", "요약·번역·문제", Kind.Pdf, Kind.Hwp, Kind.Word, Kind.Excel, Kind.Ppt, Kind.Image, Kind.Text, Kind.Folder),
             new MenuAction("settings", "설정", "모양·키·AI")
         };
 

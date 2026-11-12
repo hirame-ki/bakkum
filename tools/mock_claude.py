@@ -162,6 +162,26 @@ SCHEDULE = [
     {"title": "날짜가 틀린 일정", "start": "언젠가"},
 ]
 
+# 폴더 정리: 이름에 든 낱말로 나눌 폴더. 마지막 것은 고른 폴더 밖으로 나가려는 답.
+ORGANIZE = [("통신문", "가정통신문"), ("수업", "수업 자료"), ("상담", "상담 기록"), ("장치", "NUL"), ("탈출", "..\\..\\밖")]
+
+
+def organize(ask, doc):
+    items = []
+    for line in doc.split("\n"):
+        cells = line.split("\t")
+        if len(cells) != 3:
+            continue
+        stem = cells[1].rsplit(".", 1)[0]
+        item = {"n": int(cells[0])}
+        if "folder (" in ask:
+            item["folder"] = next((f for k, f in ORGANIZE if k in stem), "")
+        if "name (" in ask:
+            item["name"] = stem.replace(" (1)", "").replace(" 최종", "") + (" 기록" if "상담" in stem else "")
+        items.append(item)
+    items.append({"n": 99, "folder": "없는 파일", "name": "없음"})
+    return json.dumps(items, ensure_ascii=False)
+
 
 def canned(prompt):
     a, b = prompt.find("<document>\n"), prompt.rfind("\n</document>")
@@ -238,6 +258,8 @@ def canned(prompt):
     if "slide outline" in ask:
         return json.dumps({"title": "발표 제목", "subtitle": "부제 " + first, "slides": [
             {"title": "첫 장", "bullets": ["항목 하나", "항목 둘"]}, {"title": "둘째 장", "bullets": ["항목 셋"]}]}, ensure_ascii=False)
+    if "one folder on a Korean teacher" in ask:
+        return organize(ask, doc)
     if "file name" in ask:
         return "새 이름: 제안?.txt"
     return "모르는 지시문"
