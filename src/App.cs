@@ -23,7 +23,7 @@ using System.Windows.Threading;
 [assembly: AssemblyDescription("파일을 끌다가 키를 누르면 뜨는 변환 메뉴")]
 [assembly: AssemblyProduct("바꿈")]
 [assembly: AssemblyCompany("hirame.ki")]
-[assembly: AssemblyCopyright("Copyright (c) 2026 hirame.ki")]
+[assembly: AssemblyCopyright("Copyright (c) 2026 hirame.ki, moonsune.zip")]
 [assembly: AssemblyVersion("0.3.7.0")]
 [assembly: AssemblyFileVersion("0.3.7.0")]
 [assembly: AssemblyInformationalVersion("0.3.7")]
