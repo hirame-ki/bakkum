@@ -59,6 +59,8 @@ namespace Bakkum
                 if (what == "whisper") WhisperTests(false);
                 if (what == "whisperturbo") WhisperTests(true);
                 if (what == "hancom") HancomTests();
+                // 옛 엑셀·한셀·옛 PPT → 새 형식: 재료 없이, MS 오피스나 한컴오피스로 시험 파일을 그 자리에서 만든다
+                if (what == "office") OfficeLegacyTests();
                 // 휴대폰 영상: 위치 정보가 남는지, 장 간격이 들쭉날쭉하고 돌려 찍은 세로 영상, 진짜 HEVC(시험이 직접 만든 영상만 씀)
                 if (what == "phone") PhoneTests();
                 // 한컴(한쇼·한글)으로 수업 자료 영상 만들기: 지어낸 발표 자료로 PDF → 쪽 그림 → 노트 읽기 → 내보내기

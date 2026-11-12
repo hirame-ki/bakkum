@@ -197,7 +197,9 @@ namespace Bakkum
                 if (Array.IndexOf(Accepts, Formats.KindOf(f)) < 0) continue;
                 if (Id == "shrink" && !CanShrink(f)) continue;
                 if (Id == "text" && !CanReadText(f)) continue;
-                if (Id == "format" && Formats.KindOf(f) == Kind.Excel && !DocConvert.IsTable(f)) continue;
+                if (Id == "format" && Formats.KindOf(f) == Kind.Excel && !DocConvert.IsSheet(f)) continue;
+                // PPT는 옛 형식(.ppt)·한쇼(.show)만 PPTX로 바꾼다
+                if (Id == "format" && Formats.KindOf(f) == Kind.Ppt && Formats.Ext(f) != ".ppt" && Formats.Ext(f) != ".show") continue;
                 if (Id == "pdf" && DocConvert.IsCue(f)) continue;
                 list.Add(f);
             }
@@ -422,6 +424,7 @@ namespace Bakkum
                 opts.Add(new ActionOption("docx", "워드로", "사진을 문서에"));
                 opts.Add(new ActionOption("pptx", "PPT로", "사진마다 슬라이드"));
             }
+            if (usable.Any(f => Formats.Ext(f) == ".ppt" || Formats.Ext(f) == ".show")) AddOnce(opts, new ActionOption("pptx", "PPTX", "새 PPT 형식"));
             if (usable.Any(f => Formats.Ext(f) == ".hwp")) opts.Add(new ActionOption("hwpx", "HWPX", "새 한글 형식"));
             if (usable.Any(f => Formats.Ext(f) == ".hwpx")) opts.Add(new ActionOption("hwp", "HWP", "예전 한글 형식"));
             if (Any(usable, Kind.Hwp))
@@ -558,7 +561,7 @@ namespace Bakkum
         {
             new MenuAction("pdf", "PDF로", "문서·그림을 PDF로", Kind.Hwp, Kind.Word, Kind.Excel, Kind.Ppt, Kind.Image, Kind.Pdf, Kind.Text),
             new MenuAction("image", "그림으로", "쪽마다 그림 파일", Kind.Pdf, Kind.Hwp, Kind.Word, Kind.Excel, Kind.Ppt),
-            new MenuAction("format", "형식 바꾸기", "워드·엑셀·PNG…", Kind.Image, Kind.Hwp, Kind.Word, Kind.Pdf, Kind.Text, Kind.Excel),
+            new MenuAction("format", "형식 바꾸기", "워드·엑셀·PNG…", Kind.Image, Kind.Hwp, Kind.Word, Kind.Pdf, Kind.Text, Kind.Excel, Kind.Ppt),
             new MenuAction("shrink", "용량 줄이기", "그림·PDF·문서", Kind.Image, Kind.Pdf, Kind.Word, Kind.Excel, Kind.Ppt, Kind.Hwp),
             new MenuAction("text", "글자 뽑기", "그림·PDF·문서", Kind.Image, Kind.Pdf, Kind.Hwp, Kind.Word, Kind.Ppt, Kind.Excel),
             new MenuAction("photo", "사진 손질", "가리기·자르기·보정", Kind.Image),
