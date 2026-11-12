@@ -18,7 +18,10 @@ namespace Bakkum
     sealed class VTimeline : FrameworkElement
     {
         public const double HeadW = 74;
-        const double RulerH = 26, VideoH = 64, WaveH = 15, LaneH = 24, SoundLaneH = 30, RowGap = 5, Edge = 7, SnapPx = 9;
+        const double RulerH = 26, VideoH = 64, WaveH = 18, LaneH = 24, SoundLaneH = 30, RowGap = 5, Edge = 7, SnapPx = 9;
+        // 글자 크기(화면 점, 윈도우 배율만큼 같이 커짐). 작은 노트북에서도 읽히게 막대 이름·시각은 12,
+        // 소리 띠 안의 짧은 알림만 11(띠 높이 18). 2026-11-13 사용자 요청 "너무 작게 나오는 글자가 없게".
+        const double TextSize = 12, SmallTextSize = 11;
         static readonly Hue ClipHue = Theme.Teal, SubHue = Theme.Blue, DecoHue = Theme.Orange, PipHue = Theme.Purple, MusicHue = Theme.Green, VoiceHue = Theme.Pink, MarkHue = Theme.Yellow;
         static readonly Typeface Face = new Typeface(Theme.Font, FontStyles.Normal, FontWeights.SemiBold, FontStretches.Normal);
         static readonly Typeface FaceBold = new Typeface(Theme.Font, FontStyles.Normal, FontWeights.Bold, FontStretches.Normal);
@@ -415,7 +418,7 @@ namespace Bakkum
                 dc.DrawLine(isMajor ? major : tick, new Point(x, isMajor ? RulerH - 11 : RulerH - 6), new Point(x, RulerH - 1));
                 if (isMajor)
                 {
-                    var label = Txt(VProject.Clock(t, step < 1), 11, Theme.Ink3, false);
+                    var label = Txt(VProject.Clock(t, step < 1), TextSize, Theme.Ink3, false);
                     dc.DrawText(label, new Point(x + 3, 3));
                 }
             }
@@ -440,7 +443,7 @@ namespace Bakkum
                 dc.DrawGeometry(MarkHue.VividBrush, sel ? MakePen(Theme.Ink, 1.6) : null, g);
                 if (!string.IsNullOrEmpty(m.Label) && PxPerSec * 3 > 30)
                 {
-                    var t = Txt(m.Label, 10.5, Theme.Ink, true);
+                    var t = Txt(m.Label, TextSize, Theme.Ink, true);
                     if (t.Width < 140) dc.DrawText(t, new Point(x + 8, RulerH - 22));
                 }
             }
@@ -449,6 +452,8 @@ namespace Bakkum
         void Label(DrawingContext dc, Rect r, string text, Brush brush, double size)
         {
             if (r.Width < 22 || string.IsNullOrEmpty(text)) return;
+            // 칸이 많아 줄 높이가 줄었을 때만 줄 안에 들어가게 글자를 줄인다(맑은 고딕 줄 높이는 글자 크기의 약 1.33배, 9 아래로는 안 내림)
+            size = Math.Min(size, Math.Max(9, (Math.Min(r.Height, 24) - 2) / 1.35));
             var t = Txt(text.Replace("\r", " ").Replace("\n", " "), size, brush, true);
             t.MaxTextWidth = Math.Max(8, r.Width - 12);
             t.MaxLineCount = 1;
@@ -491,7 +496,7 @@ namespace Bakkum
             if (c.Kind == "video" && !c.Mute) DrawWave(dc, c.Path, waveRect, b.A, t => c.SourceAt(t - b.A), ClipHue.DeepBrush, c.Volume);
             else if (c.Kind == "video")
             {
-                var m = Txt("소리 끔", 9.5, Theme.Ink3, true);
+                var m = Txt("소리 끔", SmallTextSize, Theme.Ink3, true);
                 dc.DrawText(m, new Point(Math.Max(r.Left, HeadW) + 6, waveRect.Top + 1));
             }
             // 이름·빠르기
@@ -504,7 +509,7 @@ namespace Bakkum
             if (r.Width > 60)
             {
                 string text = tags.Count > 0 ? string.Join(" · ", tags) + "  " + name : name;
-                var t = Txt(text, 10.5, Theme.Ink, true);
+                var t = Txt(text, TextSize, Theme.Ink, true);
                 t.MaxTextWidth = Math.Max(8, r.Width - 14);
                 t.MaxLineCount = 1;
                 t.Trimming = TextTrimming.CharacterEllipsis;
@@ -645,7 +650,7 @@ namespace Bakkum
             {
                 if (!tr.Failed && r.Width > 80)
                 {
-                    var m = Txt("소리 읽는 중 " + Math.Round(tr.Progress * 100) + "%", 9.5, Theme.Ink3, false);
+                    var m = Txt("소리 읽는 중 " + Math.Round(tr.Progress * 100) + "%", SmallTextSize, Theme.Ink3, false);
                     dc.DrawText(m, new Point(Math.Max(r.Left, HeadW) + 6, r.Top + 1));
                 }
                 return;
@@ -720,7 +725,7 @@ namespace Bakkum
             var geo = new RectangleGeometry(r, 7, 7);
             dc.DrawGeometry(sel ? hue.VividBrush : hue.TintBrush, sel ? MakePen(Theme.Ink, 2) : MakePen(Theme.Frozen(Color.FromArgb(70, hue.Deep.R, hue.Deep.G, hue.Deep.B)), 1), geo);
             dc.PushClip(geo);
-            Label(dc, r, ItemText(it), sel ? Theme.Ink : hue.DeepBrush, 11);
+            Label(dc, r, ItemText(it), sel ? Theme.Ink : hue.DeepBrush, TextSize);
             dc.Pop();
             // 움직임 표시(키프레임): 그 시각에 ◆
             foreach (var k in it.Keys)
@@ -764,7 +769,7 @@ namespace Bakkum
             }, Theme.Frozen(Color.FromArgb(120, hue.Deep.R, hue.Deep.G, hue.Deep.B)), s.Volume);
             string kind = s.Kind == "music" ? "배경 음악" : s.Kind == "record" ? "내 목소리" : s.Kind == "voice" ? "읽어 주기" : s.Kind == "effect" ? "효과음" : "소리";
             string name = !string.IsNullOrEmpty(s.Name) ? s.Name : Path.GetFileNameWithoutExtension(s.Path ?? "");
-            Label(dc, r, kind + " · " + name, sel ? Theme.Ink : hue.DeepBrush, 10.5);
+            Label(dc, r, kind + " · " + name, sel ? Theme.Ink : hue.DeepBrush, TextSize);
             dc.Pop();
             dc.DrawGeometry(null, sel ? MakePen(Theme.Ink, 2) : MakePen(Theme.Frozen(Color.FromArgb(70, hue.Deep.R, hue.Deep.G, hue.Deep.B)), 1), geo);
         }
@@ -794,7 +799,7 @@ namespace Bakkum
                 dc.PushOpacity(0.78);
                 dc.DrawRoundedRectangle(ClipHue.VividBrush, MakePen(Theme.Ink, 2), ghost, 9, 9);
                 var c = (VClip)dragBlock.Obj;
-                Label(dc, ghost, c.Kind == "video" || c.Kind == "photo" ? Path.GetFileName(c.Path) : "조각", Theme.Ink, 11);
+                Label(dc, ghost, c.Kind == "video" || c.Kind == "photo" ? Path.GetFileName(c.Path) : "조각", Theme.Ink, TextSize);
                 dc.Pop();
             }
             if ((mode == DragMode.ClipTrimL || mode == DragMode.ClipTrimR) && dragBlock != null && Math.Abs(dragDelta) > 1e-4)
@@ -820,7 +825,7 @@ namespace Bakkum
             if (!string.IsNullOrEmpty(dragLabel))
             {
                 var mouse = Mouse.GetPosition(this);
-                var t = Txt(dragLabel, 11.5, Theme.Sheet, true);
+                var t = Txt(dragLabel, TextSize + 0.5, Theme.Sheet, true);
                 double x = Math.Min(W - t.Width - 14, Math.Max(HeadW + 2, mouse.X + 12));
                 double y = Math.Max(RulerH + 2, mouse.Y - 30);
                 dc.DrawRoundedRectangle(Theme.Ink, null, new Rect(x, y, t.Width + 12, t.Height + 6), 8, 8);

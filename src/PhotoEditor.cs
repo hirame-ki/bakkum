@@ -135,8 +135,9 @@ namespace Bakkum
             autoFace = start == "face";
             Title = "사진 손질 · " + AppInfo.Name;
             var wa = SystemParameters.WorkArea;
-            MinWidth = 880;
-            MinHeight = 620;
+            // 작은 화면(작업 영역이 620보다 낮음)에서도 창이 화면 밖으로 나가지 않게
+            MinWidth = Math.Min(880, wa.Width);
+            MinHeight = Math.Min(620, wa.Height);
             Width = Math.Max(MinWidth, Math.Min(1140, wa.Width * 0.94));
             Height = Math.Max(MinHeight, Math.Min(780, wa.Height * 0.94));
             WindowStartupLocation = WindowStartupLocation.CenterScreen;
@@ -2266,8 +2267,8 @@ namespace Bakkum
             order = files.ToList();
             Title = "콜라주 · " + AppInfo.Name;
             var wa = SystemParameters.WorkArea;
-            MinWidth = 820;
-            MinHeight = 600;
+            MinWidth = Math.Min(820, wa.Width);
+            MinHeight = Math.Min(600, wa.Height);
             Width = Math.Max(MinWidth, Math.Min(1060, wa.Width * 0.92));
             Height = Math.Max(MinHeight, Math.Min(740, wa.Height * 0.92));
             WindowStartupLocation = WindowStartupLocation.CenterScreen;
