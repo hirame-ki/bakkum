@@ -19,11 +19,12 @@ namespace Bakkum
     /// 이름·전화번호 같은 개인정보를 보내기 전에 이 PC에서 가린다. 가린 자리는 답을 받은 뒤 되돌린다.
     /// 이름은 '이름: ○○○', '○○○ 학생', 명단의 이름 열처럼 드러난 모양만 찾는다. 모두 찾는다는 보장은 없다.
     /// 한 번 찾은 이름(세 글자 이상)은 문서 어디서든 가리고, 성을 뺀 이름은 '하늘이가'·'하늘아'처럼 부르는 꼴만 가린다.
-    /// 정규식은 되돌아가며 오래 도는 꼴 없이 쓰고, 알아낸 이름은 정규식 하나로 한 번에 훑는다(문서는 20만 자까지 온다).
+    /// 문서는 20만 자까지 온다. 정규식에는 같은 글자를 나눠 먹는 되풀이(이웃한 [ \t]* 둘 등)를 두지 않는다. 그런 꼴은 되돌아가며 길이의 제곱만큼 돈다.
     public sealed class Masker
     {
         static readonly Regex Rrn = new Regex(@"(?<!\d)\d{6}\s?-\s?[1-8]\d{6}(?!\d)");
-        static readonly Regex Mail = new Regex(@"[A-Za-z0-9._+-]+@[A-Za-z0-9-]+(?:\.[A-Za-z0-9-]+)+");
+        // 낱말 첫머리에서만 시작한다. 그러지 않으면 @ 없는 긴 영문 줄에서 자리마다 끝까지 훑는다(2만 자에 4초).
+        static readonly Regex Mail = new Regex(@"(?<![A-Za-z0-9._+-])[A-Za-z0-9._+-]+@[A-Za-z0-9-]+(?:\.[A-Za-z0-9-]+)+");
         static readonly Regex Phone = new Regex(@"\+82[-. ]?(?:\(0\))?\d{1,2}[-. ]?\d{3,4}[-. ]?\d{4}(?!\d)|(?<![\d-])0\d{1,2}[-. )]\s?\d{3,4}[-. ]\d{4}(?!\d)|(?<!\d)01[016789]\d{7,8}(?!\d)");
         static readonly Regex Labeled = new Regex(@"(?:이름|성명|성\s명|성함|담당자|담당|담임\s?교사|담임|작성자|신청인|신청자|보호자|학부모|대표자|수신자|발신자|학생명|교사명|지도\s?교사)[ \t]*[:：][ \t]*([가-힣]{2,4})(?![가-힣])");
         // '학생:'·'교사:'는 수업 대본('학생: 오늘은 무엇을…')에도 쓰여서 이름 하나로 끝나는 칸만 본다.
@@ -31,19 +32,21 @@ namespace Bakkum
         static readonly Regex LabeledSpace = new Regex(@"(?<![가-힣])(?:이름|성명|담당자|담임\s?교사|담임|작성자|보호자)[ \t]+([가-힣]{3,4}?)(?![가-힣])");
         // 군·양은 띄어 쓴 것만 본다('조선수군', '영양'과 헷갈리지 않게).
         static readonly Regex Titled = new Regex(@"(?<![가-힣])([가-힣]{3,4}?)(?:[ \t]*(?:선생님|교사|교장|교감|학생|학부모|어머니|아버지|보호자|주무관|장학사|부장|담임|님)|[ \t]+[군양])(?=[은는이가을를의에과와도께만로님]|[^가-힣]|$)");
-        // 두 글자(외자 이름 '김솔 학생')는 흔한 낱말('남자 학생')과 겹쳐서 문서 전체에서 찾지 않고 그 자리만 가린다.
-        static readonly Regex Titled2 = new Regex(@"(?<![가-힣])([가-힣]{2})[ \t]+(?:학생|군|양)(?=[은는이가을를의에과와도께만로]|[^가-힣]|$)");
-        // '3번김하늘', '12번 박서준'. '2번 정답은'처럼 -은으로 끝나면 문제 번호일 때가 많아 Learn에서 뺀다.
+        // 두 글자(외자 이름 '김솔 학생')는 흔한 낱말('남자 학생', '현재 학생', '제출 학생')과 겹쳐서 문서 전체에서 찾지 않고 그 자리만 가린다.
+        // 끝 글자가 외자 이름에 흔하고 흔한 두 글자 낱말 끝에는 드문 글자일 때만 본다. '양'은 '설탕 양'과 겹쳐서 세 글자 이름에만 쓴다(Titled).
+        static readonly Regex Titled2 = new Regex(@"(?<![가-힣])([가-힣][솔빈별결율윤혁훈준민현진담슬란람봄찬철건겸웅환휘혜린호강산])[ \t]+(?:학생|군)(?=[은는이가을를의에과와도께만로]|[^가-힣]|$)");
+        // '3번김하늘', '12번 박서준'
         static readonly Regex Nth = new Regex(@"(?<!\d)\d{1,2}[ \t]*번[ \t]*([가-힣]{3,4}?)(?![가-힣])");
-        // '김하늘(3-2)', '김하늘(3학년 2반)', '김하늘(여)': 괄호 안이 반·번호·성별일 때만 본다.
-        static readonly Regex Bracketed = new Regex(@"(?<![가-힣])([가-힣]{3,4}?)[ \t]?\([ \t]*(?:\d{1,2}[ \t]*[-./·][ \t]*\d{1,2}[ \t]*[반번]?|\d[ \t]*학년(?:[ \t]*\d{1,2}[ \t]*반)?|[남여])[ \t]*\)");
+        // '김하늘(3-2)', '김하늘(3학년 2반)', '김하늘(여)': 괄호 안이 반·번호·성별일 때만 본다. 괄호 안 빈칸은 한 칸까지만 본다.
+        static readonly Regex Bracketed = new Regex(@"(?<![가-힣])([가-힣]{3,4}?)[ \t]?\([ \t]?(?:\d{1,2}[ \t]?[-./·][ \t]?\d{1,2}(?:[ \t]?[반번])?|\d[ \t]?학년(?:[ \t]?\d{1,2}[ \t]?반)?|[남여])[ \t]?\)");
         // '김하늘, 박서준, 이도윤이': 쉼표·가운뎃점으로 늘어놓은 세 글자 낱말. 마지막 낱말 뒤에는 조사만 붙을 수 있다('여러분, 안녕하세요'는 안 맞는다).
         // 하나라도 이름 꼴이 아니면 모두 버린다('고구마, 옥수수, 감자를'은 '감자를'에서 걸러진다).
         static readonly Regex Listed = new Regex(@"(?<![가-힣])(?<n>[가-힣]{3,4}?)(?:[ \t]*[,，、·][ \t]*(?<n>[가-힣]{3,4}?))+(?=(?:이랑|이나|하고|에게|한테|[이가은는을를과와도의랑])?(?![가-힣]))");
         // '1. 최유나'처럼 번호와 이름만 있는 줄. 두 줄 넘게 이어질 때만 본다('3. 유의점' 한 줄은 제목일 수 있다).
         static readonly Regex NumberedLine = new Regex(@"^\d{1,3}[.)]?[ \t]*([가-힣]{3,4})$");
-        // 한 칸 띄어쓰기 머리글의 '학생 성명'을 한 칸으로 붙인다.
+        // 한 칸 띄어쓰기 머리글의 '학생 성명'을 한 칸으로 붙이고, 그 칸이 이름 머리글 낱말 그대로인지 본다.
         static readonly Regex HeadJoin = new Regex(@"(학생|보호자|학부모) (이름|성명)");
+        static readonly Regex SpaceHead = new Regex(@"^(?:(?:학생|보호자|학부모)?(?:이름|성명)|성함|학생명|교사명)$");
         static readonly Regex Token = new Regex(@"\\?\[\\?\[\s*([NPER])\s*(\d+)\s*\\?\]\\?\]");
 
         const string Surnames = "김이박최정강조윤장임한오서신권황안송류유전홍고문양손배백허남심노하곽성차주우구민진지엄채원천방공현함변염여추도소석선설마길연위표명기반라왕금옥육인맹제모탁국어은편용예경봉사부가복태목형피두감음빈동온호범좌갈";
@@ -61,17 +64,21 @@ namespace Bakkum
             // 성 글자로 시작하는 흔한 두 글자('남자 학생', '학생: 전원', 명단 칸의 '공석'). 두 글자는 그 자리만 가리므로 자주 쓰는 것만 둔다.
             "이번", "이전", "이후", "이상", "이하", "오늘", "오전", "오후", "모두", "여러", "어느", "어떤", "남자", "여자", "남녀", "장애", "신입", "신규", "전학", "전입",
             "전출", "전교", "전원", "편입", "복학", "유학", "기존", "모범", "우수", "문제", "지도", "지각", "조퇴", "위기", "고등", "반장", "도움", "소수", "국내", "한국",
-            "지역", "공부", "하루", "최대", "최소", "공석", "소계", "국어", "사회", "도덕", "음악", "기술", "가정", "정보", "한문", "진로"
+            "지역", "공부", "하루", "최대", "최소", "공석", "소계", "국어", "사회", "도덕", "음악", "기술", "가정", "정보", "한문", "진로",
+            // Titled2가 보는 끝 글자로 끝나는 흔한 두 글자('학습 부진 학생', '부산 학생')
+            "부진", "이민", "기준", "부산", "전담", "성별", "인솔", "선진", "추진", "사진"
         };
         // 덜 확실한 곳('○○○ 학생', 번호·쉼표 목록, 괄호)에서 찾은 낱말의 끝 글자가 이것이면 이름으로 보지 않는다.
-        // 조사(-는·-를·-이), 꾸밈·풀이(-한·-된·-난·-워·-요), 직함·묶음(-장·-사·-관·-생·-분), 땅·물고기(-산·-시·-어)는
-        // '정리한 학생', '이사장님', '문제는', '여러분, 고마워요'처럼 흔하고 이름 끝 글자로는 드물다.
+        // 조사(-는·-를·-이), 꾸밈·풀이(-한·-된·-난·-워·-요), 직함·묶음(-장·-사·-관·-생·-분·-자), 땅·물(-산·-시·-어·-물)은
+        // '정리한 학생', '이사장님', '봉사자님', '문제는', '여러분, 고마워요', '소금물 양'처럼 흔하고 이름 끝 글자로는 드물다.
         // 이 글자로 끝나는 이름(최지한)은 여기서 놓치지만 '이름:'·명단 열에서는 그대로 찾는다.
-        const string NotLast = "는을를의에께들이가도만로와님한된할될던난적장사관생분산시어워요다까죠고며면게냐";
+        const string NotLast = "는을를의에께들이가도만로와님한된할될던난적장사관생분자산시어물워요다까죠고며면게냐";
 
         readonly Dictionary<string, string> tokenOf = new Dictionary<string, string>();
         readonly Dictionary<string, string> originalOf = new Dictionary<string, string>();
         readonly HashSet<string> known = new HashSet<string>();
+        // Run이 파일마다 먼저 Learn하고 Apply가 같은 글로 다시 부른다. 같은 글은 한 번만 훑는다.
+        readonly HashSet<string> learned = new HashSet<string>();
         int names, phones, mails, ids;
 
         public int Names { get { return names; } }
@@ -107,6 +114,7 @@ namespace Bakkum
         /// 문서에서 이름을 찾아 기억한다. 여러 파일이면 모두 먼저 읽혀서, 다른 파일에서 찾은 이름도 가린다.
         public void Learn(string text)
         {
+            if (string.IsNullOrEmpty(text) || !learned.Add(text)) return;
             // 두 글자는 흔한 낱말과 겹치므로 문서 전체에서 바꾸지 않는다(Apply에서 그 자리만 가린다).
             // '이름:'처럼 확실한 곳은 이름 꼴만 보고, 덜 확실한 곳은 끝 글자까지 본다(LikelyName).
             foreach (Match m in Labeled.Matches(text))
@@ -119,7 +127,10 @@ namespace Bakkum
                 foreach (Match m in re.Matches(text))
                 {
                     string v = m.Groups[1].Value;
-                    if (LikelyName(v) && !(re == Nth && v[v.Length - 1] == '은')) known.Add(v);
+                    // '담임 배정은', '2번 정답은'처럼 낱말이 뒤따르는 곳에서 받침 뒤 -은은 조사로 본다.
+                    // '김지은'처럼 받침 없는 글자 뒤 -은은 이름일 때가 많아 둔다('김정은'은 여기서 놓친다).
+                    bool particle = (re == LabeledSpace || re == Nth) && v.Length >= 3 && v[v.Length - 1] == '은' && (v[v.Length - 2] - '가') % 28 != 0;
+                    if (LikelyName(v) && !particle) known.Add(v);
                 }
             }
             foreach (Match m in Listed.Matches(text))
@@ -160,11 +171,14 @@ namespace Bakkum
                     : kind == '|' ? t.Trim('|').Split('|')
                     : kind == '=' ? Regex.Split(t, @"\s{2,}")
                     : HeadJoin.Replace(t, "$1$2").Split(' ');
+                // 한 칸 띄어쓰기 줄은 '번호 이름 성별'처럼 짧은 낱말만 있고 이름 칸이 머리글 낱말 그대로일 때만 머리글로 본다
+                // ('이름을 적어 주세요', '이름 쓰는 칸에 적어요'는 아니다).
+                bool shortWords = kind != ' ' || cells.All(c => c.Length <= 6 && "는을를에의요다.,?!".IndexOf(c[c.Length - 1]) < 0);
                 var found = new List<int>();
-                for (int i = 0; i < cells.Length; i++)
+                for (int i = 0; i < cells.Length && shortWords; i++)
                 {
                     string c = cells[i].Replace(" ", "");
-                    if (c.Length <= 6 && (c.Contains("이름") || c.Contains("성명") || c == "학생명" || c == "교사명" || c == "성함")) found.Add(i);
+                    if (kind == ' ' ? SpaceHead.IsMatch(c) : c.Length <= 6 && (c.Contains("이름") || c.Contains("성명") || c == "학생명" || c == "교사명" || c == "성함")) found.Add(i);
                 }
                 if (found.Count > 0 && cells.Length >= 2)
                 {
@@ -202,23 +216,31 @@ namespace Bakkum
             return m.Value.Substring(0, at) + Tok("N", g.Value, ref names) + m.Value.Substring(at + g.Length);
         }
 
+        // 낱말들을 첫 글자로 묶은 정규식 갈래('김(?:하늘|민수)|박(?:서준)'). 긴 것부터 맞춘다.
+        // 묶지 않으면 자리마다 이름 수만큼 견줘서 이름 600개·20만 자에 0.4초, 묶으면 0.15초였다.
+        static string Alternation(IEnumerable<string> words)
+        {
+            return string.Join("|", words.GroupBy(w => w[0]).Select(g =>
+                Regex.Escape(g.Key.ToString()) + "(?:" + string.Join("|", g.OrderByDescending(w => w.Length).Select(w => Regex.Escape(w.Substring(1)))) + ")"));
+        }
+
         public string Apply(string text)
         {
             if (string.IsNullOrEmpty(text)) return text;
+            Learn(text);
             string s = Rrn.Replace(text, m => Tok("R", m.Value, ref ids));
             s = Mail.Replace(s, m => Tok("E", m.Value, ref mails));
             s = Phone.Replace(s, m => Tok("P", m.Value, ref phones));
-            Learn(s);
-            // 알아낸 이름을 정규식 하나로 한 번에 훑는다(이름마다 문서를 다시 훑지 않는다). 긴 이름부터 맞춘다.
-            // 세 글자 이상은 앞 글자와 상관없이('3번김하늘', '반장김하늘'), 두 글자는 낱말 첫머리에서만 가린다.
-            // 성을 뺀 이름은 '하늘이가'·'하늘이는'·'하늘아'처럼 부르는 꼴만 가린다. '하늘이 맑다'는 이름이 아닐 수 있어 둔다.
+            // 알아낸 이름은 정규식 하나로 훑는다. 세 글자 이상은 앞 글자와 상관없이('3번김하늘', '반장김하늘'),
+            // 두 글자는 낱말 첫머리에서만 가린다. 성을 뺀 이름은 '하늘이가'·'하늘이는'·'하늘아'처럼 부르는 꼴만 가린다
+            // ('하늘이 맑다'는 이름이 아닐 수 있어 둔다).
             var parts = new List<string>();
-            var full = known.Where(n => n.Length >= 3).OrderByDescending(n => n.Length).Select(Regex.Escape).ToList();
-            if (full.Count > 0) parts.Add(string.Join("|", full));
-            var two = known.Where(n => n.Length == 2).Select(Regex.Escape).ToList();
-            if (two.Count > 0) parts.Add("(?<![가-힣])(?:" + string.Join("|", two) + ")");
-            var given = known.Select(GivenName).Where(g => g != null && !known.Contains(g)).Distinct().Select(Regex.Escape).ToList();
-            if (given.Count > 0) parts.Add("(?<![가-힣])(?:" + string.Join("|", given) + ")(?=이(?:가|는|도|를|랑|와|의|한테|에게|만|네|하고|처럼|보다|[,.!?)])|[아야](?![가-힣]))");
+            var full = known.Where(n => n.Length >= 3).ToList();
+            if (full.Count > 0) parts.Add(Alternation(full));
+            var two = known.Where(n => n.Length == 2).ToList();
+            if (two.Count > 0) parts.Add("(?<![가-힣])(?:" + Alternation(two) + ")");
+            var given = known.Select(GivenName).Where(g => g != null && !known.Contains(g)).Distinct().ToList();
+            if (given.Count > 0) parts.Add("(?<![가-힣])(?:" + Alternation(given) + ")(?=이(?:가|는|도|를|랑|와|의|한테|에게|만|네|하고|처럼|보다|[,.!?)])|[아야](?![가-힣]))");
             if (parts.Count > 0) s = new Regex(string.Join("|", parts)).Replace(s, m => Tok("N", m.Value, ref names));
             return Titled2.Replace(Labeled.Replace(s, SpotTwo), SpotTwo);
         }

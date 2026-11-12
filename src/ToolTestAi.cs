@@ -139,7 +139,7 @@ namespace Bakkum
             MaskHides("쉼표로 늘어놓은 이름", "김하늘, 박서준, 이도윤이 대회에 나갑니다. 최유나·정민서도 갑니다.", "김하늘", "박서준", "이도윤", "최유나", "정민서");
             MaskHides("군·양·님", "김하늘 군과 최유나 양이 상을 받았어요. 박민수님께 알립니다.", "김하늘", "최유나", "박민수");
             MaskHides("괄호 속 반 번호", "김하늘(3-2)이 수상했습니다. 박서준(3학년 2반), 최유나(여)", "김하늘", "박서준", "최유나");
-            MaskHides("학생:·성함:·담임", "학생: 김하늘\n성함: 최유나\n담임 김민수\n담당교사: 박서준", "김하늘", "최유나", "김민수", "박서준");
+            MaskHides("학생:·성함:·담임", "학생: 김하늘\n성함: 최유나\n담임 김민수\n담당교사: 박서준\n작성자 이지은", "김하늘", "최유나", "김민수", "박서준", "이지은");
             MaskHides("네 글자 복성", "독고영재 학생, 남궁민 학생", "독고영재", "남궁민");
             MaskHides("외자 이름 학생", "김솔 학생과 이빈 학생", "김솔", "이빈");
             MaskHides("나라 번호를 붙인 전화", "연락처 +82 10-1234-5678", "1234-5678");
@@ -151,12 +151,16 @@ namespace Bakkum
             MaskKeeps("번호 목록 제목", "1. 목적\n2. 유의점\n3. 준비물");
             MaskKeeps("수업 대본의 학생:·교사:", "학생: 오늘은 무엇을 배울까요?\n교사: 이번 시간에는 분수를 배워요.");
             MaskKeeps("직함·날짜·양", "이사장님, 장학사님께 보고. 마감일(11/30). 엄청난 양의 숙제, 신청서 양식, 보호자 동의를 받아요. 모둠 이름 정하기");
+            MaskKeeps("두 글자 낱말 + 학생·양", "남은 학생은 현재 학생 수에 넣고, 제출 학생은 적어요. 학습 부진 학생, 신청·선정·추천 학생. 설탕 양을 줄이고 우유 양이 늘었어요. 소금물 양");
+            MaskKeeps("-자님", "봉사자님, 진행자님, 사회자님, 사용자님께 알립니다.");
+            MaskKeeps("담임·작성자 뒤 낱말", "담임 배정은 3월에 해요. 작성자 서명은 아래에, 담당자 지정은 다음에.");
+            MaskKeeps("글월 속 '이름'", "이름을 적어 주세요.\n2 모둠 활동\n이름 쓰는 칸에 적어요\n3 모둠 활동");
             string sky = new Masker().Apply("이름: 김하늘\n하늘이 맑아요. 고양이가 놀아요.");
             Check("가리지 않는다: 아는 이름이라도 이름이 아닐 수 있는 꼴", sky.EndsWith("\n하늘이 맑아요. 고양이가 놀아요."), sky.Replace("\n", " / "));
             string other = new Masker().Apply("이름\t번호\n박서준\t1\n\n과목\t점수\n국어\t90");
             Check("가리지 않는다: 명단 뒤 다른 표의 칸", other.EndsWith("과목\t점수\n국어\t90"), other.Replace("\n", " / "));
 
-            // 20만 자 문서, 되돌아가며 오래 돌 수 있는 꼴(긴 쉼표 목록·긴 빈칸)
+            // 20만 자 문서
             var big = new StringBuilder("번호\t이름\t번호\t이름\n");
             string[] fake = { "김하늘", "박서준", "이도윤", "최유나", "정민서", "강지우" };
             for (int i = 0; i < 30; i++) big.Append(i + 1).Append('\t').Append(fake[i % 6]).Append('\t').Append(i + 31).Append('\t').Append(fake[(i + 3) % 6]).Append('\n');
@@ -166,11 +170,28 @@ namespace Bakkum
             string bigOut = pm.Apply(big.ToString());
             bool bigOk = !fake.Any(bigOut.Contains) && pm.Restore(bigOut) == big.ToString();
             long realMs = sw.ElapsedMilliseconds;
-            sw.Restart();
-            new Masker().Apply(string.Join(", ", Enumerable.Repeat("가나다", 40000)) + "라마바사아");
-            new Masker().Apply("김하늘" + new string(' ', 200000) + "x" + new string('가', 200000));
-            long hardMs = sw.ElapsedMilliseconds;
-            Check("20만 자도 빨리 가린다", bigOk && realMs < 3000 && hardMs < 3000, big.Length + "자 " + realMs + "ms · 어려운 꼴 " + hardMs + "ms");
+            Check("20만 자도 빨리 가린다", bigOk && realMs < 3000, big.Length + "자 " + realMs + "ms");
+
+            // 되돌아가며 길이의 제곱만큼 돌 수 있는 꼴. 하나마다 1초 안에 끝나야 한다.
+            var hard = new Dictionary<string, string>
+            {
+                { "괄호 뒤 빈칸 1만 6천", "김하늘(3-2" + new string(' ', 16000) },
+                { "빈칸 2천 줄 100개", string.Join("\n", Enumerable.Repeat("김하늘(3-2" + new string(' ', 2000), 100)) },
+                { "@ 없는 영문 2만", new string('a', 20000) },
+                { "쉼표 4만 개", string.Join(", ", Enumerable.Repeat("가나다", 40000)) + "라마바사아" },
+                { "빈칸·한글 20만씩", "김하늘" + new string(' ', 200000) + "x" + new string('가', 200000) }
+            };
+            var times = new List<string>();
+            bool fast = true;
+            foreach (var h in hard)
+            {
+                sw.Restart();
+                new Masker().Apply(h.Value);
+                long ms = sw.ElapsedMilliseconds;
+                fast &= ms < 1000;
+                times.Add(h.Key + " " + ms + "ms");
+            }
+            Check("되돌아가며 오래 도는 꼴이 없다", fast, string.Join(" · ", times));
         }
 
         /// 가린 글에 hidden이 하나도 남지 않고, 되돌리면 처음과 같은지
