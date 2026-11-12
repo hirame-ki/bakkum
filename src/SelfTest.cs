@@ -411,10 +411,14 @@ namespace Bakkum
                 Check("사용 한도에 닿으면 쉬운 말로 알린다", threw && Has(answer, "사용 한도에 닿았어요"), answer);
                 answer = ClaudeRun("limit_new", 60, out threw, out secs);
                 Check("새 한도 문구(hit your monthly spend limit)도 알아본다", threw && Has(answer, "사용 한도에 닿았어요"), answer);
-                answer = ClaudeRun("limit_weekly", 60, out threw, out secs);
-                Check("새 한도 문구(reached your weekly usage limit)도 알아본다", threw && Has(answer, "사용 한도에 닿았어요"), answer);
+                answer = ClaudeRun("limit_session", 60, out threw, out secs);
+                Check("새 한도 문구(hit your session limit)도 알아본다", threw && Has(answer, "사용 한도에 닿았어요"), answer);
+                answer = ClaudeRun("limit_team", 60, out threw, out secs);
+                Check("팀 요금제 문구(hit your team's shared budget)도 알아본다", threw && Has(answer, "사용 한도에 닿았어요"), answer);
                 answer = ClaudeRun("too_long", 60, out threw, out secs);
                 Check("문서가 너무 길면 줄이라고 알린다", threw && Has(answer, "한 번에 읽을 수 있는 양"), answer);
+                answer = ClaudeRun("context_full", 60, out threw, out secs);
+                Check("Context limit reached는 한도가 아니라 긴 문서로 알린다", threw && Has(answer, "한 번에 읽을 수 있는 양"), answer);
                 answer = ClaudeRun("old", 60, out threw, out secs);
                 Check("옛 버전(모르는 옵션)이면 업데이트를 알려 준다", threw && Has(answer, "claude update"), answer);
                 answer = ClaudeRun("hang", 4, out threw, out secs);

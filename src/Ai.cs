@@ -268,9 +268,11 @@ namespace Bakkum
         static readonly Regex OldVersion = new Regex(@"unknown option|unknown command|unknown argument", RegexOptions.IgnoreCase);
         static readonly Regex SignedOut = new Regex(@"/login|not logged in|log ?in again|invalid api key|authentication|unauthori[sz]ed|oauth token|\b401\b", RegexOptions.IgnoreCase);
         // 2.1.322의 문구(실행 파일 안의 글자로 확인, 2026-11-12): "You've hit your limit", "You've hit your monthly spend limit",
-        // "You've hit your fast limit", "You've reached your Fable limit", "reached your weekly usage limit", "out of extra usage"
-        static readonly Regex LimitHit = new Regex(@"usage limit|limit reached|(?:hit|reached) your (?:[\w-]+ ){0,3}limit|out of extra usage|rate.?limit|\b429\b", RegexOptions.IgnoreCase);
-        static readonly Regex TooLong = new Regex(@"prompt is too long", RegexOptions.IgnoreCase);
+        // "You've hit your fast limit", "You've reached your Fable limit", "reached your weekly usage limit", "out of extra usage",
+        // 팀·학교 요금제의 "You've hit your channel's monthly spend limit", "You've hit your team's shared budget"
+        static readonly Regex LimitHit = new Regex(@"usage limit|limit reached|(?:hit|reached) your (?:[\w'’-]+ ){0,3}(?:limit|budget)|out of extra usage|rate.?limit|\b429\b", RegexOptions.IgnoreCase);
+        // "Context limit reached"는 한도가 아니라 문서가 긴 것이라 LimitHit보다 먼저 본다
+        static readonly Regex TooLong = new Regex(@"prompt is too long|context limit reached", RegexOptions.IgnoreCase);
         static readonly Regex NoCredit = new Regex(@"credit balance is too low", RegexOptions.IgnoreCase);
         static readonly Regex Busy = new Regex(@"overloaded|\b529\b|\b50[023]\b|server error", RegexOptions.IgnoreCase);
 
@@ -520,9 +522,9 @@ namespace Bakkum
                 Forget();
                 throw new UserFacingException("Claude 로그인이 필요해요. 설정 → AI 연결에서 [로그인 창 열기]를 눌러 다시 로그인해 주세요.");
             }
-            if (LimitHit.IsMatch(said)) throw new UserFacingException("Claude 사용 한도에 닿았어요. 한도가 다시 채워진 뒤 해 주세요(남은 양은 claude.ai 설정의 사용량에서 볼 수 있어요).");
-            if (NoCredit.IsMatch(said)) throw new UserFacingException("Claude 계정의 사용 크레딧이 모자라요. claude.ai 설정의 사용량에서 확인해 주세요.");
             if (TooLong.IsMatch(said)) throw new UserFacingException("문서가 Claude가 한 번에 읽을 수 있는 양보다 길어요. 쪽 수를 줄이거나 파일을 나눠서 해 주세요.");
+            if (LimitHit.IsMatch(said)) throw new UserFacingException("Claude 사용 한도에 닿았어요. 한도가 다시 채워진 뒤 해 주세요(남은 양은 claude.ai 설정의 사용량에서 볼 수 있어요).");
+            if (NoCredit.IsMatch(said)) throw new UserFacingException("Claude 계정의 사용 크레딧이 모자라요. 계정의 결제·사용량 설정에서 확인해 주세요.");
             if (Busy.IsMatch(said)) throw new UserFacingException("지금 Claude 쪽이 붐벼요. 잠시 뒤 다시 해 보세요.");
             Log.Write("Claude Code 실패: 종료 코드 " + exit + " · " + (r.Done ? "result " + (r.Subtype ?? "?") : "result 없음") +
                 (r.InputFailed != null ? " · 입력 " + r.InputFailed : "") + " · " + Clip(said, 200));

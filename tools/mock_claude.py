@@ -317,11 +317,17 @@ def main():
     if mode == "limit_new":   # 2.1.322의 문구
         result("You've hit your monthly spend limit · your limit resets Dec 1", is_error=True)
         return 1
-    if mode == "limit_weekly":
-        result("You've reached your weekly usage limit", is_error=True)
+    if mode == "limit_session":   # 옛 정규식에 걸리지 않는 꼴
+        result("You've hit your session limit · resets 3pm", is_error=True)
+        return 1
+    if mode == "limit_team":
+        result("You've hit your team's shared budget.", is_error=True)
         return 1
     if mode == "too_long":
         result("Prompt is too long", is_error=True)
+        return 1
+    if mode == "context_full":   # 'limit reached'가 들어 있지만 한도가 아니다
+        result("Context limit reached", is_error=True)
         return 1
     text_events(ANSWER)
     if mode == "denied":
