@@ -509,7 +509,8 @@ namespace Bakkum
             }
         }
 
-        /// 시트가 여럿일 수 있는 표 파일: CSV를 뺀 엑셀 갈래 모두(.xlsx·.xlsm·.xls·.cell·.ods)
+        /// 시트가 여럿일 수 있는 표 파일: CSV를 뺀 엑셀 갈래 모두. 지금 형식 바꾸기에 들어오는 것은 .xlsx·.xlsm·.ods이고
+        /// (.xls·.cell은 Usable에서 DocConvert.IsTable로 걸러짐), 나중에 .xls·.cell이 들어와도 '첫 시트만'이 같이 붙는다.
         static bool IsWorkbook(string f)
         {
             return Formats.KindOf(f) == Kind.Excel && Formats.Ext(f) != ".csv";
