@@ -82,7 +82,9 @@ namespace Bakkum
         {
             error = null;
             var result = new List<int>();
-            string s = (text ?? "").Replace('，', ',').Replace('、', ',').Replace('~', '-').Replace('–', '-').Replace('∼', '-').Replace(" ", ",");
+            string s = (text ?? "").Replace('，', ',').Replace('、', ',').Replace('~', '-').Replace('–', '-').Replace('∼', '-');
+            // "1 - 5"의 빈칸은 범위의 일부다. 빈칸을 쉼표로 바꾸기 전에 줄표에 붙인다(안 그러면 "-"가 1쪽~끝으로 읽혔다)
+            s = System.Text.RegularExpressions.Regex.Replace(s, @"\s*-\s*", "-").Replace(" ", ",");
             var parts = s.Split(new[] { ',' }, StringSplitOptions.RemoveEmptyEntries);
             if (parts.Length == 0)
             {
