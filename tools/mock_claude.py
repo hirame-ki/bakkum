@@ -314,6 +314,15 @@ def main():
     if mode == "limit":
         result("Claude AI usage limit reached|1762650000", is_error=True)
         return 1
+    if mode == "limit_new":   # 2.1.322의 문구
+        result("You've hit your monthly spend limit · your limit resets Dec 1", is_error=True)
+        return 1
+    if mode == "limit_weekly":
+        result("You've reached your weekly usage limit", is_error=True)
+        return 1
+    if mode == "too_long":
+        result("Prompt is too long", is_error=True)
+        return 1
     text_events(ANSWER)
     if mode == "denied":
         result(ANSWER, denials=[{"tool_name": "Read", "tool_use_id": "toolu_mock", "tool_input": {}}])
