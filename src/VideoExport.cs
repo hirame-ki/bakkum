@@ -80,6 +80,38 @@ namespace Bakkum
             return id;
         }
 
+        /// 화질 단계(2026-11-12 사용자 요청: 최대 가능한 화질부터 중간·낮음까지)
+        public static readonly string[][] Qualities =
+        {
+            new[] { "max", "최고" }, new[] { "high", "높음" }, new[] { "mid", "중간" }, new[] { "low", "낮음" }
+        };
+
+        /// 모르는 값(예전 편집 등)은 중간
+        public static string QualityId(string q)
+        {
+            foreach (var x in Qualities) if (x[0] == q) return q;
+            return "mid";
+        }
+
+        /// 화질을 고를 수 있는 내보내기인가(용량 맞추기는 목표 용량이 화질을 정하고, 소리만·표지 그림은 영상이 아니다)
+        public static bool HasQuality(string preset)
+        {
+            return preset != "size" && preset != "audio" && preset != "cover";
+        }
+
+        /// 화질별 한 화소·한 장에 쓰는 비트(density)와 초당 비트의 바닥·천장. 중간이 예전 값(0.1, 1.2~24Mbps)과 같다.
+        /// 최고는 원본에 가깝게(4K도 60Mbps까지), 낮음은 가볍게.
+        public static void QualityRate(string q, out double density, out double floor, out double cap)
+        {
+            switch (QualityId(q))
+            {
+                case "max": density = 0.25; floor = 4e6; cap = 60e6; return;
+                case "high": density = 0.16; floor = 2e6; cap = 40e6; return;
+                case "low": density = 0.06; floor = 0.8e6; cap = 12e6; return;
+                default: density = 0.1; floor = 1.2e6; cap = 24e6; return;
+            }
+        }
+
         static int SourceShort(VProject p)
         {
             int best = 0;
@@ -106,6 +138,12 @@ namespace Bakkum
         /// 지금 설정으로 만들 크기·빠르기·용량
         public static VExportPlan Plan(VProject p)
         {
+            return Plan(p, p.Export.Quality);
+        }
+
+        /// 화질만 바꿔 본 계획(내보내기 칸에서 화질마다 예상 크기를 보여 줄 때)
+        public static VExportPlan Plan(VProject p, string quality)
+        {
             var e = p.Export;
             var plan = new VExportPlan { Label = PresetLabel(e.Preset) };
             double dur = p.Duration;
@@ -118,7 +156,11 @@ namespace Bakkum
             }
             int shortSide;
             double fps = Math.Max(10, Math.Min(60, e.Fps > 0 ? e.Fps : SourceFps(p)));
-            double density = 0.1;
+            double density, floor, cap;
+            QualityRate(quality, out density, out floor, out cap);
+            // 낮음은 소리도 가볍게(AAC 128kbps). 윈도우 AAC 인코더는 96·128·160·192kbps만 받는다.
+            // 화질을 고르지 않는 내보내기(소리만 등)에는 남아 있던 값이 끼어들지 않게 한다.
+            if (HasQuality(e.Preset) && QualityId(quality) == "low") plan.AudioBytesPerSec = 16000;
             switch (e.Preset)
             {
                 case "reels":
@@ -132,7 +174,8 @@ namespace Bakkum
                 case "kakao":
                     shortSide = 720;
                     fps = Math.Min(fps, 30);
-                    density = 0.075;
+                    // 같은 화질에서 3/4로 가볍게(중간이면 예전과 같은 0.075)
+                    density *= 0.75;
                     plan.AudioBytesPerSec = 16000;
                     break;
                 case "size":
@@ -175,7 +218,7 @@ namespace Bakkum
             plan.H = h;
             plan.Fps = Math.Round(fps * 1000) / 1000;
             double bps = w * (double)h * plan.Fps * density;
-            plan.VideoBps = (uint)Math.Max(1200000, Math.Min(24000000, bps));
+            plan.VideoBps = (uint)Math.Max(floor, Math.Min(cap, bps));
             string tag = e.Preset == "reels" ? "_릴스" : e.Preset == "shorts" ? "_쇼츠" : e.Preset == "youtube" ? "_유튜브" : e.Preset == "kakao" ? "_카톡" : "_편집";
             plan.Output = OutputFor(p, ".mp4", tag);
             return plan;
