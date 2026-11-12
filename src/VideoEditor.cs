@@ -139,15 +139,19 @@ namespace Bakkum
 
         // ── 열기 ──
 
+        /// 지금 여는 중인(이어서 할지 묻는 창이 떠 있는) 영상의 자동 저장 이름
+        static readonly HashSet<string> Opening = new HashSet<string>();
+
         /// 메뉴의 [영상 편집]: 하던 편집이 있으면 이어서 할지 묻고, 없으면 놓은 파일로 새로 만든다.
         public static void OpenFor(MenuAction a, List<string> files)
         {
             var full = files.Select(f => Path.GetFullPath(f)).ToList();
             var prints = VAutoSave.PrintsOf(full);
-            // 같은 영상의 편집 창이 열려 있으면 그 창을 앞으로(두 창이 같은 자동 저장을 덮어쓰지 않게)
+            // 같은 영상의 편집 창이 열려 있으면 그 창을 앞으로(두 창이 같은 자동 저장을 덮어쓰지 않게).
+            // 지문은 열린 창의 원본이 옮겨져 그 자리에 없을 때만 본다(1반용·2반용 복사본은 따로 연다).
             string key = VAutoSave.KeyOf(full);
             var open = Application.Current == null ? null : Application.Current.Windows.OfType<VideoEditor>()
-                .FirstOrDefault(e => !e.demo && (VAutoSave.KeyOf(e.project.Opened) == key || VAutoSave.SamePrints(e.project.Prints, prints)));
+                .FirstOrDefault(e => !e.demo && (VAutoSave.KeyOf(e.project.Opened) == key || !e.project.Opened.All(File.Exists) && VAutoSave.SamePrints(e.project.Prints, prints)));
             if (open != null)
             {
                 if (open.WindowState == WindowState.Minimized) open.WindowState = WindowState.Normal;
@@ -155,14 +159,38 @@ namespace Bakkum
                 open.SetStatus("이 영상은 이 창에서 편집하고 있어요.");
                 return;
             }
+            // 이어서 할지 묻는 창이 떠 있는 동안 같은 영상을 또 놓아도 창을 둘 열지 않게
+            if (!Opening.Add(key)) return;
+            try
+            {
+                Open(a, full, prints);
+            }
+            finally
+            {
+                Opening.Remove(key);
+            }
+        }
+
+        static void Open(MenuAction a, List<string> full, List<string> prints)
+        {
             VAutoSave.Tidy();
             VProject p = null;
-            var saved = VAutoSave.Find(full, prints);
+            string from;
+            var saved = VAutoSave.Find(full, prints, out from);
             if (saved != null)
             {
                 int n = Dialog.Ask(null, H, "media", "하던 편집이 있어요",
                     "이 영상으로 " + saved.Saved.ToString("M월 d일 H:mm") + "까지 편집한 내용이 남아 있어요. 이어서 할까요?", null, "새로 시작", "이어서 하기");
-                if (n == 1) p = Relink(saved);
+                if (n == 1)
+                {
+                    p = Relink(saved);
+                    if (p != null)
+                    {
+                        if (prints != null) p.Prints = prints;
+                        try { VAutoSave.Resumed(p, from); }
+                        catch (Exception ex) { Log.Write("영상 편집 자동 저장 옮기기 실패: " + ex.GetType().Name); }
+                    }
+                }
                 else if (n == -1) return;
             }
             int faces = 0;

@@ -823,36 +823,47 @@ namespace Bakkum
             return a != null && b != null && a.Count > 0 && a.OrderBy(x => x).SequenceEqual(b.OrderBy(x => x));
         }
 
-        /// 경로로 찾고, 없으면 내용 지문이 같은 자동 저장 가운데 가장 최근 것을 찾아 옛 자리를 지금 자리로 바꾼다.
-        /// ponytail: 못 찾으면 자동 저장을 모두 읽는다(60일 치라 수십 개). 많아지면 지문 → 파일 이름 목록을 따로 둔다.
-        public static VProject Find(List<string> files, List<string> prints)
+        /// 이 파일들의 자동 저장: 경로로 찾은 것과, 원본이 옮겨져 그 자리에 없는 자동 저장 가운데 내용 지문이 같은 것 중
+        /// 가장 최근에 저장한 것. 복사본(원본이 그 자리에 있는 것)의 편집은 따로 하는 것으로 보고 고르지 않는다.
+        /// 다른 자동 저장에서 찾았으면 옛 자리를 지금 자리로 바꾸고 from에 그 파일을 알려 준다(이어서 하면 Resumed로 지운다).
+        /// ponytail: 열 때마다 자동 저장을 모두 훑는다(60일 치라 수십 개). 많아지면 지문 → 파일 이름 목록을 따로 둔다.
+        public static VProject Find(List<string> files, List<string> prints, out string from)
         {
+            string own = PathOf(files);
             var found = Load(files);
-            if (found != null || prints == null) return found;
-            DateTime bestAt = DateTime.MinValue;
+            from = found != null ? own : null;
+            if (prints == null) return found;
             foreach (var f in Directory.GetFiles(Folder, "*.json"))
             {
+                if (string.Equals(f, own, StringComparison.OrdinalIgnoreCase)) continue;
                 try
                 {
-                    var at = File.GetLastWriteTime(f);
-                    if (at <= bestAt) continue;
                     string text = File.ReadAllText(f, Encoding.UTF8);
                     if (!prints.All(x => text.Contains(x))) continue;
                     var p = VProject.FromJson(text);
-                    if (p.Clips.Count == 0 || p.Prints.Count != p.Opened.Count || !SamePrints(p.Prints, prints)) continue;
+                    if (p.Clips.Count == 0 || p.Prints.Count != p.Opened.Count || !SamePrints(p.Prints, prints) || p.Opened.All(File.Exists)) continue;
+                    if (found != null && p.Saved <= found.Saved) continue;
                     found = p;
-                    bestAt = at;
+                    from = f;
                 }
                 catch (Exception ex)
                 {
                     Log.Write("영상 편집 자동 저장 찾기 실패: " + ex.GetType().Name);
                 }
             }
-            if (found == null) return null;
+            if (found == null || from == own) return found;
             for (int i = 0; i < found.Opened.Count; i++) found.Relink(found.Opened[i], files[prints.IndexOf(found.Prints[i])]);
             found.Opened = files.ToList();
             found.Prints = prints.ToList();
             return found;
+        }
+
+        /// 다른 자리의 자동 저장(from)을 이어서 하면: 지금 자리로 바로 저장하고 옛 것은 지운다(편집이 두 갈래로 나뉘지 않게)
+        public static void Resumed(VProject p, string from)
+        {
+            if (from == null || string.Equals(from, PathOf(p.Opened), StringComparison.OrdinalIgnoreCase)) return;
+            Save(p);
+            try { File.Delete(from); } catch { }
         }
 
         public static void Forget(IEnumerable<string> files)

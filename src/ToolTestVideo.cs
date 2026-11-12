@@ -941,12 +941,33 @@ namespace Bakkum
             if (File.Exists(after)) File.Delete(after);
             File.Move(before, after);
             var moved = new List<string> { after };
-            var back2 = VAutoSave.Find(moved, VAutoSave.PrintsOf(moved));
-            bool relinked = back2 != null && back2.Clips[0].Path == after && back2.Opened.SequenceEqual(moved) && back2.Items.Count == 1;
+            var origin = new List<string> { before };
+            string from, none;
+            var back2 = VAutoSave.Find(moved, VAutoSave.PrintsOf(moved), out from);
+            bool relinked = back2 != null && back2.Clips[0].Path == after && back2.Opened.SequenceEqual(moved) && back2.Items.Count == 1 && from == VAutoSave.PathOf(origin);
             var other = new List<string> { V("바탕.png") };
-            Check("자동 저장: 영상을 옮기거나 이름을 바꿔도 내용 지문으로 찾고 새 자리로 바꾼다", relinked && VAutoSave.Find(other, VAutoSave.PrintsOf(other)) == null, back2 == null ? "못 찾음" : back2.Clips[0].Path);
-            VAutoSave.Forget(new[] { before });
-            File.Delete(after);
+            Check("자동 저장: 영상을 옮기거나 이름을 바꿔도 내용 지문으로 찾고 새 자리로 바꾼다", relinked && VAutoSave.Find(other, VAutoSave.PrintsOf(other), out none) == null, back2 == null ? "못 찾음" : back2.Clips[0].Path);
+
+            // 옮긴 곳에서 더 편집하고(옛 판처럼 옛 자동 저장도 남은 채) 되돌려 놓으면: 경로가 맞는 옛 편집이 아니라 가장 최근 편집을 고른다.
+            // 이어서 하면 지금 자리로 저장하고 옛 것은 지운다. 원본이 그 자리에 있는 복사본은 따로 편집한다.
+            Thread.Sleep(30);
+            back2.Items.Add(new VItem { Kind = "text", Text = "옮긴 곳에서 더 넣은 자막", Start = 1, End = 2 });
+            VAutoSave.Save(back2);
+            File.Move(after, before);
+            var back3 = VAutoSave.Find(origin, VAutoSave.PrintsOf(origin), out from);
+            bool newest = back3 != null && back3.Items.Count == 2 && back3.Clips[0].Path == before && from == VAutoSave.PathOf(moved);
+            if (back3 != null) VAutoSave.Resumed(back3, from);
+            bool one = File.Exists(VAutoSave.PathOf(origin)) && !File.Exists(VAutoSave.PathOf(moved));
+            string copy = V("복사본.mp4");
+            File.Copy(before, copy, true);
+            var copies = new List<string> { copy };
+            bool copyApart = VAutoSave.Find(copies, VAutoSave.PrintsOf(copies), out none) == null;
+            var again = VAutoSave.Find(origin, VAutoSave.PrintsOf(origin), out from);
+            Check("자동 저장: 옮겼다 되돌려도 가장 최근 편집 하나로 이어 가고, 복사본은 따로", newest && one && copyApart && again != null && again.Items.Count == 2,
+                "최근 고름 " + newest + " · 하나만 남음 " + one + " · 복사본 따로 " + copyApart);
+            VAutoSave.Forget(origin);
+            File.Delete(before);
+            File.Delete(copy);
 
             string cursorDir = Path.Combine(VAutoSave.Folder, "cursor"), lectureDir = Path.Combine(VAutoSave.Folder, "lecture");
             Directory.CreateDirectory(cursorDir);
