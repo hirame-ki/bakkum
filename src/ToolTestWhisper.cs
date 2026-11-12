@@ -258,10 +258,12 @@ namespace Bakkum
                     string missing = get("missing", body.Length, null);
                     string trust = WhisperModels.Explain(new WebException("x", WebExceptionStatus.TrustFailure));
                     string dns = WhisperModels.Explain(new WebException("x", WebExceptionStatus.NameResolutionFailure));
+                    string channel = WhisperModels.Explain(new WebException("x", WebExceptionStatus.SecureChannelFailure));
                     bool noHalf = !File.Exists(Path.Combine(WhisperModels.Folder(new WhisperModel { Id = "thtml" }) + ".받는중", "config.json"));
-                    Check("자동 자막 받기: 차단 안내 페이지(HTML)·길이가 다른 답·403은 학교망 차단으로, 허용할 주소와 함께", html == WhisperModels.Blocked && longer == html && forbid == html && html.Contains("huggingface.co") && html.Contains("hf.co") && noHalf, html + " / " + longer + " / " + forbid);
-                    Check("자동 자막 받기: 프록시 로그인(407)·인증서 실패·주소 못 찾음은 나눠서 알린다", proxy.Contains("프록시") && trust.Contains("인증서") && dns.Contains("주소를 찾지 못했어요") && new[] { proxy, trust, dns }.All(x => x.Contains("huggingface.co")), proxy + " / " + trust + " / " + dns);
+                    Check("자동 자막 받기: 차단 안내 페이지(HTML)·길이가 다른 답·403은 학교 인터넷 차단으로, 허용할 주소와 함께", html == WhisperModels.Blocked && longer == html && forbid == html && html.Contains("huggingface.co") && html.Contains("hf.co") && noHalf, html + " / " + longer + " / " + forbid);
+                    Check("자동 자막 받기: 프록시 로그인(407)·인증서 실패(보안 연결 끊김 포함)·주소 못 찾음은 나눠서 알린다", proxy.Contains("프록시") && trust.Contains("인증서") && trust.Contains("날짜·시간") && channel == trust && dns.Contains("주소를 찾지 못했어요") && new[] { proxy, trust, dns }.All(x => x.Contains("huggingface.co")), proxy + " / " + trust + " / " + dns);
                     Check("자동 자막 받기: 그 밖에는 다시 눌러 보게 하고, 계속 안 되면 허용할 주소를", missing.Contains("받지 못했어요") && missing.Contains("hf.co"), missing);
+                    Check("자동 자막 받기: 안내 문구는 '학교 인터넷'으로 맞춘다", !new[] { html, proxy, trust, dns, missing }.Any(x => x.Contains("학교망")), "");
                 }
                 finally
                 {

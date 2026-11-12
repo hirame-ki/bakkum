@@ -101,7 +101,8 @@ namespace Bakkum
                 }
                 catch (UserFacingException ex)
                 {
-                    // 받기가 막혔을 때 할 일(허용할 주소 등)은 아래 상태 줄에 다 안 보여서 창으로도 알린다
+                    // 받기가 막혔을 때 할 일(허용할 주소 등)은 아래 상태 줄에 다 안 보여서 창으로도 알린다. [멈추기]를 눌렀으면 띄우지 않는다.
+                    if (busyCancel) throw;
                     string msg = ex.Message;
                     Dispatcher.BeginInvoke(new Action(delegate
                     {
