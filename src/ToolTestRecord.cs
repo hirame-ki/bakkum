@@ -505,11 +505,12 @@ namespace Bakkum
             finally
             {
                 ScreenRecorder.FailHardwareAt = -1;
-                ScreenRecorder.CpuOnly = false;
+                VEncoder.CpuOnly = false;
             }
             var pn = Probe(gn);
-            Check("녹화 도중 그래픽 인코더가 멈추면 알리고, 다음 녹화는 CPU 인코더로", broke.Hardware && broke.Failure != null && broke.Failure.Contains("다시 녹화하면") && !File.Exists(gf) && next.Failure == null && !next.Hardware && pn != null && pn.HasVideo,
-                (broke.Failure ?? "실패 없음") + " · 다음 녹화 " + (next.Hardware ? "그래픽 인코더" : "CPU") + " " + Say(pn));
+            Check("녹화 도중 그래픽 인코더가 멈추면 알리고, 다음 녹화는 CPU 인코더로 하고 끝에 알린다", broke.Hardware && broke.Failure != null && broke.Failure.Contains("다시 녹화하면") && !File.Exists(gf)
+                && next.Failure == null && !next.Hardware && next.Note != null && next.Note.Contains("그래픽 인코더 없이") && pn != null && pn.HasVideo,
+                (broke.Failure ?? "실패 없음") + " · 다음 녹화 " + (next.Hardware ? "그래픽 인코더" : "CPU") + " · " + next.Note + " " + Say(pn));
             if (File.Exists(gn)) File.Delete(gn);
 
             // 시작 전 취소하면 파일이 남지 않는다

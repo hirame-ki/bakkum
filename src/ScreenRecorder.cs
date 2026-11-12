@@ -614,8 +614,6 @@ namespace Bakkum
         long framesWritten, framesDropped;
         bool ticking;
         bool hardware;
-        /// 그래픽 인코더가 녹화 도중 멈춘 적이 있으면 바꿈을 끌 때까지 CPU 인코더로만 녹화한다(찍은 화면은 다시 만들 수 없어서 다음 녹화부터)
-        internal static bool CpuOnly;
         /// 시험용: 그래픽 인코더가 이 장 수를 쓴 뒤 멈춘 것처럼 한다. -1이면 끔.
         internal static int FailHardwareAt = -1;
 
@@ -658,8 +656,11 @@ namespace Bakkum
             {
                 try
                 {
-                    sink = Open(!CpuOnly);
-                    hardware = !CpuOnly;
+                    // 그래픽 인코더가 녹화 도중 멈춘 적이 있으면(VEncoder.CpuOnly, 하루 또는 바꿈을 다시 켤 때까지) CPU 인코더로 녹화하고 끝에 알린다
+                    bool cpu = VEncoder.CpuOnly;
+                    sink = Open(!cpu);
+                    hardware = !cpu;
+                    if (cpu) note = "그래픽 인코더가 앞서 멈춰서 이번 녹화는 그래픽 인코더 없이 했어요.";
                 }
                 catch (Exception ex)
                 {
@@ -1093,8 +1094,11 @@ namespace Bakkum
                     broken = true;
                     Log.Write("녹화 저장 실패: " + ex.GetType().Name + " 0x" + ex.HResult.ToString("X8") + (hardware ? " (그래픽 인코더)" : ""));
                     bool disk = ex.HResult == unchecked((int)0x80070070);
-                    if (hardware && !disk) CpuOnly = true;
-                    Fail(disk ? "디스크 공간이 모자라 저장하지 못했어요." : hardware ? "그래픽 인코더가 멈춰서 녹화를 저장하지 못했어요. 다시 녹화하면 그래픽 인코더 없이 녹화해요." : "영상을 저장하지 못했어요.");
+                    bool gpu = hardware && VEncoder.GpuFault(ex);
+                    if (gpu) VEncoder.CpuOnly = true;
+                    Fail(disk ? "디스크 공간이 모자라 저장하지 못했어요."
+                        : gpu ? "그래픽 인코더가 멈춰서 녹화를 저장하지 못했어요. 다시 녹화하면 그래픽 인코더 없이 녹화해요."
+                        : "영상을 저장하지 못했어요.");
                 }
                 finally
                 {

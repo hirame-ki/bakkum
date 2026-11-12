@@ -998,25 +998,37 @@ namespace Bakkum
             var pr = Probe(plan.Output);
             Check("내보내기: 고른 구간만(1~3초)", pr != null && Near(pr.Seconds, 2, 0.15) && pr.Width == 640 && Near(plan.From, 1, 1e-9), Say(pr) + " " + string.Join(" / ", j.Problems));
 
-            // 그래픽 인코더가 쓰는 도중 멈추면: 앞쪽(4번째 장)이면 CPU 인코더로 처음부터 다시, 뒤쪽(101번째 장)이면 멈추고 만들던 파일을 지운다
+            // 그래픽 인코더가 쓰는 도중 멈추면: 앞쪽(4번째 장)이면 CPU 인코더로 처음부터 다시, 뒤쪽(101번째 장)이면 알리고 만들던 파일을 지운다.
+            // 어느 쪽이든 그 뒤의 내보내기는 CPU 인코더로 한다(VEncoder.CpuOnly).
             var gp = new VProject { Aspect = "16:9", SourceW = 640, SourceH = 360 };
             gp.Clips.Add(new VClip { Path = moving, In = 0, Out = 5 });
-            string early = V("그래픽 앞쪽 멈춤.mp4"), late = V("그래픽 뒤쪽 멈춤.mp4");
-            Job ej, lj2;
+            string early = V("그래픽 앞쪽 멈춤.mp4"), late = V("그래픽 뒤쪽 멈춤.mp4"), after = V("그래픽 멈춘 뒤.mp4");
+            Job ej, lj2, nj;
+            bool cpuAfterEarly, cpuAfterLate;
             try
             {
                 VEncoder.FailHardwareAt = 3;
                 ej = ExportNow(gp, PlanFor(early, 640, 360, 0, 5), null);
+                cpuAfterEarly = VEncoder.CpuOnly;
+                VEncoder.CpuOnly = false;
                 VEncoder.FailHardwareAt = 100;
                 lj2 = ExportNow(gp, PlanFor(late, 640, 360, 0, 5), null);
+                cpuAfterLate = VEncoder.CpuOnly;
+                VEncoder.FailHardwareAt = -1;
+                nj = ExportNow(gp, PlanFor(after, 640, 360, 0, 5), null);
             }
             finally
             {
                 VEncoder.FailHardwareAt = -1;
+                VEncoder.CpuOnly = false;
             }
             var epr = Probe(early);
-            Check("내보내기: 그래픽 인코더가 앞쪽에서 멈추면 CPU 인코더로 처음부터 다시 만든다", ej.Problems.Count == 0 && epr != null && epr.HasVideo && epr.HasAudio && Near(epr.Seconds, 5, 0.15) && ej.Notes.Any(x => x.Contains("그래픽 인코더 없이")), Say(epr) + " " + string.Join(" / ", ej.Problems.Concat(ej.Notes)));
-            Check("내보내기: 뒤쪽에서 멈추면 다시 하지 않고 알리며 만들던 파일을 지운다", lj2.Problems.Any(x => x.Contains("저장하지 못했어요")) && !File.Exists(late) && lj2.Outputs.Count == 0, string.Join(" / ", lj2.Problems));
+            Check("내보내기: 그래픽 인코더가 앞쪽에서 멈추면 CPU 인코더로 처음부터 다시 만든다", ej.Problems.Count == 0 && epr != null && epr.HasVideo && epr.HasAudio && Near(epr.Seconds, 5, 0.15) && ej.Notes.Any(x => x.Contains("그래픽 인코더 없이")) && cpuAfterEarly, Say(epr) + " " + string.Join(" / ", ej.Problems.Concat(ej.Notes)));
+            Check("내보내기: 뒤쪽에서 멈추면 다시 내보내면 된다고 알리고 만들던 파일을 지운다", lj2.Problems.Any(x => x.Contains("다시 내보내면 그래픽 인코더 없이")) && !File.Exists(late) && lj2.Outputs.Count == 0 && cpuAfterLate, string.Join(" / ", lj2.Problems));
+            Check("내보내기: 그래픽 인코더가 멈춘 뒤의 내보내기는 CPU 인코더로", nj.Problems.Count == 0 && File.Exists(after) && nj.Notes.Any(x => x.Contains("그래픽 인코더 없이")), string.Join(" / ", nj.Problems.Concat(nj.Notes)));
+            Check("그래픽 인코더 탓으로 보는 오류: 인코더 오류·메모리 부족은 넣고, 파일 쪽 오류(USB 뽑힘 등)는 뺀다",
+                VEncoder.GpuFault(new System.Runtime.InteropServices.COMException("x", unchecked((int)0x80004005))) && VEncoder.GpuFault(new OutOfMemoryException())
+                && !VEncoder.GpuFault(new System.Runtime.InteropServices.COMException("x", unchecked((int)0x80070015))) && !VEncoder.GpuFault(new IOException("x")), "");
 
             // 소리만
             foreach (var fmt in new[] { "m4a", "wav" })
@@ -1111,6 +1123,28 @@ namespace Bakkum
             {
             }
             Check("점검: 소리 크기 재기", loud != null, loud == null ? "예외" : string.Join(" / ", loud.Select(x => x.Text)));
+
+            // 미리 보기 사본도 그래픽 인코더가 앞쪽에서 멈추면 CPU 인코더로 다시 만든다(맨 끝: 이 뒤로는 사본을 쓰지 않게)
+            string proxy = VProxy.PathFor(moving), made = null, proxyErr = null;
+            bool cpuProxy = false;
+            try
+            {
+                if (File.Exists(proxy)) File.Delete(proxy);
+                VEncoder.FailHardwareAt = 3;
+                made = VProxy.Make(moving, null, () => false);
+                cpuProxy = VEncoder.CpuOnly;
+            }
+            catch (Exception ex)
+            {
+                proxyErr = ex.GetType().Name + ": " + ex.Message;
+            }
+            finally
+            {
+                VEncoder.FailHardwareAt = -1;
+                VEncoder.CpuOnly = false;
+            }
+            var ppr = made != null ? Probe(made) : null;
+            Check("미리 보기 사본: 그래픽 인코더가 앞쪽에서 멈추면 CPU 인코더로 다시 만든다", proxyErr == null && cpuProxy && ppr != null && ppr.HasVideo && Near(ppr.Seconds, 5, 0.2), proxyErr ?? Say(ppr));
         }
     }
 }
