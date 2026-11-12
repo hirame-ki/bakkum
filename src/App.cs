@@ -269,6 +269,7 @@ namespace Bakkum
         {
             var lines = text.Split('\n').Select(l => l.TrimEnd('\r')).Where(l => l.Length > 0).ToList();
             if (lines.Count == 0) return;
+            if (Quitting && lines[0] != "quit") return;   // 끝내는 중에는 메뉴·설정을 새로 열지 않는다
             switch (lines[0])
             {
                 case "menu":
@@ -321,7 +322,7 @@ namespace Bakkum
                     recent.DropDownItems.Add(Util.ShortName(path), null, delegate { Util.Reveal(path); });
                 }
             };
-            menu.Items.Add("프로그램 종료", null, delegate { QuitAsked(); });
+            menu.Items.Add("프로그램 종료", null, delegate { if (AskStopJobs(null)) Quit(); });
             tray.ContextMenuStrip = menu;
             tray.MouseClick += delegate (object s, System.Windows.Forms.MouseEventArgs e)
             {
@@ -431,18 +432,18 @@ namespace Bakkum
         /// 끝내는 중(창들이 닫혀도 '저장 없이 닫기'로 보지 않게)
         public static bool Quitting;
 
-        /// 알림 영역의 [프로그램 종료]: 하던 변환이 있으면 먼저 묻는다.
-        static void QuitAsked()
+        /// [프로그램 종료](알림 영역·설정 창): 하던 변환이 있으면 멈추고 끝낼지 묻는다. 끝내도 되면 true.
+        public static bool AskStopJobs(Window owner)
         {
-            if (Jobs.Busy && Dialog.Ask(null, Theme.Coral, "close", "하던 변환을 멈추고 끝낼까요?",
-                "지금 바꾸던 파일은 만들어지지 않아요. 원본은 그대로예요.", null, "계속 바꾸기", "멈추고 끝내기") != 1) return;
-            Quit();
+            return !Jobs.Busy || Dialog.Ask(owner, Theme.Coral, "close", "하던 변환을 멈추고 끝낼까요?",
+                "지금 바꾸던 파일은 만들어지지 않아요. 원본은 그대로예요.", null, "계속 바꾸기", "멈추고 끝내기") == 1;
         }
 
         public static void Quit()
         {
             if (Quitting) return;
             Quitting = true;
+            if (MenuWindow.Current != null) MenuWindow.Current.CloseNow();
             RecordUi.StopForQuit();
             try { if (trigger != null) trigger.Dispose(); } catch { }
             trigger = null;
@@ -454,12 +455,15 @@ namespace Bakkum
                 tray = null;
             }
             // Main은 끝에서 프로세스를 바로 끝낸다. 그 전에 작업 줄이 취소를 받아 반쯤 쓴 결과를 지우고
-            // 띄운 한글·워드를 닫을 틈을 준다(설치 프로그램은 10초를 기다리니 그보다 짧게).
+            // 띄운 한글·워드를 닫을 틈, 이미 [끝내기]를 누른 녹화가 저장을 마칠 틈을 준다
+            // (설치 프로그램은 10초를 기다리니 그보다 짧게). 끝내는 동안 새 작업은 받지 않는다(Jobs.Start).
             // 기다리는 동안 화면 스레드는 막지 않는다. 작업이 화면 스레드에 물을 수 있다.
             var ui = Current.Dispatcher;
             new Thread(delegate ()
             {
-                bool idle = Jobs.WaitIdle(TimeSpan.FromSeconds(8));
+                var until = DateTime.UtcNow.AddSeconds(8);
+                while ((Jobs.Busy || RecordUi.Active) && DateTime.UtcNow < until) Thread.Sleep(100);
+                bool idle = !Jobs.Busy && !RecordUi.Active;
                 ui.BeginInvoke(new Action(delegate
                 {
                     Log.Write(idle ? "끝냄" : "끝냄(작업이 8초 안에 멈추지 않음)");

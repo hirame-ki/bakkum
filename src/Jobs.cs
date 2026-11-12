@@ -155,6 +155,8 @@ namespace Bakkum
 
         public static void Start(Job job)
         {
+            // 끝내는 중이면 새 일은 받지 않는다(끝내기가 기다려 주지 않으니 반쯤 쓴 결과가 남는다)
+            if (App.Quitting) return;
             job.Toast = Toast.ForJob(job);
             bool queued;
             lock (Gate)
@@ -248,18 +250,6 @@ namespace Bakkum
                 foreach (var j in Waiting) j.Cancelled = true;
                 if (running != null) running.Cancelled = true;
             }
-        }
-
-        /// 하던 일과 기다리던 일이 모두 끝날 때까지(최대 max) 기다린다. 다 끝났으면 true.
-        public static bool WaitIdle(TimeSpan max)
-        {
-            var until = DateTime.UtcNow + max;
-            while (Busy)
-            {
-                if (DateTime.UtcNow > until) return false;
-                Thread.Sleep(100);
-            }
-            return true;
         }
     }
 
