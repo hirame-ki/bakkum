@@ -28,7 +28,7 @@ $refs = @(
     "$gac\System.Threading.Tasks\v4.0_4.0.0.0__b03f5f7f11d50a3a\System.Threading.Tasks.dll",
     "$gac\System.IO\v4.0_4.0.0.0__b03f5f7f11d50a3a\System.IO.dll"
 )
-foreach ($w in 'Foundation', 'Globalization', 'Graphics', 'Media', 'Storage', 'Data', 'UI', 'System') {
+foreach ($w in 'Foundation', 'Globalization', 'Graphics', 'Media', 'Storage', 'Data', 'UI', 'System', 'AI') {
     $refs += Join-Path $meta "Windows.$w.winmd"
 }
 foreach ($r in $refs) { if (-not (Test-Path $r)) { throw "참조 파일이 없습니다: $r" } }

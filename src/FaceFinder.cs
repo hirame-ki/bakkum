@@ -44,6 +44,12 @@ namespace Bakkum
                 }
                 return found;
             });
+            return Widen(boxes, w, h);
+        }
+
+        /// 찾은 상자(픽셀)를 머리카락·턱까지 넓혀 비율로
+        static List<Rect> Widen(List<Rect> boxes, int w, int h)
+        {
             var result = new List<Rect>();
             foreach (var b in boxes)
             {
@@ -53,6 +59,41 @@ namespace Bakkum
                 result.Add(new Rect(x0 / w, y0 / h, (x1 - x0) / w, (y1 - y0) / h));
             }
             return result;
+        }
+
+        /// 영상 장면을 여러 장 훑을 때: 얼굴 찾는 기계를 한 번만 만들어 계속 쓴다(MTA 스레드에서).
+        public sealed class Session
+        {
+            WinFace.FaceDetector detector;
+
+            /// 회색 그림(한 칸 1바이트, 위쪽 줄부터)에서 얼굴 자리(비율, 조금 넓힘)
+            public List<Rect> Find(byte[] gray, int w, int h)
+            {
+                var boxes = WinRtCall.Mta(delegate
+                {
+                    if (detector == null)
+                    {
+                        if (!WinFace.FaceDetector.IsSupported) throw new UserFacingException("이 PC에서는 얼굴 찾기를 쓸 수 없어요. 화면을 끌어 직접 가려 주세요.");
+                        detector = WinRtCall.Await(WinFace.FaceDetector.CreateAsync());
+                        try { detector.MinDetectableFaceSize = new WinGraphics.BitmapSize { Width = 24, Height = 24 }; } catch { }
+                    }
+                    var writer = new WinStreams.DataWriter();
+                    writer.WriteBytes(gray);
+                    var buffer = writer.DetachBuffer();
+                    writer.Dispose();
+                    var found = new List<Rect>();
+                    using (var bmp = WinGraphics.SoftwareBitmap.CreateCopyFromBuffer(buffer, WinGraphics.BitmapPixelFormat.Gray8, w, h))
+                    {
+                        foreach (var face in WinRtCall.Await(detector.DetectFacesAsync(bmp)))
+                        {
+                            var b = face.FaceBox;
+                            found.Add(new Rect(b.X, b.Y, b.Width, b.Height));
+                        }
+                    }
+                    return found;
+                });
+                return Widen(boxes, w, h);
+            }
         }
     }
 }

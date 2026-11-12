@@ -31,6 +31,18 @@ namespace Bakkum
             }
         }
 
+        /// 크고 다시 만들 수 있는 것(미리 보기 사본·자동 자막 모델)을 둔다. 학교 PC의 로밍 프로필에 실리지 않게
+        /// 설정 폴더(AppData\Roaming)가 아니라 이 PC 안쪽(AppData\Local)에 둔다. 지우기 때 함께 지운다.
+        public static string CacheDir
+        {
+            get
+            {
+                string d = DataDirOverride != null ? Path.Combine(DataDirOverride, "cache") : Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), Id);
+                Directory.CreateDirectory(d);
+                return d;
+            }
+        }
+
         public static string InstallDir
         {
             get { return Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "Programs", Id); }

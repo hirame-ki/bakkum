@@ -222,7 +222,7 @@ namespace Bakkum
                             {
                                 job.Check();
                                 if (n > 1) job.Report(Util.ShortName(f) + " · " + (i + 1) + "/" + n + "쪽", (double)i / n);
-                                byte[] png = doc.RenderPng(i, ImageDpi, MaxRender);
+                                byte[] png = doc.RenderPngExact(i, ImageDpi, MaxRender);
                                 byte[] data = fmt == "png" ? png : Imaging.Jpeg(Imaging.Decoder(png).Frames[0], 90);
                                 string path = n == 1 ? Util.OutputFile(f, "." + fmt) : Path.Combine(folder, stem + "_" + (i + 1).ToString().PadLeft(digits, '0') + "." + fmt);
                                 File.WriteAllBytes(path, data);
@@ -500,7 +500,7 @@ namespace Bakkum
                 {
                     job.Check();
                     if (n > 1) job.Report(Util.ShortName(f) + " · " + (i + 1) + "/" + n + "쪽 읽는 중", (double)i / n);
-                    AppendPage(sb, i, n, ocr.Read(doc.RenderPng(i, OcrDpi, OcrMaxSide)));
+                    AppendPage(sb, i, n, ocr.Read(doc.RenderPngExact(i, OcrDpi, OcrMaxSide)));
                 }
             }
             return sb.ToString();
@@ -603,7 +603,10 @@ namespace Bakkum
                     {
                         job.Check();
                         job.Report(Util.ShortName(f) + " · " + (i + 1) + "/" + total + "쪽 준비 중", (double)i / total);
-                        byte[] png = doc.RenderPng(i, ImageDpi, AiLongSide);
+                        // 화면 배율과 상관없이 긴 변 AiLongSide(사진과 같은 크기). RenderPng는 125% PC에서 2000, 150% PC에서 2400이 됐다.
+                        // 2026-11-12 같은 날 비교(지어낸 작은 글씨 스캔 2쪽, Claude Code sonnet): 2000과 1600 모두 틀린 글자 0,
+                        // 입력 토큰은 쪽당 약 4,650 → 3,350.
+                        byte[] png = doc.RenderPngExact(i, ImageDpi, AiLongSide);
                         chunk.Add(Imaging.Jpeg(Imaging.Decoder(png).Frames[0], 85));
                     }
                     job.Report(Util.ShortName(f) + " · " + (start + 1) + "~" + end + "쪽 AI가 읽는 중", (double)start / total);

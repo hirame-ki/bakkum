@@ -20,14 +20,32 @@
 | 글자 뽑기 | 그림·PDF·문서 | 이 PC에서(윈도우 글자 인식), 워드로, AI로(표까지) |
 | 사진 손질 | 그림 | 가리기(블러·모자이크·색 칸, 전체·일부), 얼굴 가리기, 자르기·회전·뒤집기·크기, 밝기·대비·채도·선명도, 글자·화살표·형광펜, 배경·여백·둥근 모서리, 문서 펴기, 콜라주, 사진 정보 보기·지우기 |
 | PDF 편집 | PDF | 쪽 편집(순서·돌리기·삭제), 합치기, 나누기, 쪽 고르기, 암호 걸기·풀기, 워터마크, 쪽 번호, 정보 지우기 |
-| 영상·소리 | 영상·소리 파일 | 영상: MP4·MOV·MKV, 용량 줄이기, 자르기, GIF, 소리만 MP3·WAV / 소리: MP3·M4A·WAV·FLAC, 자르기 |
+| 영상·소리 | 영상·소리 파일 | 영상: MP4·MOV·MKV, 용량 줄이기, 영상 편집(아래), GIF, 소리만 MP3·WAV / 소리: MP3·M4A·WAV·FLAC, 자르기 |
 | 화면 녹화 | (파일 없이) | 화면 전체나 고른 영역을 MP4로, 소리 없음·마이크·컴퓨터 소리·둘 다, 잠시 멈춤. 비디오 폴더에 저장 |
 | 압축 | 모든 파일·폴더 | ZIP·TAR로 묶기, 파일 하나 GZIP, ZIP·TAR·GZ·TGZ 풀기 |
 | AI로 | 문서·그림·PDF | 요약, 요점 정리(공문의 마감·할 일, 일정은 엑셀·달력 파일로, 공문 여러 개는 마감순 할 일표 한 장으로), 9개 언어 번역, 문서 쓰기(기안문·계획서·결과 보고서·가정 통신문 초안, 쉬운 말·맞춤법), 표 → 엑셀, 문제와 시험지를 본뜬 비슷한 문제, 학습지, 디자인을 입힌 수업 PPT(네 가지 디자인, 발표자 노트), 수준별 자료, 지도안, 채점 기준표, 손글씨 읽기, 이름 짓기 |
 
 받는 형식: `hwp hwpx` · `doc docx rtf odt` · `xls xlsx xlsm csv cell ods` · `ppt pptx show` · `pdf` · `png jpg jpeg jfif bmp gif tif tiff webp heic heif avif svg` · `txt md markdown html htm srt vtt tsv epub` · `zip tar gz tgz` · `mp4 m4v mov mkv avi wmv asf webm mpg mpeg ts mts m2ts 3gp` · `mp3 wav m4a aac flac ogg oga opus wma`
 
-HEIC·AVIF·WEBP 그림은 PC에 해당 이미지 확장이 있어야 열립니다. 영상·소리는 그 PC의 윈도우가 읽는 코덱만 열 수 있습니다. WebM·OGG로 내보내기와 RAR·7z, 암호 걸린 압축 파일은 지원하지 않습니다.
+HEIC·AVIF·WEBP 그림은 PC에 해당 이미지 확장이 있어야 열립니다. 영상·소리는 그 PC의 윈도우가 읽는 코덱만 열 수 있습니다. 휴대폰의 고효율(HEVC) 영상과 AV1·VP9 영상은 Microsoft Store의 해당 비디오 확장이 있어야 열리고, 열지 못하면 어떤 확장이 필요한지 알려 줍니다. WebM·OGG로 내보내기와 RAR·7z, 암호 걸린 압축 파일은 지원하지 않습니다.
+
+### 영상 편집
+
+영상 파일을 [영상·소리] → [영상 편집]에 놓으면 편집 창이 열립니다. 왼쪽 칸 메뉴 아홉 개로 나뉩니다.
+
+| 칸 | 하는 일 |
+|---|---|
+| 편집 | 나누기, 구간 잘라 내기·남기기, 조각 차례 바꾸기, 빠르기(0.25~2배)·거꾸로·멈춘 화면, 넘어가는 효과, 사진 움직임, 표시(Ctrl+←·→로 이동). 위 막대에 자석·되돌리기 |
+| 자막 | 자막 넣기·고치기, 강조 낱말 색, 찾아 바꾸기, 모든 자막 시간 옮기기, 읽어 주기(윈도우 목소리), SRT 불러오기·저장 |
+| 글자·그림 | 제목·그림·스티커·도형·작은 화면, 움직임 표시, 내 꾸밈 저장 |
+| 화면 비율 | 16:9·9:16·1:1·4:5, 맞추기·꽉 채우기·자리 옮기기 |
+| 소리 | 원본 소리 다듬기(잡음 줄이기·목소리 높낮이), 배경 음악·내 목소리·효과음, 말할 때 음악 줄이기 |
+| 색·효과 | 밝기·대비·채도·색온도·선명하게, 흑백 같은 느낌, 흔들림 줄이기, 손대기 전과 나란히 보기 |
+| 가리기 | 흐리게·모자이크·색으로 덮기, 움직임을 따라가는 상자, 얼굴 찾아 가리기(보여도 되는 얼굴은 끄기) |
+| 선생님 도구 | 조용한 곳 한 번에 자르기, 화면 녹화 다듬기(누른 곳 확대·마우스 강조), 내 얼굴 작은 화면, 수업 자료(PDF·PPT·한글)로 영상, 제목 화면·이름 띠, 유튜브 챕터 |
+| 내보내기 | 그대로·릴스·쇼츠·유튜브·카카오톡·용량 맞추기·소리만·표지 그림, 고른 구간만, 내보내기 전 점검(없는 원본·빠른 자막·화면 밖 글자·세로 영상의 가려지는 곳 등) |
+
+얼굴·목소리·화면은 이 PC 안에서만 다루고 어디로도 보내지 않습니다. 하던 편집은 자동으로 저장되어 다음에 같은 영상을 넣으면 이어서 할 수 있습니다.
 
 PDF·한글·워드 → PPT는 글자를 글상자로 옮기고 표의 선과 그림은 슬라이드 배경으로 둡니다. 스캔본은 글자 인식으로 읽으므로 틀린 글자가 있을 수 있습니다.
 
@@ -124,6 +142,9 @@ build\Bakkum.exe /run text local 스캔.pdf
 | `src/OpenDoc.cs`, `src/TextPdf.cs`, `src/Epub.cs`, `src/Svg.cs`, `src/Archive.cs` | ODS·ODT, 글자 → PDF, 전자책, SVG, 압축 |
 | `src/PptDeck.cs`, `src/PdfToPpt.cs`, `src/DeckDesign.cs` | PPT 쓰기, PDF → 글자 고칠 수 있는 PPT, AI 수업 PPT 디자인 |
 | `src/Media.cs`, `src/MediaFoundation.cs`, `src/Mkv.cs`, `src/Gif.cs` | 영상·소리 |
+| `src/VideoEditor.cs`, `src/VideoEditorPanels.cs`, `src/VideoTimeline.cs`, `src/VideoPreview.cs` | 영상 편집 창(칸 메뉴·오른쪽 칸·시간 막대·미리 보기) |
+| `src/VideoModel.cs`, `src/VideoDecode.cs`, `src/VideoRender.cs`, `src/VideoOverlay.cs`, `src/VideoAudio.cs`, `src/VideoExport.cs` | 영상 편집 저장 형식, 장면 꺼내기, 그리기, 소리, 내보내기와 점검 |
+| `src/VideoTeacher.cs` | 영상 편집의 가리기 따라가기·얼굴 찾기·조용한 곳·화면 녹화 다듬기·수업 자료·제목 화면·챕터 |
 | `src/ScreenRecorder.cs`, `src/RecordWindows.cs` | 화면 녹화 |
 | `src/AiTasks.cs` | 'AI로' 칸(이름 가리기·보내기 전 확인·작업별 지시) |
 | `src/Compare.cs`, `src/Guide.cs`, `src/Favorites.cs`, `src/Updater.cs` | 전후 비교, 사용법, 즐겨찾기, 앱 안 업데이트 |

@@ -180,6 +180,8 @@ namespace Bakkum
         }
 
         /// 쪽(0부터)을 PNG로. 긴 변이 maxSide를 넘으면 줄인다.
+        /// 화면에 보여 줄 그림(전후 비교, 쪽 편집 작은 그림)용: 윈도우 PDF 엔진이 화면 배율만큼 크게 그려
+        /// (125% 화면이면 1.25배) 배율 높은 화면에서도 또렷하다. 파일로 남기는 그림·글자 인식·AI로 보내는 그림에는 RenderPngExact를 쓴다.
         public byte[] RenderPng(int index, double dpi, int maxSide)
         {
             var d = doc;
@@ -205,6 +207,83 @@ namespace Bakkum
                     }
                 }
             });
+        }
+
+        /// 쪽 크기(1/96인치 단위, 쪽 돌림 반영)
+        public void PageSizeDip(int index, out double width, out double height)
+        {
+            var d = doc;
+            var size = WinRtCall.Mta(() =>
+            {
+                using (var page = d.GetPage((uint)index)) return page.Size;
+            });
+            width = size.Width;
+            height = size.Height;
+        }
+
+        /// 윈도우 PDF 엔진이 요청한 크기에 곱하는 화면 배율(처음 그릴 때 재서 기억한다. 0이면 아직 모름)
+        static double dipScale;
+
+        /// RenderPng와 같지만 화면 배율과 상관없이 요청한 픽셀 크기로 그린다.
+        /// 윈도우 PDF 엔진은 DestinationWidth/Height를 화면 배율 단위로 받아서, 125% 화면에서는 1.25배 큰 그림을 돌려준다
+        /// (2026-11-12 실측: A4 200dpi 요청 1654×2339 → 2066×2920, 긴 변 제한 2560을 넘음).
+        /// 나온 그림의 실제 크기를 PNG 머리에서 읽어 배율을 재고, 어긋났으면 그 배율로 나눠 한 번 더 그린다.
+        /// 파일로 남기는 그림(그림으로, PDF→PPT, 그림 PPT, 영상 수업 자료), 글자 인식, AI로 보내는 쪽 그림은 이것을 쓴다.
+        /// 2026-11-12 비교: 글자 인식은 이쪽이 같거나 나았고 더 빨랐다. AI 읽기는 긴 변 1600이 2000만큼 읽었다.
+        public byte[] RenderPngExact(int index, double dpi, int maxSide)
+        {
+            var d = doc;
+            return WinRtCall.Mta(() =>
+            {
+                using (var page = d.GetPage((uint)index))
+                {
+                    var size = page.Size;
+                    double w = size.Width * dpi / 96.0, h = size.Height * dpi / 96.0;
+                    double big = Math.Max(w, h);
+                    if (big > maxSide)
+                    {
+                        w *= maxSide / big;
+                        h *= maxSide / big;
+                    }
+                    double k = dipScale > 0 ? dipScale : 1;
+                    uint dw = (uint)Math.Max(1, Math.Round(w / k));
+                    byte[] png = Draw(page, dw, (uint)Math.Max(1, Math.Round(h / k)));
+                    int gw, gh;
+                    // 아주 작은 그림은 반올림 탓에 배율을 잘못 잴 수 있어 재지 않는다.
+                    if (dw >= 200 && PngSize(png, out gw, out gh) && Math.Abs(gw - Math.Round(w)) > Math.Max(2, w * 0.01))
+                    {
+                        double s = gw / (double)dw;
+                        if (s > 0.5 && s < 4)
+                        {
+                            dipScale = s;
+                            png = Draw(page, (uint)Math.Max(1, Math.Round(w / s)), (uint)Math.Max(1, Math.Round(h / s)));
+                        }
+                    }
+                    return png;
+                }
+            });
+        }
+
+        static byte[] Draw(WinPdf.PdfPage page, uint w, uint h)
+        {
+            var opts = new WinPdf.PdfPageRenderOptions();
+            opts.DestinationWidth = w;
+            opts.DestinationHeight = h;
+            using (var ras = new WinStreams.InMemoryRandomAccessStream())
+            {
+                WinRtCall.Await(page.RenderToStreamAsync(ras, opts));
+                return WinRtCall.ReadAll(ras);
+            }
+        }
+
+        /// PNG 머리(IHDR)에 적힌 가로·세로
+        internal static bool PngSize(byte[] png, out int w, out int h)
+        {
+            w = h = 0;
+            if (png == null || png.Length < 24 || png[0] != 0x89 || png[1] != 0x50 || png[2] != 0x4E || png[3] != 0x47) return false;
+            w = (png[16] << 24) | (png[17] << 16) | (png[18] << 8) | png[19];
+            h = (png[20] << 24) | (png[21] << 16) | (png[22] << 8) | png[23];
+            return w > 0 && h > 0;
         }
 
         /// 다 쓴 문서를 놓아주고 파일 스트림을 닫는다. 닫지 않으면 메모리 정리 때까지 PDF 파일이 열린 채로 남아,

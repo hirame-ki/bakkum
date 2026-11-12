@@ -110,6 +110,16 @@ namespace Bakkum
 
         static byte[] LoadMoov(Stream s)
         {
+            long at;
+            var d = FindMoov(s, out at);
+            if (d == null) throw new UserFacingException("만든 영상에서 정보 상자를 찾지 못했어요.");
+            return d;
+        }
+
+        /// 맨 위의 moov 상자(머리 포함)와 그 위치. 없으면 null.
+        static byte[] FindMoov(Stream s, out long position)
+        {
+            position = -1;
             var head = new byte[16];
             long at = 0;
             while (at + 8 <= s.Length)
@@ -137,11 +147,74 @@ namespace Bakkum
                         if (n <= 0) throw new EndOfStreamException();
                         got += n;
                     }
+                    position = at;
                     return d;
                 }
                 at += size;
             }
-            throw new UserFacingException("만든 영상에서 정보 상자를 찾지 못했어요.");
+            return null;
+        }
+
+        static readonly byte[] LocationWord = Encoding.ASCII.GetBytes("location");
+
+        static bool Contains(byte[] d, int from, int to, byte[] word)
+        {
+            for (int i = from; i + word.Length <= to; i++)
+            {
+                int j = 0;
+                while (j < word.Length && d[i + j] == word[j]) j++;
+                if (j == word.Length) return true;
+            }
+            return false;
+        }
+
+        /// 휴대폰이 적어 둔 촬영 위치를 지운다(사진의 위치 정보를 지우는 것과 같은 뜻).
+        /// 윈도우 변환기는 원본 영상의 위치를 결과 MP4·MOV·M4A의 moov/udta/©xyz로 옮겨 적는다(2026-11-12 실측).
+        /// 위치가 든 상자(©xyz, 3GPP loci, 애플 위치 열쇠가 든 meta)는 같은 길이의 빈 상자(free)로 바꾸고 내용을 0으로 채운다.
+        /// 상자 길이가 그대로라 영상·소리 덩어리의 위치는 변하지 않는다. 지운 것이 있으면 true.
+        public static bool DropPlace(string path)
+        {
+            using (var f = new FileStream(path, FileMode.Open, FileAccess.ReadWrite, FileShare.Read))
+            {
+                long at;
+                var d = FindMoov(f, out at);
+                if (d == null) return false;
+                Box moov;
+                if (!Find(d, new Box { Type = "file", Body = 0, End = d.Length }, "moov", out moov)) return false;
+                if (Blank(d, moov, 0) == 0) return false;
+                f.Position = at;
+                f.Write(d, 0, d.Length);
+                return true;
+            }
+        }
+
+        static int Blank(byte[] d, Box parent, int depth)
+        {
+            if (depth > 6) return 0;
+            int n = 0;
+            foreach (var b in Boxes(d, parent.Body, parent.End))
+            {
+                int start = b.Body - 8;
+                bool plain = start >= 0 && U32(d, start) == (uint)(b.End - start);
+                bool xyz = d[b.Body - 4] == 0xA9 && d[b.Body - 3] == (byte)'x' && d[b.Body - 2] == (byte)'y' && d[b.Body - 1] == (byte)'z';
+                if (plain && (xyz || b.Type == "loci" || (b.Type == "meta" && Contains(d, b.Body, b.End, LocationWord))))
+                {
+                    Encoding.ASCII.GetBytes("free", 0, 4, d, b.Body - 4);
+                    Array.Clear(d, b.Body, b.End - b.Body);
+                    n++;
+                }
+                else if (b.Type == "udta" || b.Type == "trak" || b.Type == "ilst")
+                {
+                    n += Blank(d, b, depth + 1);
+                }
+                else if (b.Type == "meta")
+                {
+                    // ISO의 meta는 판(4바이트)이 앞에 있고, QuickTime의 meta는 없다
+                    int kids = b.Body + 8 <= b.End && Tag(d, b.Body + 4) == "hdlr" ? b.Body : b.Body + 4;
+                    n += Blank(d, new Box { Type = "meta", Body = kids, End = b.End }, depth + 1);
+                }
+            }
+            return n;
         }
 
         public static List<IsoTrack> Read(Stream s)

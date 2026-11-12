@@ -353,6 +353,8 @@ namespace Bakkum
             string data = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), AppInfo.Id);
             Util.TryDeleteDir(data);
             Util.TryDeleteDir(Path.Combine(Path.GetTempPath(), AppInfo.Id));
+            // 미리 보기 사본·자동 자막 모델(AppData\Local\Bakkum). 프로그램 폴더(AppData\Local\Programs\Bakkum)와는 다른 곳이다.
+            Util.TryDeleteDir(Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), AppInfo.Id));
             string dir = AppInfo.InstallDir;
             if (!dir.EndsWith(Path.Combine("Programs", AppInfo.Id), StringComparison.OrdinalIgnoreCase)) return false;
             if (AppInfo.RunningInstalled) return true;

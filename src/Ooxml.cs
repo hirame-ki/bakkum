@@ -1237,6 +1237,130 @@ namespace Bakkum
             }
         }
 
+        /// 슬라이드 하나의 발표자 노트
+        public sealed class SlideNote
+        {
+            /// 노트 글(없으면 ""). 문단은 줄바꿈으로 나뉜다.
+            public string Text = "";
+            /// 숨긴 슬라이드(PDF로 바꾸면 보통 빠진다)
+            public bool Hidden;
+        }
+
+        const string NotesRelType = "/notesSlide";
+
+        /// pptx의 슬라이드 순서대로 발표자 노트와 숨김 여부. 노트 칸(본문 자리)의 글만 읽고, 쪽 번호·머리글 같은 칸은 뺀다.
+        public static List<SlideNote> PptxNotes(string path)
+        {
+            FileStream fs;
+            using (var z = OpenZip(path, out fs))
+            using (fs)
+            {
+                var rels = Rels(z, "ppt/_rels/presentation.xml.rels");
+                var order = new List<string>();
+                using (var x = Reader(Need(z, "ppt/presentation.xml")))
+                {
+                    while (x.Read())
+                    {
+                        if (x.NodeType != XmlNodeType.Element || x.LocalName != "sldId") continue;
+                        string t;
+                        if (rels.TryGetValue(x.GetAttribute("id", RelsNs) ?? "", out t)) order.Add(PartPath("ppt", t));
+                    }
+                }
+                var list = new List<SlideNote>();
+                foreach (var slide in order)
+                {
+                    var note = new SlideNote();
+                    var e = z.GetEntry(slide);
+                    if (e != null)
+                    {
+                        using (var x = Reader(e))
+                        {
+                            while (x.Read())
+                            {
+                                if (x.NodeType != XmlNodeType.Element) continue;
+                                if (x.LocalName == "sld") note.Hidden = x.GetAttribute("show") == "0" || x.GetAttribute("show") == "false";
+                                break;
+                            }
+                        }
+                    }
+                    int cut = slide.LastIndexOf('/');
+                    string dirName = slide.Substring(0, cut), file = slide.Substring(cut + 1);
+                    var re = z.GetEntry(dirName + "/_rels/" + file + ".rels");
+                    string notesPart = null;
+                    if (re != null)
+                    {
+                        using (var x = Reader(re))
+                        {
+                            while (x.Read())
+                            {
+                                if (x.NodeType == XmlNodeType.Element && x.LocalName == "Relationship" && (x.GetAttribute("Type") ?? "").EndsWith(NotesRelType, StringComparison.Ordinal) && x.GetAttribute("TargetMode") != "External")
+                                {
+                                    notesPart = PartPath(dirName, x.GetAttribute("Target") ?? "");
+                                    break;
+                                }
+                            }
+                        }
+                    }
+                    var ne = notesPart == null ? null : z.GetEntry(notesPart);
+                    if (ne != null) note.Text = NotesText(ne);
+                    list.Add(note);
+                }
+                return list;
+            }
+        }
+
+        /// 관계 파일의 Target을 꾸러미 안 경로로(../ 처리)
+        static string PartPath(string baseDir, string target)
+        {
+            var parts = new List<string>();
+            if (!target.StartsWith("/", StringComparison.Ordinal)) parts.AddRange(baseDir.Split(new[] { '/' }, StringSplitOptions.RemoveEmptyEntries));
+            foreach (var s in target.Split(new[] { '/' }, StringSplitOptions.RemoveEmptyEntries))
+            {
+                if (s == "..")
+                {
+                    if (parts.Count > 0) parts.RemoveAt(parts.Count - 1);
+                }
+                else if (s != ".") parts.Add(s);
+            }
+            return string.Join("/", parts);
+        }
+
+        /// 노트 쪽에서 본문 자리(type="body")의 글. 그런 칸이 없으면 쪽 그림·번호·머리글·바닥글·날짜가 아닌 칸의 글.
+        static string NotesText(ZipArchiveEntry e)
+        {
+            var doc = new XmlDocument { XmlResolver = null };
+            using (var x = Reader(e)) doc.Load(x);
+            var ns = new XmlNamespaceManager(doc.NameTable);
+            ns.AddNamespace("p", "http://schemas.openxmlformats.org/presentationml/2006/main");
+            ns.AddNamespace("a", "http://schemas.openxmlformats.org/drawingml/2006/main");
+            var body = new StringBuilder();
+            var other = new StringBuilder();
+            foreach (XmlNode sp in doc.SelectNodes("//p:sp", ns))
+            {
+                var ph = sp.SelectSingleNode("p:nvSpPr/p:nvPr/p:ph", ns) as XmlElement;
+                string type = ph == null ? "" : ph.GetAttribute("type");
+                if (type == "sldImg" || type == "sldNum" || type == "hdr" || type == "ftr" || type == "dt") continue;
+                var into = type == "body" ? body : other;
+                foreach (XmlNode para in sp.SelectNodes("p:txBody/a:p", ns))
+                {
+                    var line = new StringBuilder();
+                    foreach (XmlNode n in para.ChildNodes)
+                    {
+                        if (n.LocalName == "br") line.Append('\n');
+                        else if (n.LocalName == "r" || n.LocalName == "fld")
+                        {
+                            var t = n.SelectSingleNode("a:t", ns);
+                            if (t != null) line.Append(t.InnerText);
+                        }
+                    }
+                    if (into.Length > 0) into.Append('\n');
+                    into.Append(line);
+                }
+            }
+            string text = (body.ToString().Trim().Length > 0 ? body : other).ToString();
+            return text.Replace("\r", "").Trim();
+        }
+
         static bool IsDateFormat(string code)
         {
             string c = Regex.Replace(code ?? "", "\"[^\"]*\"|\\[[^\\]]*\\]", "").ToLowerInvariant();

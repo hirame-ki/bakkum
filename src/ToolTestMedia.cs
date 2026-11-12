@@ -67,8 +67,8 @@ namespace Bakkum
             Check("이름에 #·%가 있어도 읽는다", Probe(M("이름 #1 100%.mp4")) != null, "");
 
             Func<string, string> opts = delegate (string name) { return string.Join(",", ActionOf("media").OptionsFor(new[] { M(name) }).Select(o => o.Id)); };
-            Check("고를 거리: 영상", opts("v.mp4") == "compress,trim,gif,mov,mkv,mp3,wav", opts("v.mp4"));
-            Check("고를 거리: AVI에서는 MP4도", opts("v.avi") == "mp4,compress,trim,gif,mov,mkv,mp3,wav", opts("v.avi"));
+            Check("고를 거리: 영상", opts("v.mp4") == "compress,edit,gif,mov,mkv,mp3,wav", opts("v.mp4"));
+            Check("고를 거리: AVI에서는 MP4도", opts("v.avi") == "mp4,compress,edit,gif,mov,mkv,mp3,wav", opts("v.avi"));
             Check("고를 거리: 소리", opts("a.mp3") == "m4a,wav,flac,trim" && opts("a.ogg") == "mp3,m4a,wav,flac,trim", opts("a.ogg"));
             Check("영상·소리는 영상 칸과 압축 칸에만", ActionOf("media").Usable(new[] { M("v.mp4") }).Count == 1 && ActionOf("archive").Usable(new[] { M("v.mp4") }).Count == 1 && ActionOf("pdf").Usable(new[] { M("v.mp4") }).Count == 0 && ActionOf("ai").Usable(new[] { M("a.mp3") }).Count == 0, "");
 

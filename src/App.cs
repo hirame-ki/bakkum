@@ -508,14 +508,14 @@ namespace Bakkum
             return 0;
         }
 
-        /// /render-window settings|consent|install|dialog|toast|toast-done|toast-error|notice 결과.png [ai:연결] [state:chatgpt,openrouter] [h:높이] (settings: [page:shape|slots|key|ai|other] [full])
+        /// /render-window settings|consent|install|dialog|toast|toast-done|toast-error|notice|photo|video 결과.png [ai:연결] [state:chatgpt,openrouter] [h:높이] (settings: [page:shape|slots|key|ai|other] [full]) (video: [state:칸] [demo] 영상 파일)
         /// 창을 화면 밖에 잠깐 띄워 그림으로 찍는다. 설정은 저장하지 않고, 네트워크·Claude Code도 부르지 않는다.
         public static int RenderWindow(string[] args)
         {
             Active = true;
             if (args.Length < 3)
             {
-                Print("사용: /render-window settings|consent|install|dialog|toast|toast-done|toast-error|notice 결과.png [ai:연결] [state:...] [h:높이] (settings: [page:쪽] [full])");
+                Print("사용: /render-window settings|consent|install|dialog|toast|toast-done|toast-error|notice|photo|video 결과.png [ai:연결] [state:...] [h:높이] (settings: [page:쪽] [full]) (video: [state:칸] [demo] [panel] 영상 파일)");
                 return 2;
             }
             string what = args[1].ToLowerInvariant();
@@ -559,6 +559,11 @@ namespace Bakkum
                     w = new InstallWindow();
                     break;
                 case "dialog":
+                    if (state == "autosub" || state == "autosub-base")
+                    {
+                        w = Dialog.Build(null, Theme.Teal, "subtitle", "자동 자막 모델을 받을까요?", VideoEditor.DownloadBody(state == "autosub" ? WhisperModels.Turbo : WhisperModels.Base), null, "그만두기", "받고 만들기");
+                        break;
+                    }
                     w = Dialog.Build(null, Theme.Green, "check", "ChatGPT 요금제를 사용하고 있어요",
                         "AI로 글자를 뽑으면 선생님의 ChatGPT 요금제 사용량에서 빠져요. 남은 사용량은 chatgpt.com의 설정 → 사용량에서 볼 수 있어요.",
                         null, "사용량 보기", "확인");
@@ -628,6 +633,9 @@ namespace Bakkum
                 case "record-area":
                     w = RecordUi.PreviewPicker();
                     break;
+                case "cam-bubble":
+                    w = CamBubble.ForPreview(state == "dark");
+                    break;
                 case "update-toast":
                     w = Toast.Offer("새 버전이 있어요 · 0.3.0", "사진 손질과 'AI로' 칸을 고쳤어요.", "지금 바꾸기", delegate { });
                     break;
@@ -654,6 +662,35 @@ namespace Bakkum
                 {
                     var a = MenuAction.All.First(x => x.Id == "pdftool");
                     w = new PdfPagesWindow(a, args.Skip(3).Where(x => File.Exists(x)).ToList(), true);
+                    break;
+                }
+                case "video":
+                {
+                    // state: 처음 볼 칸(edit|subtitle|deco|ratio|sound|look|redact|teacher|export). 그 뒤 인자는 영상·사진 파일.
+                    // demo 를 넣으면 예시 자막·스티커·표시를 얹는다. 자동 저장·내보내기는 하지 않는다.
+                    var a = MenuAction.All.First(x => x.Id == "media");
+                    var media = args.Skip(3).Where(x => File.Exists(x)).ToList();
+                    if (media.Count == 0)
+                    {
+                        Print("영상 파일을 넣어 주세요.");
+                        return 2;
+                    }
+                    var ve = VideoEditor.ForPreview(a, media, string.IsNullOrEmpty(state) ? "edit" : state, args.Contains("demo"));
+                    if (args.Contains("panel"))
+                    {
+                        // 오른쪽 칸을 스크롤 없이 끝까지: 창을 화면 밖에 한 번 띄워 칸을 채운 뒤, 칸만 떼어 내 찍는다
+                        ve.WindowStartupLocation = WindowStartupLocation.Manual;
+                        ve.Left = -30000;
+                        ve.Top = -30000;
+                        ve.ShowActivated = false;
+                        ve.ShowInTaskbar = false;
+                        ve.Show();
+                        Pump(12);
+                        SnapDetached(ve, ve.DetachPanelForPreview(), outPng, 340 - 36);
+                        Print("그림: " + outPng);
+                        return 0;
+                    }
+                    w = ve;
                     break;
                 }
                 default:

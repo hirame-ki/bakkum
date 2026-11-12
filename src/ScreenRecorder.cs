@@ -601,7 +601,7 @@ namespace Bakkum
         readonly List<ISoundSource> sounds;
         readonly int fps;
         readonly long period;
-        readonly RecordClock clock = new RecordClock();
+        readonly RecordClock clock;
         readonly Queue<Item> queue = new Queue<Item>();
         readonly ManualResetEvent soundReady = new ManualResetEvent(false);
         IMFSinkWriter sink;
@@ -616,15 +616,27 @@ namespace Bakkum
 
         /// 녹화를 더 잇지 못하게 됐을 때(다른 스레드에서 부른다)
         public Action Died;
+        /// 마우스 자리 기록(영상 편집의 '화면 녹화 다듬기'가 쓴다). 없으면 적지 않는다.
+        public CursorLog Cursor;
 
-        public ScreenRecorder(string path, IFrameGrabber grabber, List<ISoundSource> sounds, int fps)
+        public ScreenRecorder(string path, IFrameGrabber grabber, List<ISoundSource> sounds, int fps) : this(path, grabber, sounds, fps, null)
+        {
+        }
+
+        /// shared를 주면 그 시계를 같이 쓴다(웹캠 녹화가 화면 녹화와 같은 시각·같은 멈춤을 따르게).
+        public ScreenRecorder(string path, IFrameGrabber grabber, List<ISoundSource> sounds, int fps, RecordClock shared)
         {
             this.path = path;
             this.grabber = grabber;
             this.sounds = sounds;
             this.fps = fps;
             period = 10000000L / fps;
+            clock = shared ?? new RecordClock();
         }
+
+        /// 이 녹화의 시계(웹캠 녹화가 같이 쓴다)
+        public RecordClock Clock { get { return clock; } }
+        public string OutputPath { get { return path; } }
 
         public string Failure { get { return failure; } }
         public string Note { get { return note; } }
@@ -700,7 +712,7 @@ namespace Bakkum
                 input.SetGUID(Mf.Subtype, Mf.Rgb32);
                 Describe(input, width, height);
                 input.SetUINT32(Mf.Stride, (uint)(width * 4));
-                w.SetInputMediaType(videoStream, input, null);
+                Mf.SetVideoInput(w, videoStream, input, true);
             }
             finally
             {
@@ -815,6 +827,8 @@ namespace Bakkum
                         Monitor.PulseAll(queue);
                     }
                     if (writerThread != null) writerThread.Join();
+                    var cursor = Cursor;
+                    if (cursor != null && failure == null) cursor.Save(path);
                 }
                 catch (Exception ex)
                 {
@@ -901,6 +915,8 @@ namespace Bakkum
                         continue;
                     }
                     buffer.SetCurrentLength((uint)bytes);
+                    var cursor = Cursor;
+                    if (cursor != null) cursor.Sample(time / 1e7);
                     Enqueue(new Item { Buffer = buffer, Time = time, Duration = period });
                     if (++sinceCheck >= fps * 5)
                     {
@@ -1224,6 +1240,96 @@ namespace Bakkum
 
         public void Dispose()
         {
+        }
+    }
+
+    /// 녹화하는 동안 마우스 자리와 왼쪽 단추를 적어 둔다(영상 편집의 '화면 녹화 다듬기'가 쓴다).
+    /// 녹화 파일 옆에 '<녹화 이름>.cursor.txt'로 저장한다. 화면 내용이나 누른 글쇠는 적지 않는다.
+    sealed class CursorLog
+    {
+        [StructLayout(LayoutKind.Sequential)] struct PointXY { public int X, Y; }
+        [DllImport("user32.dll")] static extern bool GetCursorPos(out PointXY p);
+        [DllImport("user32.dll")] static extern short GetAsyncKeyState(int key);
+
+        readonly Box box;
+        readonly System.Text.StringBuilder lines = new System.Text.StringBuilder();
+        readonly object gate = new object();
+        int lastX = int.MinValue, lastY = int.MinValue;
+        bool lastDown;
+        int count;
+
+        public CursorLog(Box area)
+        {
+            box = area;
+        }
+
+        /// 녹화 시각 t(초)의 마우스. 녹화 화면 스레드에서 부른다(실제 픽셀 좌표).
+        public void Sample(double t)
+        {
+            PointXY p;
+            if (!GetCursorPos(out p)) return;
+            bool down = (GetAsyncKeyState(0x01) & 0x8000) != 0;
+            if (p.X == lastX && p.Y == lastY && down == lastDown) return;
+            lastX = p.X;
+            lastY = p.Y;
+            lastDown = down;
+            if (count > 400000) return;
+            count++;
+            double x = (p.X - box.X) / (double)Math.Max(1, box.Width), y = (p.Y - box.Y) / (double)Math.Max(1, box.Height);
+            var inv = System.Globalization.CultureInfo.InvariantCulture;
+            lock (gate) lines.Append(t.ToString("0.000", inv)).Append(' ').Append(x.ToString("0.0000", inv)).Append(' ').Append(y.ToString("0.0000", inv)).Append(' ').Append(down ? '1' : '0').Append('\n');
+        }
+
+        /// 기록 파일 자리. 선생님 폴더에 파일을 늘어놓지 않게 바꿈 자료 폴더에 두고,
+        /// 이름은 영상 내용(크기·앞뒤 조각)으로 정해서 영상을 옮기거나 이름을 바꿔도 찾는다.
+        public static string PathFor(string video)
+        {
+            string dir = Path.Combine(VAutoSave.Folder, "cursor");
+            Directory.CreateDirectory(dir);
+            return Path.Combine(dir, Fingerprint(video) + ".txt");
+        }
+
+        internal static string Fingerprint(string video)
+        {
+            using (var fs = new FileStream(video, FileMode.Open, FileAccess.Read, FileShare.ReadWrite | FileShare.Delete))
+            using (var sha = System.Security.Cryptography.SHA1.Create())
+            {
+                long len = fs.Length;
+                int part = (int)Math.Min(len, 256 * 1024);
+                var buf = new byte[part * 2 + 8];
+                int got = ReadFull(fs, buf, 0, part);
+                fs.Position = Math.Max(0, len - part);
+                got += ReadFull(fs, buf, got, part);
+                BitConverter.GetBytes(len).CopyTo(buf, got);
+                var h = sha.ComputeHash(buf, 0, got + 8);
+                return BitConverter.ToString(h, 0, 12).Replace("-", "").ToLowerInvariant();
+            }
+        }
+
+        static int ReadFull(Stream s, byte[] buf, int at, int count)
+        {
+            int got = 0;
+            while (got < count)
+            {
+                int r = s.Read(buf, at + got, count - got);
+                if (r <= 0) break;
+                got += r;
+            }
+            return got;
+        }
+
+        public void Save(string video)
+        {
+            try
+            {
+                string body;
+                lock (gate) body = "bakkum-cursor 1 " + box.Width + " " + box.Height + "\n" + lines;
+                File.WriteAllText(PathFor(video), body);
+            }
+            catch (Exception ex)
+            {
+                Log.Write("마우스 기록 저장 실패: " + ex.GetType().Name);
+            }
         }
     }
 }

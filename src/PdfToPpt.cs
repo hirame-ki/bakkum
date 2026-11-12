@@ -694,14 +694,14 @@ namespace Bakkum
                         bool textual = !layer && visible >= 1 && pg.Bad <= pg.Chars * 0.03;
                         if (textual)
                         {
-                            byte[] png = plain.RenderPng(i, Dpi, MaxSide);
+                            byte[] png = plain.RenderPngExact(i, Dpi, MaxSide);
                             Attach(page, Raster.From(Imaging.Decoder(png).Frames[0]), png, deck, pg, m);
                             AddBoxes(page, pg.Lines, pg, m);
                             result.TextPages++;
                             continue;
                         }
                         // 스캔한 쪽, 글자 대응표가 깨진 쪽
-                        byte[] shot = orig.RenderPng(i, Dpi, MaxSide);
+                        byte[] shot = orig.RenderPngExact(i, Dpi, MaxSide);
                         var raster = Raster.From(Imaging.Decoder(shot).Frames[0]);
                         var zones = new List<Zone>();
                         if (layer) zones = ZonesFromHidden(pg, raster);

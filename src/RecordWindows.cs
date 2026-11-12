@@ -32,6 +32,10 @@ namespace Bakkum
         static AreaFrame frame;
         static string outputPath;
         static bool busy, ending;
+        // 웹캠도 같이 찍을 때: 화면 녹화와 같은 시계를 쓰는 두 번째 녹화
+        static ScreenRecorder camRecorder;
+        static IFrameGrabber camGrabber;
+        static CamBubble bubble;
 
         /// 녹화를 준비하거나 하는 중인지(새 버전 바꾸기를 미룬다)
         public static bool Active
@@ -50,7 +54,7 @@ namespace Bakkum
             return allowed.Contains(value) ? value : allowed[0];
         }
 
-        static StackPanel Choices(string area, string sound, Action<string> setArea, Action<string> setSound, bool severalScreens)
+        static StackPanel Choices(string area, string sound, string cam, Action<string> setArea, Action<string> setSound, Action<string> setCam, bool severalScreens, bool hasCam)
         {
             var stack = new StackPanel();
             var first = Prompts.Caption("어디를 녹화할까요?");
@@ -59,7 +63,13 @@ namespace Bakkum
             stack.Children.Add(Prompts.Chips(Paper, new[] { "full", "area" }, new[] { "전체 화면", "영역 고르기" }, area, setArea));
             stack.Children.Add(Prompts.Caption("소리"));
             stack.Children.Add(Prompts.Chips(Paper, new[] { "none", "mic", "computer", "both" }, new[] { "소리 없음", "마이크", "컴퓨터 소리", "둘 다" }, sound, setSound));
+            if (hasCam)
+            {
+                stack.Children.Add(Prompts.Caption("웹캠"));
+                stack.Children.Add(Prompts.Chips(Paper, new[] { "none", "cam" }, new[] { "안 찍기", "같이 찍기" }, cam, setCam));
+            }
             string text = "비디오 폴더에 MP4로 저장돼요. 녹화 중에는 화면 위 작은 막대에서 잠시 멈추거나 끝낼 수 있어요.";
+            if (hasCam) text += " 웹캠을 같이 찍으면 얼굴 영상이 녹화 파일 옆에 따로 저장되고, [영상 편집]에 녹화 파일을 놓으면 오른쪽 아래에 동그랗게 얹혀요. 녹화하는 동안 보이는 작은 얼굴 창은 녹화에 찍히지 않아요.";
             if (severalScreens) text += " 화면이 여러 개면 마우스가 있는 화면을 녹화해요.";
             var note = Theme.MetaLabel(text);
             note.Margin = new Thickness(0, 6, 0, 0);
@@ -77,10 +87,14 @@ namespace Bakkum
             var settings = AppSettings.Current;
             string area = Known(settings.RecordArea, "full", "area");
             string sound = Known(settings.RecordSound, "none", "mic", "computer", "both");
-            var panel = Choices(area, sound, v => area = v, v => sound = v, ScreenArea.MonitorCount > 1);
+            string cam = Known(settings.RecordCam, "none", "cam");
+            bool hasCam = CamGrabber.Exists();
+            if (!hasCam) cam = "none";
+            var panel = Choices(area, sound, cam, v => area = v, v => sound = v, v => cam = v, ScreenArea.MonitorCount > 1, hasCam);
             if (Dialog.Ask(null, Paper, "record", "화면을 녹화할까요?", null, panel, "취소", "녹화 시작") != 1) return;
             settings.RecordArea = area;
             settings.RecordSound = sound;
+            if (hasCam) settings.RecordCam = cam;
             settings.SaveQuietly();
             busy = true;
             try
@@ -89,7 +103,7 @@ namespace Bakkum
                 Rect place = ScreenArea.MonitorDip();
                 if (area != "area")
                 {
-                    Arm(real, place, null, sound);
+                    Arm(real, place, null, sound, cam);
                     return;
                 }
                 var picker = new AreaPicker(real, place, false);
@@ -102,7 +116,7 @@ namespace Bakkum
                     }
                     Rect p = part.Value;
                     var box = new Box(real.X + (int)Math.Round(p.X * real.Width), real.Y + (int)Math.Round(p.Y * real.Height), (int)Math.Round(p.Width * real.Width), (int)Math.Round(p.Height * real.Height));
-                    Arm(box, place, new Rect(place.X + p.X * place.Width, place.Y + p.Y * place.Height, p.Width * place.Width, p.Height * place.Height), sound);
+                    Arm(box, place, new Rect(place.X + p.X * place.Width, place.Y + p.Y * place.Height, p.Width * place.Width, p.Height * place.Height), sound, cam);
                 };
                 picker.Show();
                 picker.Activate();
@@ -120,10 +134,44 @@ namespace Bakkum
         /// 시험에서만: 마지막으로 저장한 파일
         internal static string LastFile;
 
+        /// 시험에서만: 진짜 웹캠 대신 쓸 가짜 화면(카메라를 켜지 않는다)
+        internal static IFrameGrabber TestCam;
+
+        /// 시험에서만: 마지막으로 저장한 웹캠 파일
+        internal static string LastCamFile;
+
         internal static void ArmForTest(Box box, Rect place, Rect? part)
         {
             busy = true;
-            Arm(box, place, part, "none");
+            Arm(box, place, part, "none", TestCam != null ? "cam" : "none");
+        }
+
+        /// 웹캠 녹화를 준비한다(카메라가 켜진다). 실패하면 사용자에게 보일 문장으로 예외.
+        static ScreenRecorder BuildCam(ScreenRecorder main, string path)
+        {
+            IFrameGrabber g = TestCam ?? (IFrameGrabber)CamGrabber.Open();
+            ScreenRecorder r = null;
+            try
+            {
+                r = new ScreenRecorder(CamLog.NameFor(path), g, new List<ISoundSource>(), Fps, main.Clock);
+                r.Prepare();
+                camGrabber = g;
+                return r;
+            }
+            catch
+            {
+                if (r != null) r.Discard();
+                else g.Dispose();
+                throw;
+            }
+        }
+
+        static void DiscardCam()
+        {
+            var c = camRecorder;
+            camRecorder = null;
+            camGrabber = null;
+            if (c != null) c.Discard();
         }
 
         static string NewFile()
@@ -158,6 +206,7 @@ namespace Bakkum
                 });
                 // CAPTUREBLT는 쓰지 않는다. 없어도 투명 창까지 찍혔고(2026-11-08 실측) 쓰면 마우스 포인터가 깜빡일 수 있다.
                 made = new ScreenRecorder(path, new GdiGrabber(box, true, false), sources, Fps);
+                made.Cursor = new CursorLog(ScreenArea.Even(box));
                 made.Prepare();
                 return made;
             }
@@ -179,7 +228,7 @@ namespace Bakkum
             }
         }
 
-        static void Arm(Box box, Rect place, Rect? part, string sound)
+        static void Arm(Box box, Rect place, Rect? part, string sound, string cam)
         {
             ScreenRecorder made;
             string path;
@@ -201,11 +250,39 @@ namespace Bakkum
                 App.Notify("화면 녹화", "녹화를 시작하지 못했어요. (" + ex.GetType().Name + ")", true);
                 return;
             }
+            camRecorder = null;
+            camGrabber = null;
+            if (cam == "cam")
+            {
+                string why = null;
+                try
+                {
+                    camRecorder = BuildCam(made, path);
+                }
+                catch (UserFacingException ex)
+                {
+                    why = ex.Message;
+                }
+                catch (Exception ex)
+                {
+                    Log.Write("웹캠 녹화 준비 실패: " + ex.GetType().Name + " 0x" + ex.HResult.ToString("X8"));
+                    why = CamGrabber.Explain(ex);
+                }
+                if (why != null && Dialog.Ask(null, Paper, "record", "웹캠을 켜지 못했어요", why + " 화면만 녹화할까요?", null, "취소", "화면만 녹화") != 1)
+                {
+                    made.Discard();
+                    busy = false;
+                    return;
+                }
+            }
             var count = new Countdown(place, false);
             count.Done = delegate (bool go)
             {
                 if (!go)
                 {
+                    if (bubble != null) bubble.Close();
+                    bubble = null;
+                    DiscardCam();
                     made.Discard();
                     busy = false;
                     return;
@@ -213,6 +290,13 @@ namespace Bakkum
                 Launch(made, path, place, part);
             };
             count.Show();
+            var real = camGrabber as CamGrabber;
+            if (real != null)
+            {
+                // 3·2·1 동안에도 얼굴이 보이게(웹캠이 켜지는 데 1초쯤 걸린다)
+                bubble = new CamBubble(real, place);
+                bubble.Show();
+            }
         }
 
         static void Launch(ScreenRecorder made, string path, Rect place, Rect? part)
@@ -231,8 +315,25 @@ namespace Bakkum
             catch (Exception ex)
             {
                 Log.Write("녹화 시작 실패: " + ex.GetType().Name);
+                DiscardCam();
                 Stop();
                 return;
+            }
+            var c = camRecorder;
+            if (c != null)
+            {
+                var real = camGrabber as CamGrabber;
+                if (real != null) real.ResetCounters();
+                try
+                {
+                    // 같은 시계라 화면 녹화가 시작한 때를 0으로 같이 적는다
+                    c.Start();
+                }
+                catch (Exception ex)
+                {
+                    Log.Write("웹캠 녹화 시작 실패: " + ex.GetType().Name);
+                    DiscardCam();
+                }
             }
             bar = new RecordBar(made, place, part, false);
             bar.Show();
@@ -249,6 +350,43 @@ namespace Bakkum
             bar = null;
             if (frame != null) frame.Close();
             frame = null;
+            if (bubble != null) bubble.Close();
+            bubble = null;
+        }
+
+        /// 웹캠 녹화 마무리를 시작한다(화면 녹화 마무리와 같이 돈다). 끝나면 done이 켜진다.
+        static ManualResetEvent FinishCam(ScreenRecorder c, string[] error)
+        {
+            if (c == null) return null;
+            var done = new ManualResetEvent(false);
+            c.Finish(delegate (string e)
+            {
+                error[0] = e;
+                done.Set();
+            });
+            return done;
+        }
+
+        /// 웹캠 녹화가 끝난 뒤: 녹화 파일과 잇는 기록을 남기고 알림에 쓸 말을 돌려준다.
+        static string AfterCam(string path, ScreenRecorder c, IFrameGrabber g, ManualResetEvent done, string camError, bool screenOk)
+        {
+            if (c == null) return null;
+            if (!done.WaitOne(30000)) Log.Write("웹캠 녹화 마무리가 늦음");
+            done.Close();
+            string camFile = c.OutputPath;
+            if (!screenOk) return null;
+            if (camError != null || !File.Exists(camFile)) return "웹캠 영상은 저장하지 못했어요." + (camError != null ? " (" + camError + ")" : "");
+            var real = g as CamGrabber;
+            CamLog.Save(path, camFile, real != null ? real.Lag : 0);
+            LastCamFile = camFile;
+            string note = "얼굴 영상도 따로 저장했어요(" + Path.GetFileName(camFile) + "). [영상 편집]에 녹화 파일을 놓으면 얼굴이 오른쪽 아래에 동그랗게 얹혀요.";
+            if (real != null && real.Frames == 0) note = "웹캠에서 영상이 오지 않아 얼굴 영상이 비어 있어요. 다른 프로그램이 웹캠을 쓰고 있지 않은지 확인해 주세요.";
+            else
+            {
+                if (real != null && real.DarkShare >= 0.9) note += " 그런데 웹캠 영상이 거의 까맣게 찍혔어요. 렌즈 덮개가 닫혀 있거나 너무 어두웠는지 확인해 주세요. 얼굴이 필요 없으면 [영상 편집]에서 동그라미를 골라 지우면 돼요.";
+                if (real != null && real.Stalled >= 3) note += " 녹화 중 웹캠 영상이 " + (int)Math.Round(real.Stalled) + "초쯤 멈춰 있었어요.";
+            }
+            return note;
         }
 
         /// 녹화를 끝내고 저장을 마무리한다. 알림에 진행과 결과가 나온다.
@@ -263,8 +401,13 @@ namespace Bakkum
             toast.NoCancel();
             toast.SetProgress("영상을 저장하는 중", -1);
             string path = outputPath;
+            var c = camRecorder;
+            var g = camGrabber;
+            var camError = new string[1];
+            var camDone = FinishCam(c, camError);
             r.Finish(delegate (string error)
             {
+                string camNote = AfterCam(path, c, g, camDone, camError[0], error == null);
                 Application.Current.Dispatcher.BeginInvoke(new Action(delegate
                 {
                     if (error == null)
@@ -275,7 +418,10 @@ namespace Bakkum
                     }
                     else job.Problem(null, error);
                     if (r.Note != null) job.Note(r.Note);
+                    if (camNote != null) job.Note(camNote);
                     recorder = null;
+                    camRecorder = null;
+                    camGrabber = null;
                     ending = false;
                     busy = false;
                     toast.Done(job);
@@ -290,12 +436,24 @@ namespace Bakkum
             if (r == null || ending) return;
             ending = true;
             CloseFloating();
+            var c = camRecorder;
+            var g = camGrabber;
+            var camError = new string[1];
+            var camDone = FinishCam(c, camError);
             using (var done = new ManualResetEvent(false))
             {
-                r.Finish(delegate { done.Set(); });
+                string error = null;
+                r.Finish(delegate (string e)
+                {
+                    error = e;
+                    done.Set();
+                });
                 if (!done.WaitOne(20000)) Log.Write("끝낼 때 녹화 저장이 늦음");
+                AfterCam(outputPath, c, g, camDone, camError[0], error == null);
             }
             recorder = null;
+            camRecorder = null;
+            camGrabber = null;
             busy = false;
         }
 
@@ -303,7 +461,7 @@ namespace Bakkum
 
         public static Window PreviewOptions()
         {
-            return Dialog.Build(null, Paper, "record", "화면을 녹화할까요?", null, Choices("full", "mic", delegate { }, delegate { }, true), "취소", "녹화 시작");
+            return Dialog.Build(null, Paper, "record", "화면을 녹화할까요?", null, Choices("full", "mic", "cam", delegate { }, delegate { }, delegate { }, true, true), "취소", "녹화 시작");
         }
 
         public static Window PreviewBar(bool paused)

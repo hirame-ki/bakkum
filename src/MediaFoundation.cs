@@ -33,7 +33,9 @@ namespace Bakkum
         void SetUINT64([In, MarshalAs(UnmanagedType.LPStruct)] Guid key, ulong value);
         void U20();
         void SetGUID([In, MarshalAs(UnmanagedType.LPStruct)] Guid key, [In, MarshalAs(UnmanagedType.LPStruct)] Guid value);
-        void U22(); void U23(); void U24(); void U25(); void U26(); void U27(); void U28(); void U29();
+        void U22(); void U23();
+        void SetUnknown([In, MarshalAs(UnmanagedType.LPStruct)] Guid key, [MarshalAs(UnmanagedType.IUnknown)] object value);
+        void U25(); void U26(); void U27(); void U28(); void U29();
     }
 
     [ComImport, Guid("44ae0fa8-ea31-4109-8d2e-4cae4997c555"), InterfaceType(ComInterfaceType.InterfaceIsIUnknown)]
@@ -93,6 +95,35 @@ namespace Bakkum
         [PreserveSig] int GetPresentationAttribute(uint stream, [In, MarshalAs(UnmanagedType.LPStruct)] Guid attribute, out MfPropVariant value);
     }
 
+    /// 원본 읽기 부품이 끼워 둔 변환 부품(풀기, 영상 처리기)에 닿기
+    [ComImport, Guid("7b981cf0-560e-4116-9875-b099895f23d7"), InterfaceType(ComInterfaceType.InterfaceIsIUnknown)]
+    interface IMFSourceReaderEx
+    {
+        // IMFSourceReader의 10개
+        void U0(); void U1(); void U2(); void U3(); void U4(); void U5(); void U6(); void U7(); void U8(); void U9();
+        // SetNativeMediaType, AddTransformForStream, RemoveAllTransformsForStream
+        void U10(); void U11(); void U12();
+        [PreserveSig] int GetTransformForStream(uint stream, uint index, out Guid category, [MarshalAs(UnmanagedType.IUnknown)] out object transform);
+    }
+
+    /// 영상 처리기 설정. SetRotation(0)은 적힌 돌림대로 돌리지 않게 한다(MF_VIDEO_PROCESSOR_ROTATION의 ROTATION_NONE).
+    [ComImport, Guid("a3f675d5-6119-4f7f-a100-1d8b280f0efb"), InterfaceType(ComInterfaceType.InterfaceIsIUnknown)]
+    interface IMFVideoProcessorControl
+    {
+        // SetBorderColor, SetSourceRectangle, SetDestinationRectangle, SetMirror
+        void U0(); void U1(); void U2(); void U3();
+        [PreserveSig] int SetRotation(int rotation);
+    }
+
+    /// 변환 부품(영상 처리기 등)의 설정 칸에 닿기
+    [ComImport, Guid("bf94c121-5b05-4e6f-8000-ba598961414d"), InterfaceType(ComInterfaceType.InterfaceIsIUnknown)]
+    interface IMFTransform
+    {
+        // GetStreamLimits, GetStreamCount, GetStreamIDs, GetInputStreamInfo, GetOutputStreamInfo
+        void U0(); void U1(); void U2(); void U3(); void U4();
+        [PreserveSig] int GetAttributes(out IMFAttributes attributes);
+    }
+
     [ComImport, Guid("3137f1cd-fe5e-4805-a5d8-fb477448cb3d"), InterfaceType(ComInterfaceType.InterfaceIsIUnknown)]
     interface IMFSinkWriter
     {
@@ -102,6 +133,19 @@ namespace Bakkum
         void WriteSample(uint stream, IMFSample sample);
         void U4(); void U5(); void U6(); void U7();
         void Finish();
+        /// 스트림 뒤의 인코더 같은 부품에 닿기(service가 빈 값이면 인코더)
+        [PreserveSig] int GetServiceForStream(uint stream, [In] ref Guid service, [In] ref Guid riid, [MarshalAs(UnmanagedType.IUnknown)] out object obj);
+    }
+
+    /// 인코더 세부 설정(통째 그림 간격 등)
+    [ComImport, Guid("901db4c7-31ce-41a2-85dc-8fa0bf41b8da"), InterfaceType(ComInterfaceType.InterfaceIsIUnknown)]
+    interface ICodecAPI
+    {
+        [PreserveSig] int IsSupported([In] ref Guid api);
+        [PreserveSig] int IsModifiable([In] ref Guid api);
+        void U3(); void U4(); void U5();
+        [PreserveSig] int GetValue([In] ref Guid api, [MarshalAs(UnmanagedType.Struct)] out object value);
+        [PreserveSig] int SetValue([In] ref Guid api, [In, MarshalAs(UnmanagedType.Struct)] ref object value);
     }
 
     static class Mf
@@ -217,6 +261,64 @@ namespace Bakkum
             return b;
         }
 
+        static readonly Guid CodecApiId = new Guid("901db4c7-31ce-41a2-85dc-8fa0bf41b8da");
+        static readonly Guid BPictureCount = new Guid("8d390aac-dc5c-4200-b57f-814d04babab2");
+
+        /// 영상 줄의 입력 형식을 정한다. H.264면 B프레임(앞뒤 장을 보고 만드는 장)을 끈다: CPU 인코더는 B프레임을 쓰면
+        /// MP4 장 시각표(ctts)에 음수를 '판 0'으로 적거나(규격 밖이라 오래된 재생기에서 장 순서가 엉킬 수 있다)
+        /// 들쭉날쭉한 시각을 받으면 화면 전체를 한 장(33ms) 늦게 적는다(2026-11-12 실측). 이 PC의 그래픽 인코더는 원래 B프레임이 없다.
+        /// 형식을 정한 뒤에는 CPU 인코더가 이 값을 받지 않아서 형식을 정할 때 같이 넘긴다. 받지 않는 인코더면 설정 없이 다시 한다.
+        public static void SetVideoInput(IMFSinkWriter w, uint stream, IMFMediaType input, bool h264)
+        {
+            if (!h264)
+            {
+                w.SetInputMediaType(stream, input, null);
+                return;
+            }
+            IMFAttributes p = Attributes(1);
+            try
+            {
+                p.SetUINT32(BPictureCount, 0);
+                try
+                {
+                    w.SetInputMediaType(stream, input, p);
+                }
+                catch (Exception ex)
+                {
+                    Log.Write("인코더가 B프레임 끄기를 받지 않음 " + ex.GetType().Name + " 0x" + ex.HResult.ToString("X8"));
+                    w.SetInputMediaType(stream, input, null);
+                }
+            }
+            finally
+            {
+                Release(p);
+            }
+        }
+
+        /// 쓰기 스트림 뒤 인코더에 값 하나 넣기. 인코더가 받지 않으면 false(그대로 진행).
+        public static bool SetCodecValue(IMFSinkWriter w, uint stream, Guid api, uint value)
+        {
+            object o = null;
+            try
+            {
+                Guid service = Guid.Empty, iid = CodecApiId;
+                if (w.GetServiceForStream(stream, ref service, ref iid, out o) < 0 || o == null) return false;
+                var codec = o as ICodecAPI;
+                if (codec == null || codec.IsSupported(ref api) < 0) return false;
+                object v = value;
+                return codec.SetValue(ref api, ref v) >= 0;
+            }
+            catch (Exception ex)
+            {
+                Log.Write("인코더 설정 실패: " + ex.GetType().Name);
+                return false;
+            }
+            finally
+            {
+                if (o != null && Marshal.IsComObject(o)) Marshal.ReleaseComObject(o);
+            }
+        }
+
         public static IMFSinkWriter SinkWriter(string path, IMFAttributes attributes)
         {
             Start();
@@ -246,6 +348,26 @@ namespace Bakkum
             {
                 if (stream != IntPtr.Zero) Marshal.Release(stream);
                 Release(a);
+            }
+        }
+
+        /// 속성을 직접 정해서 연다(그래픽 장치로 풀기 등)
+        public static IMFSourceReader Reader(string path, IMFAttributes attributes)
+        {
+            Start();
+            IntPtr stream = IntPtr.Zero;
+            try
+            {
+                int hr = MFCreateFile(1, 0, 0, Path.GetFullPath(path), out stream);
+                if (hr < 0) throw Unreadable(hr);
+                IMFSourceReader r;
+                hr = MFCreateSourceReaderFromByteStream(stream, attributes, out r);
+                if (hr < 0) throw Unreadable(hr);
+                return r;
+            }
+            finally
+            {
+                if (stream != IntPtr.Zero) Marshal.Release(stream);
             }
         }
 

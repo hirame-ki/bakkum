@@ -347,7 +347,7 @@ namespace Bakkum
             {
                 if (other(".mp4")) opts.Add(new ActionOption("mp4", "MP4", "어디서나 열려요"));
                 opts.Add(new ActionOption("compress", "용량 줄이기", "화질을 조금 낮춰"));
-                opts.Add(new ActionOption("trim", "자르기", "앞뒤를 잘라내요"));
+                opts.Add(new ActionOption("edit", "영상 편집", "자르기·자막·비율"));
                 opts.Add(new ActionOption("gif", "GIF", "움직이는 그림"));
                 if (other(".mov")) opts.Add(new ActionOption("mov", "MOV", "맥·아이폰"));
                 if (other(".mkv")) opts.Add(new ActionOption("mkv", "MKV", "영상 보관용"));
@@ -563,7 +563,7 @@ namespace Bakkum
             new MenuAction("text", "글자 뽑기", "그림·PDF·문서", Kind.Image, Kind.Pdf, Kind.Hwp, Kind.Word, Kind.Ppt, Kind.Excel),
             new MenuAction("photo", "사진 손질", "가리기·자르기·보정", Kind.Image),
             new MenuAction("pdftool", "PDF 편집", "쪽·암호·워터마크", Kind.Pdf),
-            new MenuAction("media", "영상·소리", "변환·자르기·줄이기", Kind.Video, Kind.Audio),
+            new MenuAction("media", "영상·소리", "변환·편집·줄이기", Kind.Video, Kind.Audio),
             new MenuAction("record", "화면 녹화", "내 화면을 영상으로"),
             new MenuAction("archive", "압축", "묶기·풀기", Kind.Unknown, Kind.Hwp, Kind.Word, Kind.Excel, Kind.Ppt, Kind.Pdf, Kind.Image, Kind.Text, Kind.Archive, Kind.Folder, Kind.Video, Kind.Audio),
             new MenuAction("ai", "AI로", "요약·번역·문제", Kind.Pdf, Kind.Hwp, Kind.Word, Kind.Excel, Kind.Ppt, Kind.Image, Kind.Text),

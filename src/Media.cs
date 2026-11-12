@@ -43,6 +43,9 @@ namespace Bakkum
                 case "trim":
                     Conversions.EachFile(job, files, "자르는 중", delegate (string f) { Trim(job, f); });
                     break;
+                case "vexport":
+                    VideoExport.Run(job);
+                    break;
                 case "mp3":
                 case "m4a":
                 case "wav":
@@ -437,6 +440,37 @@ namespace Bakkum
             }
         }
 
+        /// 윈도우 변환기는 휴대폰 영상의 촬영 위치를 결과 MP4·MOV·M4A에 그대로 옮겨 적는다(2026-11-12 실측).
+        /// 사진의 위치 정보를 지우듯 결과에서 지운다. 못 지워도 변환 결과는 그대로 둔다(기록만).
+        static void DropPlace(string dst)
+        {
+            string e = Formats.Ext(dst);
+            if (e != ".mp4" && e != ".mov" && e != ".m4a" && e != ".m4v") return;
+            for (int i = 0; ; i++)
+            {
+                try
+                {
+                    if (IsoFile.DropPlace(dst)) Log.Write("결과에서 촬영 위치 정보를 지움");
+                    return;
+                }
+                catch (IOException ex)
+                {
+                    // 변환기가 파일을 막 놓는 중일 수 있다
+                    if (i >= 4)
+                    {
+                        Log.Write("촬영 위치 지우기 실패: " + ex.GetType().Name + " 0x" + ex.HResult.ToString("X8"));
+                        return;
+                    }
+                    System.Threading.Thread.Sleep(150);
+                }
+                catch (Exception ex)
+                {
+                    Log.Write("촬영 위치 지우기 실패: " + ex.GetType().Name);
+                    return;
+                }
+            }
+        }
+
         /// 그래픽 부품을 먼저 쓰고, 안 되면 CPU로 한 번 더 해 본다.
         static void Transcode(Job job, string src, string dst, Func<WinProps.MediaEncodingProfile> profile, double from, double to, double total, string verb, Action fallback = null)
         {
@@ -465,6 +499,7 @@ namespace Bakkum
                             throw new InvalidOperationException(prepared.FailureReason.ToString());
                         }
                         WinRtCall.Await(prepared.TranscodeAsync(), delegate (double percent) { job.Report(name + " " + verb + " " + (int)percent + "%", percent / 100.0); }, () => Stopped(job));
+                        DropPlace(dst);
                         return null;
                     }
                     catch (OperationCanceledException)

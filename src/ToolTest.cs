@@ -27,7 +27,14 @@ namespace Bakkum
             dir = Path.GetFullPath(args[1]);
             string what = args.Length > 2 ? args[2].ToLowerInvariant() : "all";
             // AI 시험은 설정을 임시 폴더에 두어 선생님의 진짜 설정을 건드리지 않는다.
-            if (what == "ai" || what == "aihwp" || what == "update" || what == "record") AppInfo.DataDirOverride = Path.Combine(Path.GetTempPath(), "bakkum-aitest-" + Guid.NewGuid().ToString("N").Substring(0, 8));
+            // 시험 실행기(tools\run_tests.ps1)가 이미 임시 폴더를 정해 두었으면 그것을 쓰고(실행기가 지운다),
+            // 여기서 만든 폴더는 시험이 끝나면 지운다(사본·녹화 같은 큰 파일이 임시 폴더에 쌓이지 않게).
+            string madeData = null;
+            if (AppInfo.DataDirOverride == null && (what == "ai" || what == "aihwp" || what == "update" || what == "record" || what == "camreal" || what == "video" || what == "proxy" || what == "proxyquick" || what == "whisper" || what == "whisperturbo" || what == "phone" || what == "lecturehancom"))
+            {
+                madeData = Path.Combine(Path.GetTempPath(), "bakkum-aitest-" + Guid.NewGuid().ToString("N").Substring(0, 8));
+                AppInfo.DataDirOverride = madeData;
+            }
             var app = new App { ShutdownMode = ShutdownMode.OnExplicitShutdown };
             Theme.Install(app);
             try
@@ -38,7 +45,24 @@ namespace Bakkum
                 if (what == "all" || what == "format") FormatTests();
                 if (what == "all" || what == "media") MediaTests();
                 if (what == "record") RecordTests();
+                // 진짜 웹캠을 켜는 시험은 따로 부를 때만(불이 들어온다)
+                if (what == "camreal") CamRealTests();
+                if (what == "video") VideoTests();
+                // 2분짜리 영상을 만들어 넘기기 빠르기를 재는 무거운 시험(따로 부를 때만)
+                if (what == "proxyquick") ProxyTests(false);
+                if (what == "proxy")
+                {
+                    ProxyTests(false);
+                    ProxyTests(true);
+                }
+                // 자동 자막: 시험 폴더의 Whisper 파일을 이 PC 안 작은 서버로 내주어 받기부터 본다(인터넷 안 씀). turbo는 1.1GB라 따로.
+                if (what == "whisper") WhisperTests(false);
+                if (what == "whisperturbo") WhisperTests(true);
                 if (what == "hancom") HancomTests();
+                // 휴대폰 영상: 위치 정보가 남는지, 장 간격이 들쭉날쭉하고 돌려 찍은 세로 영상, 진짜 HEVC(시험이 직접 만든 영상만 씀)
+                if (what == "phone") PhoneTests();
+                // 한컴(한쇼·한글)으로 수업 자료 영상 만들기: 지어낸 발표 자료로 PDF → 쪽 그림 → 노트 읽기 → 내보내기
+                if (what == "lecturehancom") LectureHancomTests();
                 if (what == "ai") AiTests(false);
                 if (what == "aihwp") AiTests(true);
                 if (what == "update")
@@ -51,6 +75,12 @@ namespace Bakkum
             catch (Exception ex)
             {
                 Check("시험이 끝까지 돈다", false, ex.GetType().Name + ": " + ex.Message + " @ " + ex.TargetSite);
+            }
+            // 결과 줄(통과·실패)이 맨 끝에 오게 지우기를 먼저 한다(시험 실행기가 마지막 줄을 읽는다).
+            if (madeData != null)
+            {
+                try { Directory.Delete(madeData, true); }
+                catch (Exception ex) { Cli.Print("       참고: 시험 자료 폴더를 다 지우지 못함(" + ex.GetType().Name + "): " + madeData); }
             }
             Cli.Print("통과 " + passed + " · 실패 " + failed);
             return failed == 0 ? 0 : 1;

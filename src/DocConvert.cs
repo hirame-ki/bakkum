@@ -523,7 +523,7 @@ namespace Bakkum
                 {
                     job.Check();
                     if (doc.PageCount > 1) job.Report(Util.ShortName(f) + " · " + (i + 1) + "/" + doc.PageCount + "쪽", (double)i / doc.PageCount);
-                    var frame = Imaging.Decoder(doc.RenderPng(i, 160, 2600)).Frames[0];
+                    var frame = Imaging.Decoder(doc.RenderPngExact(i, 160, 2600)).Frames[0];
                     slides.Add(new PptSlide { Image = Imaging.Jpeg(frame, 86), W = frame.PixelWidth, H = frame.PixelHeight });
                 }
             }

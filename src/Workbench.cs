@@ -36,6 +36,11 @@ namespace Bakkum
                 Show(new PdfPagesWindow(a, usable, false));
                 return true;
             }
+            if (a.Id == "media" && o.Id == "edit")
+            {
+                VideoEditor.OpenFor(a, usable);
+                return true;
+            }
             return false;
         }
 

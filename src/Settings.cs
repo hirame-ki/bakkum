@@ -52,6 +52,8 @@ namespace Bakkum
         public string RecordArea { get; set; }
         /// 지난번에 고른 화면 녹화 소리: none · mic · computer · both
         public string RecordSound { get; set; }
+        /// 지난번에 고른 화면 녹화 웹캠: none · cam
+        public string RecordCam { get; set; }
 
         public AppSettings()
         {
@@ -66,6 +68,7 @@ namespace Bakkum
             AppListTried = "";
             RecordArea = "full";
             RecordSound = "none";
+            RecordCam = "none";
             ClaudeAllowMetered = false;
             MenuShape = "index";
             TriggerKey = "Shift";

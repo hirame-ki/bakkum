@@ -434,6 +434,15 @@ namespace Bakkum
                 Check("쪽 고르기→PNG: 고른 쪽만 폴더에", Out1(ppng) != "" && Directory.Exists(Out1(ppng)) && Directory.GetFiles(Out1(ppng)).Length == 2 && Path.GetDirectoryName(Out1(ppng)) == w, Out1(ppng));
                 var pjpg = RunJob("pdftool", "pick", new[] { src }, null, "pages=2", "as=jpg");
                 Check("쪽 고르기→JPG 한 쪽", Out1(pjpg).EndsWith(".jpg"), Out1(pjpg));
+                // 윈도우 PDF 엔진은 화면 배율만큼 크게 그린다(125% 화면이면 1.25배). 파일로 남기는 그림은 화면과 상관없이 200dpi여야 한다.
+                if (Out1(pjpg) != "")
+                {
+                    var shot = Imaging.Decoder(File.ReadAllBytes(Out1(pjpg))).Frames[0];
+                    var page2 = PdfText.Read(src, null).Pages[1];
+                    double ew = page2.Width * 200 / 72.0, eh = page2.Height * 200 / 72.0;
+                    bool exact = Math.Abs(shot.PixelWidth - ew) <= Math.Max(3, ew * 0.005) && Math.Abs(shot.PixelHeight - eh) <= Math.Max(3, eh * 0.005);
+                    Check("PDF→그림: 화면 배율과 상관없이 200dpi", exact, shot.PixelWidth + "×" + shot.PixelHeight + ", 바라는 크기 " + Math.Round(ew) + "×" + Math.Round(eh) + ", 화면 배율 " + MenuWindow.DpiScale().ToString("0.##"));
+                }
                 var ptxt = RunJob("pdftool", "pick", new[] { src }, null, "pages=3", "as=txt");
                 string ptext = ReadU(Out1(ptxt));
                 Check("쪽 고르기→글자: 그 쪽 글자만", ptext.Contains("3쪽") && !ptext.Contains("1쪽"), ptext.Replace("\n", " / "));
