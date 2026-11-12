@@ -21,6 +21,9 @@ namespace Bakkum
         public double X, Y, W, H;
         public double Zoom = 1, PanX, PanY;
         public double Opacity = 1;
+        /// 얹은 것의 기울기(도). HasRot이 false인 예전 표시는 얹은 것의 기울기(VItem.Rot)를 그대로 쓴다.
+        public double Rot;
+        public bool HasRot;
 
         public VKey Copy()
         {

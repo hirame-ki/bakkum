@@ -25,6 +25,8 @@ namespace Bakkum
 
         static void VideoTests()
         {
+            // 파일 없이 도는 가벼운 시험(움직임 표시·자막 너비)을 먼저
+            KeyframeTests();
             Cli.Print("[영상 편집]");
             if (string.IsNullOrEmpty(AppInfo.DataDirOverride))
             {
