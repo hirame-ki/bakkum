@@ -714,8 +714,9 @@ namespace Bakkum
                     {
                         if (busyCancel) throw new OperationCanceledException();
                         report("노트를 읽는 소리를 만드는 중 (" + (made + 1) + "/" + all + ")", made / (double)all);
-                        string wav = VTts.Speak(s, VLecture.VoiceFor(s, voice, voices), rate);
-                        parts.Add(new VLecture.Spoken { Text = s, Wav = wav, Len = SoundSeconds(wav) });
+                        string who = VLecture.VoiceFor(s, voice, voices);
+                        string wav = VTts.Speak(s, who, rate);
+                        parts.Add(new VLecture.Spoken { Text = s, Wav = wav, Len = SoundSeconds(wav), Voice = who, Rate = rate });
                         made++;
                     }
                     result.Add(parts);
@@ -1712,8 +1713,8 @@ namespace Bakkum
         /// 읽은 문장 하나
         internal sealed class Spoken
         {
-            public string Text, Wav;
-            public double Len;
+            public string Text, Wav, Voice;
+            public double Len, Rate = 1;
         }
 
         static readonly System.Text.RegularExpressions.Regex Bullet = new System.Text.RegularExpressions.Regex(
@@ -1812,7 +1813,7 @@ namespace Bakkum
                 {
                     foreach (var s in parts)
                     {
-                        var sound = new VSound { Kind = "voice", Path = s.Wav, Start = t, In = 0, Out = s.Len, Text = s.Text, Name = "노트 읽기" };
+                        var sound = new VSound { Kind = "voice", Path = s.Wav, Start = t, In = 0, Out = s.Len, Text = s.Text, Voice = s.Voice, Rate = s.Rate, Name = "노트 읽기" };
                         if (subs)
                         {
                             var it = new VItem { Kind = "text", Subtitle = true, Text = s.Text, Start = t, End = t + s.Len + 0.2, X = 0.5, Y = 0.86 };

@@ -9,6 +9,7 @@ using System.IO;
 using System.Linq;
 using System.Security.Cryptography;
 using System.Text;
+using System.Threading;
 using System.Web.Script.Serialization;
 
 namespace Bakkum
@@ -291,6 +292,9 @@ namespace Bakkum
         public bool Loop;
         /// 읽어 주기: 읽은 글과 그 자막
         public string Text;
+        /// 읽어 주기: 목소리와 빠르기(소리 파일이 없으면 이것으로 다시 만든다. 로밍 프로필로 다른 PC에서 열 때)
+        public string Voice;
+        public double Rate = 1;
         public string ItemId;
         public string Name;
 
@@ -807,12 +811,29 @@ namespace Bakkum
             try { File.Delete(PathOf(files)); } catch { }
         }
 
-        /// 오래된 자동 저장(60일) 정리
+        static int tidied;
+
+        /// 자동 저장 파일들. 같은 폴더의 내 꾸밈(styles.json)은 빼서, 60일 넘게 안 고친 꾸밈을 지우지 않는다.
+        static IEnumerable<string> Saves()
+        {
+            return Directory.GetFiles(Folder, "*.json").Where(f => !string.Equals(Path.GetFileName(f), "styles.json", StringComparison.OrdinalIgnoreCase));
+        }
+
+        /// 오래된 자동 저장(60일)과 다시 만들 수 있는 파일(사본·푼 소리·읽어 주기) 정리. 바꿈을 켤 때마다 한 번만(첫 영상 편집 때).
+        /// 파일 날짜만 보는 것은 바로 하고(편집 창이 열리기 전에 끝나야 열면서 쓰는 파일과 엇갈리지 않는다),
+        /// 자동 저장을 모두 읽어야 하는 읽어 주기·녹음 정리는 뒤 스레드에서 한다.
         public static void Tidy()
+        {
+            if (Interlocked.Exchange(ref tidied, 1) == 1) return;
+            TidyNow(false);
+        }
+
+        /// wait: 시험용(뒤 스레드 일을 이 자리에서 끝까지)
+        internal static void TidyNow(bool wait)
         {
             try
             {
-                foreach (var f in Directory.GetFiles(Folder, "*.json"))
+                foreach (var f in Saves())
                     if (File.GetLastWriteTime(f) < DateTime.Now.AddDays(-60)) File.Delete(f);
                 // 화면 녹화의 마우스·웹캠 기록, 수업 자료 쪽 그림은 더 오래(120일) 둔다
                 foreach (var sub in new[] { "cursor", "cam", "lecture" })
@@ -838,8 +859,59 @@ namespace Bakkum
                         catch { }
                     }
                 }
+                // 푼 소리·다듬은 소리는 크고 다시 만들 수 있어서 7일 안 쓰면 지운다(쓸 때마다 날짜가 새로워진다)
+                DeleteOld(Path.Combine(AppInfo.CacheDir, "vaudio"), 7, new HashSet<string>(AudioCache.InUse().Concat(VAudioProc.InUse()), StringComparer.OrdinalIgnoreCase));
             }
             catch { }
+            var th = new Thread(TidySounds) { IsBackground = true, Name = "자동 저장 정리", Priority = ThreadPriority.BelowNormal };
+            th.Start();
+            if (wait) th.Join();
+        }
+
+        /// 읽어 주기·내 목소리 녹음은 남아 있는 자동 저장이 쓰면 남긴다. 안 쓰는 읽어 주기는 30일, 녹음은 사용자 자료라 60일 뒤에 지운다.
+        /// 자동 저장을 하나라도 못 읽으면(망가졌거나 막 저장하는 중) 그 편집이 쓰는 것을 모르니 이번에는 지우지 않는다.
+        static void TidySounds()
+        {
+            try
+            {
+                var keep = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+                bool all = true;
+                foreach (var f in Saves())
+                {
+                    try
+                    {
+                        foreach (var used in VProject.FromJson(File.ReadAllText(f, Encoding.UTF8)).Files()) keep.Add(Path.GetFullPath(used));
+                    }
+                    catch (Exception ex)
+                    {
+                        all = false;
+                        Log.Write("자동 저장 정리: 읽지 못함 " + ex.GetType().Name);
+                    }
+                }
+                if (all)
+                {
+                    DeleteOld(Path.Combine(AppInfo.CacheDir, "voice"), 30, keep);
+                    DeleteOld(Path.Combine(Folder, "voice"), 30, keep);
+                    DeleteOld(Path.Combine(Folder, "rec"), 60, keep);
+                }
+                // 0.3.7까지 임시 폴더에 두던 푼 소리(시험 중에는 진짜 임시 폴더를 건드리지 않는다)
+                if (AppInfo.DataDirOverride == null) Util.TryDeleteDir(Path.Combine(Path.GetTempPath(), AppInfo.Id, "vaudio"));
+            }
+            catch { }
+        }
+
+        static void DeleteOld(string dir, int days, HashSet<string> keep)
+        {
+            if (!Directory.Exists(dir)) return;
+            var before = DateTime.Now.AddDays(-days);
+            foreach (var f in Directory.GetFiles(dir, "*", SearchOption.AllDirectories))
+            {
+                try
+                {
+                    if (!keep.Contains(f) && File.GetLastWriteTime(f) < before) File.Delete(f);
+                }
+                catch { }
+            }
         }
     }
 }

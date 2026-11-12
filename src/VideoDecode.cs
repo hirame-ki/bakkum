@@ -780,14 +780,21 @@ namespace Bakkum
         static readonly Dictionary<string, AudioTrack> Tracks = new Dictionary<string, AudioTrack>(StringComparer.OrdinalIgnoreCase);
         static readonly object Gate = new object();
 
+        /// 다시 만들 수 있어서 이 PC 안쪽 캐시 폴더에 둔다(임시 폴더는 정리되지 않고, 로밍 폴더는 로그인이 느려진다). 정리는 VAutoSave.Tidy.
         public static string Folder
         {
             get
             {
-                string d = Path.Combine(Path.GetTempPath(), AppInfo.Id, "vaudio");
+                string d = Path.Combine(AppInfo.CacheDir, "vaudio");
                 Directory.CreateDirectory(d);
                 return d;
             }
+        }
+
+        /// 이 프로그램이 지금 쓰는 소리 파일(정리할 때 남긴다)
+        public static List<string> InUse()
+        {
+            lock (Gate) return Tracks.Values.Select(t => t.File).Where(f => f != null).ToList();
         }
 
         static string KeyOf(string path)
@@ -846,6 +853,13 @@ namespace Bakkum
                 string pcm = Path.Combine(Folder, key + ".pcm"), env = Path.Combine(Folder, key + ".env");
                 if (File.Exists(pcm) && File.Exists(env) && LoadEnv(t, env))
                 {
+                    // 쓰는 것은 오래된 것 정리에서 빠지게
+                    try
+                    {
+                        File.SetLastWriteTime(pcm, DateTime.Now);
+                        File.SetLastWriteTime(env, DateTime.Now);
+                    }
+                    catch { }
                     t.File = pcm;
                     t.Frames = new FileInfo(pcm).Length / 4;
                     t.Ready = true;

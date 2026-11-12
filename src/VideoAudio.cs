@@ -422,6 +422,12 @@ namespace Bakkum
             }
         }
 
+        /// 이 프로그램이 지금 쓰는 다듬은 소리 파일(정리할 때 남긴다)
+        public static List<string> InUse()
+        {
+            lock (Cache) return Cache.Values.Select(p => p.File).Where(f => f != null).ToList();
+        }
+
         static string Folder
         {
             get
@@ -447,6 +453,7 @@ namespace Bakkum
                 string file = Path.Combine(Folder, name + ".pcm");
                 if (System.IO.File.Exists(file))
                 {
+                    try { System.IO.File.SetLastWriteTime(file, DateTime.Now); } catch { }
                     p.File = file;
                     p.Frames = new FileInfo(file).Length / 4;
                     p.Ready = true;
@@ -1129,11 +1136,12 @@ namespace Bakkum
             });
         }
 
+        /// 다시 만들 수 있어서 캐시 폴더에 둔다. 자동 저장한 편집이 쓰는 것은 정리에서 남긴다(VAutoSave.Tidy).
         public static string Folder
         {
             get
             {
-                string d = Path.Combine(VAutoSave.Folder, "voice");
+                string d = Path.Combine(AppInfo.CacheDir, "voice");
                 Directory.CreateDirectory(d);
                 return d;
             }
@@ -1146,7 +1154,11 @@ namespace Bakkum
             string key;
             using (var sha = SHA1.Create()) key = BitConverter.ToString(sha.ComputeHash(Encoding.UTF8.GetBytes(text + "|" + voiceId + "|" + rate.ToString("F2"))), 0, 10).Replace("-", "").ToLowerInvariant();
             string path = Path.Combine(Folder, key + ".wav");
-            if (File.Exists(path)) return path;
+            if (File.Exists(path))
+            {
+                try { File.SetLastWriteTime(path, DateTime.Now); } catch { }
+                return path;
+            }
             byte[] wav = WinRtCall.Mta(() =>
             {
                 using (var synth = new WinSpeech.SpeechSynthesizer())
@@ -1174,6 +1186,31 @@ namespace Bakkum
             stereo = Trim(stereo);
             VWav.Write(path, stereo, 2, AudioTrack.Rate);
             return path;
+        }
+
+        /// 소리 파일이 없는 읽어 주기를 저장된 글·목소리·빠르기로 다시 만든다(로밍 프로필로 다른 PC에서 열 때 등). 다시 만든 수.
+        /// 그 목소리가 이 PC에 없으면 한국어 목소리로 읽는다.
+        public static int Remake(VProject p)
+        {
+            var missing = p.Sounds.Where(s => s.Kind == "voice" && !string.IsNullOrWhiteSpace(s.Text) && !string.IsNullOrEmpty(s.Path) && !File.Exists(s.Path)).ToList();
+            if (missing.Count == 0) return 0;
+            int n = 0;
+            try
+            {
+                var here = new HashSet<string>(Voices().Select(v => v.Id));
+                foreach (var s in missing)
+                {
+                    string path = Speak(s.Text.Replace("\r", " ").Replace("\n", " "), s.Voice != null && here.Contains(s.Voice) ? s.Voice : null, s.Rate > 0 ? s.Rate : 1);
+                    s.Path = path;
+                    s.Out = Math.Min(s.Out, Math.Max(0.1, (new FileInfo(path).Length - 44) / (4.0 * AudioTrack.Rate)));
+                    n++;
+                }
+            }
+            catch (Exception ex)
+            {
+                Log.Write("읽어 주기 다시 만들기 실패: " + ex.GetType().Name);
+            }
+            return n;
         }
 
         static short[] To48Stereo(short[] pcm, int ch, int sr)
@@ -1223,6 +1260,7 @@ namespace Bakkum
         public double Seconds;
         readonly ManualResetEvent started = new ManualResetEvent(false);
 
+        /// 녹음은 다시 만들 수 없는 사용자 자료라 자동 저장과 같은 곳에 둔다(정리할 때 편집이 쓰는 것은 남긴다)
         public static string Folder
         {
             get
