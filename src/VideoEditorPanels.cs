@@ -2428,6 +2428,18 @@ namespace Bakkum
                     break;
             }
 
+            if (VideoExport.HasQuality(e.Preset))
+            {
+                Label("화질");
+                string cur = VideoExport.QualityId(e.Quality);
+                Chips(VideoExport.Qualities.Select(x => x[0]).ToArray(), VideoExport.Qualities.Select(x => x[1]).ToArray(), cur, v =>
+                {
+                    Change(null, delegate { project.Export.Quality = v; });
+                    RefreshPanel();
+                });
+                QualityHints(cur);
+            }
+
             if (e.Preset != "cover")
             {
                 Label("구간");
@@ -2482,6 +2494,28 @@ namespace Bakkum
             var go = Act("이대로 내보내기", "Primary", StartExport);
             go.IsEnabled = !checks.Any(x => x.Level == "stop");
             Hint("만들 파일: " + Path.GetFileName(plan.Output) + " (원본과 같은 폴더. 원본은 그대로예요)");
+        }
+
+        /// 화질 칩 아래: 고른 화질이 어떤지 쉬운 말 한 줄 + 화질마다 예상 크기
+        void QualityHints(string cur)
+        {
+            switch (cur)
+            {
+                case "max": Hint("최고: 원본에 가장 가깝게 만들어요(원본보다 좋아지지는 않아요). 파일이 가장 커요."); break;
+                case "high": Hint("높음: 칠판 글씨·작은 무늬까지 또렷해요. 파일이 중간보다 커요."); break;
+                case "low": Hint("낮음: 파일이 가장 작아요. 빠르게 움직이는 장면은 조금 뭉개질 수 있어요."); break;
+                default: Hint("중간: 보통은 이걸로 충분해요."); break;
+            }
+            try
+            {
+                // '최고 약 1.8MB'가 줄 끝에서 쪼개지지 않게 그 안의 빈칸은 붙는 빈칸(U+00A0)
+                var sizes = VideoExport.Qualities.Select(q => (q[1] + " 약 " + Conversions.Size(VideoExport.Plan(project, q[0]).EstimatedBytes)).Replace(' ', ' ')).ToList();
+                Hint("예상 크기: " + string.Join(" · ", sizes));
+            }
+            catch (Exception ex)
+            {
+                Log.Write("화질별 예상 크기 실패: " + ex.GetType().Name);
+            }
         }
 
         void CheckRow(VCheck ck)
