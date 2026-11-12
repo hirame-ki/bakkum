@@ -240,6 +240,48 @@ namespace Bakkum
             return OoxmlRead.XlsxRead(f);
         }
 
+        /// 표로 읽을 수 있는 파일: 바꿈이 직접 읽는 것(IsTable)과, 옛 엑셀(.xls)·한셀(.cell)
+        public static bool IsSheet(string f)
+        {
+            string ext = Formats.Ext(f);
+            return IsTable(f) || ext == ".xls" || ext == ".cell";
+        }
+
+        /// 요즘 한셀의 .cell은 속이 xlsx(매크로 통합 문서)와 같아서 바로 읽는다(2026-11-13 한컴오피스 2024로 확인).
+        /// 옛 .cell은 그렇지 않아서 한셀이 있어야 한다.
+        static bool CellIsOoxml(string f)
+        {
+            if (Formats.Ext(f) != ".cell") return false;
+            // 한셀이 열어 둔 파일도 읽고, 옛 .cell(zip 아님)이어도 파일을 쥐고 남지 않게 한다(바로 뒤에 한셀이 연다)
+            using (var fs = new FileStream(f, FileMode.Open, FileAccess.Read, FileShare.ReadWrite | FileShare.Delete))
+            {
+                try
+                {
+                    using (var zip = new ZipArchive(fs, ZipArchiveMode.Read, true))
+                        return zip.GetEntry("xl/workbook.xml") != null;
+                }
+                catch (InvalidDataException) { return false; }
+            }
+        }
+
+        /// IsSheet인 파일의 시트들. .xls·옛 .cell은 한셀·MS 엑셀로 xlsx를 만든 뒤 읽는다.
+        static List<XlsxSheet> SheetsOf(Job job, string f)
+        {
+            if (IsTable(f)) return SheetsOf(f);
+            if (CellIsOoxml(f)) return OoxmlRead.XlsxRead(f);
+            string dir = Util.TempDir("sheet2x");
+            try
+            {
+                string t = Path.Combine(dir, "sheet.xlsx");
+                OfficeConvert.ToXlsx(job, f, t);
+                return OoxmlRead.XlsxRead(t);
+            }
+            finally
+            {
+                Util.TryDeleteDir(dir);
+            }
+        }
+
         static List<DocBlock> TableBlocks(string f)
         {
             var sheets = SheetsOf(f).Where(s => s.Rows.Count > 0).ToList();
@@ -441,11 +483,37 @@ namespace Bakkum
 
         static void ToXlsx(Job job, List<string> files)
         {
-            var list = Only(job, files, f => Formats.KindOf(f) == Kind.Hwp || Formats.KindOf(f) == Kind.Pdf || Formats.Ext(f) == ".csv" || Formats.Ext(f) == ".tsv" || Formats.Ext(f) == ".ods");
+            var list = Only(job, files, f => Formats.KindOf(f) == Kind.Hwp || Formats.KindOf(f) == Kind.Pdf || Formats.Ext(f) == ".csv" || Formats.Ext(f) == ".tsv" || Formats.Ext(f) == ".ods" || Formats.Ext(f) == ".xls" || Formats.Ext(f) == ".cell");
             Conversions.EachFile(job, list, "엑셀로 바꾸는 중", delegate (string f)
             {
                 List<XlsxSheet> sheets;
                 string ext = Formats.Ext(f);
+                if (ext == ".xls" || ext == ".cell")
+                {
+                    // 한셀·MS 엑셀로 열어 저장하면 서식·수식까지 살아 있다. 프로그램이 없거나 저장에 실패했는데
+                    // 속이 xlsx인 .cell이면 값만 옮긴다.
+                    bool ooxml = CellIsOoxml(f);
+                    string why = "이 PC에 한셀이 없어";
+                    if (OfficeConvert.CanMakeXlsx(f) || !ooxml)
+                    {
+                        try
+                        {
+                            Conversions.Produce(job, Util.OutputFile(f, ".xlsx"), delegate (string d) { OfficeConvert.ToXlsx(job, f, d); });
+                            return;
+                        }
+                        catch (UserFacingException)
+                        {
+                            if (!ooxml) throw;
+                            job.ReleaseResources();
+                            why = "한셀로 저장하지 못해";
+                        }
+                    }
+                    sheets = OoxmlRead.XlsxRead(f);
+                    if (sheets.All(s => s.Rows.Count == 0)) throw new UserFacingException("빈 파일이에요.");
+                    Conversions.Produce(job, Util.OutputFile(f, ".xlsx"), delegate (string d) { XlsxWriter.Write(d, sheets); });
+                    job.Note(Util.ShortName(f) + ": " + why + " 값만 옮겼어요. 글꼴·색·수식은 빠졌을 수 있어요.");
+                    return;
+                }
                 if (IsTable(f))
                 {
                     sheets = SheetsOf(f);
@@ -536,7 +604,17 @@ namespace Bakkum
 
         static void ToPptx(Job job, List<string> files, bool picture)
         {
-            var list = Only(job, files, f => Formats.KindOf(f) == Kind.Image || Formats.KindOf(f) == Kind.Pdf || Formats.KindOf(f) == Kind.Hwp || Formats.KindOf(f) == Kind.Word || Formats.KindOf(f) == Kind.Excel);
+            // 옛 PPT(.ppt)·한쇼(.show)는 파워포인트·한쇼로 열어 PPTX로 저장한다(모양 그대로)
+            Func<string, bool> deck = f => !picture && (Formats.Ext(f) == ".ppt" || Formats.Ext(f) == ".show");
+            var list = Only(job, files, f => deck(f) || Formats.KindOf(f) == Kind.Image || Formats.KindOf(f) == Kind.Pdf || Formats.KindOf(f) == Kind.Hwp || Formats.KindOf(f) == Kind.Word || Formats.KindOf(f) == Kind.Excel);
+            var decks = list.Where(deck).ToList();
+            Conversions.EachFile(job, decks, "PPTX로 바꾸는 중", delegate (string f)
+            {
+                Conversions.Produce(job, Util.OutputFile(f, ".pptx"), delegate (string d) { OfficeConvert.ToPptx(job, f, d); });
+            });
+            list = list.Where(f => !deck(f)).ToList();
+            // 파워포인트·한쇼를 닫고 다음 종류로(한글 등과 한꺼번에 떠 있지 않게, ToPdf의 '종류가 바뀌면 앞 프로그램을 닫는다'와 같게)
+            if (decks.Count > 0 && list.Count > 0) job.ReleaseResources();
             var pages = list.Where(f => Formats.KindOf(f) != Kind.Image).OrderBy(f => Formats.KindOf(f) == Kind.Pdf ? 0 : (int)Formats.KindOf(f)).ToList();
             var images = list.Where(f => Formats.KindOf(f) == Kind.Image).ToList();
             Kind lastKind = Kind.Unknown;
@@ -639,7 +717,7 @@ namespace Bakkum
         {
             string e = Formats.Ext(f);
             if (e == "." + target || (target == "html" && e == ".htm") || (target == "md" && e == ".markdown")) return false;
-            if (IsCue(f) || IsTable(f)) return target == "txt";
+            if (IsCue(f) || IsSheet(f)) return target == "txt";
             switch (Formats.KindOf(f))
             {
                 case Kind.Text:
@@ -721,9 +799,9 @@ namespace Bakkum
                     Conversions.Produce(job, dst, delegate (string d) { File.WriteAllText(d, cues, plain); });
                     return;
                 }
-                if (IsTable(f))
+                if (IsSheet(f))
                 {
-                    var sheets = SheetsOf(f);
+                    var sheets = SheetsOf(job, f);
                     var sheet = sheets.FirstOrDefault(s => s.Rows.Count > 0);
                     if (sheet == null) throw new UserFacingException("빈 파일이에요.");
                     string rows = string.Join("\r\n", sheet.Rows.Select(r => string.Join("\t", r.Select(c => (c ?? "").Replace('\n', ' ').Replace('\t', ' '))))) + "\r\n";
@@ -747,10 +825,10 @@ namespace Bakkum
 
         static void ToTable(Job job, List<string> files, string target)
         {
-            var list = Only(job, files, f => IsTable(f) && Formats.Ext(f) != "." + target);
+            var list = Only(job, files, f => IsSheet(f) && Formats.Ext(f) != "." + target);
             Conversions.EachFile(job, list, target.ToUpperInvariant() + "로 바꾸는 중", delegate (string f)
             {
-                var sheets = SheetsOf(f);
+                var sheets = SheetsOf(job, f);
                 var first = sheets.FirstOrDefault(s => s.Rows.Count > 0);
                 if (first == null) throw new UserFacingException("빈 파일이에요.");
                 if (target == "ods")

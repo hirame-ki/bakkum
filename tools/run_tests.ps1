@@ -18,7 +18,8 @@
 #   (whisper_onnx\ model files and whisper_test\ recording).
 # - Need more than files: hancom and lecturehancom (Hancom Office), camreal (turns the real webcam on),
 #   ai (Python 3; it talks to tools\mock_claude.py, a fake Claude Code), whisperturbo (about 3 GB of
-#   memory), proxy (slow: makes a 2-minute 1080p video).
+#   memory), proxy (slow: makes a 2-minute 1080p video), office (MS Office or Hancom Office: makes its own
+#   old .xls/.cell/.ppt files and converts them to .xlsx/.csv/.pptx; no sample files needed).
 # - Suites run one after another, never at the same time (video suites are heavy on the GPU).
 # - The full output of each suite is saved as <Dir>\result_<suite>.txt (UTF-8).
 param(

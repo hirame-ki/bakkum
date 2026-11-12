@@ -197,7 +197,9 @@ namespace Bakkum
                 if (Array.IndexOf(Accepts, Formats.KindOf(f)) < 0) continue;
                 if (Id == "shrink" && !CanShrink(f)) continue;
                 if (Id == "text" && !CanReadText(f)) continue;
-                if (Id == "format" && Formats.KindOf(f) == Kind.Excel && !DocConvert.IsTable(f)) continue;
+                if (Id == "format" && Formats.KindOf(f) == Kind.Excel && !DocConvert.IsSheet(f)) continue;
+                // PPT는 옛 형식(.ppt)·한쇼(.show)만 PPTX로 바꾼다
+                if (Id == "format" && Formats.KindOf(f) == Kind.Ppt && Formats.Ext(f) != ".ppt" && Formats.Ext(f) != ".show") continue;
                 if (Id == "pdf" && DocConvert.IsCue(f)) continue;
                 list.Add(f);
             }
@@ -491,6 +493,8 @@ namespace Bakkum
                         break;
                 }
             }
+            // 옛 PPT·한쇼 → PPTX. 한글·워드·PDF를 같이 놓았으면 그쪽 이름('PPT로')이 먼저 들어가 있다(같은 칸이 둘 다 한다)
+            if (usable.Any(f => Formats.Ext(f) == ".ppt" || Formats.Ext(f) == ".show")) AddOnce(opts, new ActionOption("pptx", "PPTX", "새 PPT 형식"));
             foreach (var f in usable.Where(x => Formats.KindOf(x) == Kind.Excel))
             {
                 string e = Formats.Ext(f);
@@ -558,7 +562,7 @@ namespace Bakkum
         {
             new MenuAction("pdf", "PDF로", "문서·그림을 PDF로", Kind.Hwp, Kind.Word, Kind.Excel, Kind.Ppt, Kind.Image, Kind.Pdf, Kind.Text),
             new MenuAction("image", "그림으로", "쪽마다 그림 파일", Kind.Pdf, Kind.Hwp, Kind.Word, Kind.Excel, Kind.Ppt),
-            new MenuAction("format", "형식 바꾸기", "워드·엑셀·PNG…", Kind.Image, Kind.Hwp, Kind.Word, Kind.Pdf, Kind.Text, Kind.Excel),
+            new MenuAction("format", "형식 바꾸기", "워드·엑셀·PNG…", Kind.Image, Kind.Hwp, Kind.Word, Kind.Pdf, Kind.Text, Kind.Excel, Kind.Ppt),
             new MenuAction("shrink", "용량 줄이기", "그림·PDF·문서", Kind.Image, Kind.Pdf, Kind.Word, Kind.Excel, Kind.Ppt, Kind.Hwp),
             new MenuAction("text", "글자 뽑기", "그림·PDF·문서", Kind.Image, Kind.Pdf, Kind.Hwp, Kind.Word, Kind.Ppt, Kind.Excel),
             new MenuAction("photo", "사진 손질", "가리기·자르기·보정", Kind.Image),
