@@ -1194,7 +1194,7 @@ namespace Bakkum
                         if (it == null) continue;
                         double len = SoundSeconds(m.Value);
                         project.Sounds.RemoveAll(s => s.ItemId == it.Id);
-                        project.Sounds.Add(new VSound { Kind = "voice", Path = m.Value, Start = it.Start, In = 0, Out = len, Text = it.Text, ItemId = it.Id, Name = "읽어 주기" });
+                        project.Sounds.Add(new VSound { Kind = "voice", Path = m.Value, Start = it.Start, In = 0, Out = len, Text = it.Text, Voice = voice, Rate = rate, ItemId = it.Id, Name = "읽어 주기" });
                         if (len > it.Length + 0.05)
                         {
                             var next = project.Items.Where(i => i.Subtitle && i.Start > it.Start + 0.01).OrderBy(i => i.Start).FirstOrDefault();

@@ -1188,6 +1188,31 @@ namespace Bakkum
             return path;
         }
 
+        /// 소리 파일이 없는 읽어 주기를 저장된 글·목소리·빠르기로 다시 만든다(로밍 프로필로 다른 PC에서 열 때 등). 다시 만든 수.
+        /// 그 목소리가 이 PC에 없으면 한국어 목소리로 읽는다.
+        public static int Remake(VProject p)
+        {
+            var missing = p.Sounds.Where(s => s.Kind == "voice" && !string.IsNullOrWhiteSpace(s.Text) && !string.IsNullOrEmpty(s.Path) && !File.Exists(s.Path)).ToList();
+            if (missing.Count == 0) return 0;
+            int n = 0;
+            try
+            {
+                var here = new HashSet<string>(Voices().Select(v => v.Id));
+                foreach (var s in missing)
+                {
+                    string path = Speak(s.Text.Replace("\r", " ").Replace("\n", " "), s.Voice != null && here.Contains(s.Voice) ? s.Voice : null, s.Rate > 0 ? s.Rate : 1);
+                    s.Path = path;
+                    s.Out = Math.Min(s.Out, Math.Max(0.1, (new FileInfo(path).Length - 44) / (4.0 * AudioTrack.Rate)));
+                    n++;
+                }
+            }
+            catch (Exception ex)
+            {
+                Log.Write("읽어 주기 다시 만들기 실패: " + ex.GetType().Name);
+            }
+            return n;
+        }
+
         static short[] To48Stereo(short[] pcm, int ch, int sr)
         {
             int frames = pcm.Length / ch;

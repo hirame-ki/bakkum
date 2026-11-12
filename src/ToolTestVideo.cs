@@ -937,8 +937,12 @@ namespace Bakkum
             File.WriteAllText(Path.Combine(oldPages, "001.png"), "x");
             File.SetLastWriteTime(oldLog, DateTime.Now.AddDays(-130));
             Directory.SetLastWriteTime(oldPages, DateTime.Now.AddDays(-130));
-            VAutoSave.Tidy();
+            string styles = Path.Combine(VAutoSave.Folder, "styles.json");
+            if (!File.Exists(styles)) File.WriteAllText(styles, "[]");
+            File.SetLastWriteTime(styles, DateTime.Now.AddDays(-90));
+            VAutoSave.TidyNow(true);
             Check("오래된 마우스 기록·쪽 그림 정리(120일)", !File.Exists(oldLog) && File.Exists(newLog) && !Directory.Exists(oldPages), "");
+            Check("자동 저장 정리가 내 꾸밈(styles.json)은 오래돼도 지우지 않는다", File.Exists(styles), "");
             File.Delete(newLog);
 
             // 푼 소리·읽어 주기는 캐시 폴더에. 오래된 것은 지우되, 지금 쓰는 소리와 자동 저장이 쓰는 읽어 주기·녹음은 남긴다.
@@ -964,12 +968,35 @@ namespace Bakkum
             foreach (var f in new[] { voiceUsed, legacyUsed }) up.Sounds.Add(new VSound { Kind = "voice", Path = f, Text = "읽어 주기" });
             up.Sounds.Add(new VSound { Kind = "record", Path = recUsed });
             VAutoSave.Save(up);
-            VAutoSave.Tidy();
+            // 자동 저장을 하나라도 못 읽으면 읽어 주기·녹음은 이번에 지우지 않는다(푼 소리는 지운다)
+            string broken = Path.Combine(VAutoSave.Folder, "망가짐.json");
+            File.WriteAllText(broken, "{\"Clips\":[");
+            VAutoSave.TidyNow(true);
+            bool wait = !File.Exists(pcmOld) && File.Exists(voiceOld) && File.Exists(legacyOld) && File.Exists(recOld);
+            File.Delete(broken);
+            VAutoSave.TidyNow(true);
             bool gone = !File.Exists(pcmOld) && !File.Exists(procOld) && !File.Exists(voiceOld) && !File.Exists(legacyOld) && !File.Exists(recOld);
             bool kept = File.Exists(pcmNew) && File.Exists(voiceUsed) && File.Exists(legacyUsed) && File.Exists(recUsed) && File.Exists(recNew) && track.File != null && File.Exists(track.File);
             Check("오래된 푼 소리(7일)·읽어 주기(30일)·안 쓰는 녹음(60일) 정리, 쓰는 것은 남김", gone && kept, string.Join(", ", made.Where(File.Exists).Select(Path.GetFileName)));
+            Check("자동 저장 하나를 못 읽으면 읽어 주기·녹음은 그때 지우지 않는다", wait, "");
             VAutoSave.Forget(up.Opened);
             foreach (var f in made) if (File.Exists(f)) File.Delete(f);
+
+            // 다른 PC(로밍 프로필)처럼 읽어 주기 소리 파일이 없으면 저장된 글·목소리·빠르기로 다시 만든다
+            var rp = new VProject();
+            var lost = new VSound { Kind = "voice", Path = Path.Combine(VTts.Folder, "다른피시.wav"), Text = "오늘은 물의 순환을\n배워요.", Voice = "이 PC에 없는 목소리", Rate = 1.2, Out = 99 };
+            rp.Sounds.Add(lost);
+            string remakeErr = null;
+            int remade = 0;
+            try
+            {
+                remade = VTts.Remake(rp);
+            }
+            catch (Exception ex)
+            {
+                remakeErr = ex.GetType().Name;
+            }
+            Check("읽어 주기 소리가 없으면 저장된 글로 다시 만든다(없는 목소리는 한국어 목소리로)", remakeErr == null && remade == 1 && File.Exists(lost.Path) && lost.Out > 0.5 && lost.Out < 10, remakeErr ?? (Path.GetFileName(lost.Path) + " · " + lost.Out.ToString("0.00") + "초"));
         }
 
         static void ExportChecks(string moving)
