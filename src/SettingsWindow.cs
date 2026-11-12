@@ -153,8 +153,72 @@ namespace Bakkum
             };
         }
 
-        /// 왼쪽 판: 로고 + '설정' + 버전, 그 아래 메뉴 다섯 줄
+        /// 왼쪽 판: 로고 + '설정' + 버전, 그 아래 메뉴 다섯 줄, 맨 아래 구석에 만든 사람
         static FrameworkElement Sidebar(StackPanel nav)
+        {
+            var side = new DockPanel();
+            var credit = Credit();
+            DockPanel.SetDock(credit, Dock.Bottom);
+            side.Children.Add(credit);
+            side.Children.Add(SidebarTop(nav));
+            return side;
+        }
+
+        /// 왼쪽 아래 구석: made by hirame.ki × moonsune.zip. 이름마다 그 사람의 인스타그램으로 가는 작은 단추.
+        static FrameworkElement Credit()
+        {
+            var box = new StackPanel { Margin = new Thickness(18, 0, 8, 16) };
+            var by = Theme.Text("made by", 12, FontWeights.Normal, Theme.Ink3);
+            by.Margin = new Thickness(2, 0, 0, 6);
+            box.Children.Add(by);
+            // 폭이 모자라면(글꼴·배율) 두 번째 이름이 다음 줄로 내려간다
+            var row = new WrapPanel();
+            row.Children.Add(InstaButton("hirame.ki", "https://www.instagram.com/hirame.ki/"));
+            var x = Theme.Text("×", 12, FontWeights.Normal, Theme.Ink3);
+            x.VerticalAlignment = VerticalAlignment.Center;
+            x.Margin = new Thickness(3, 0, 3, 4);
+            row.Children.Add(x);
+            row.Children.Add(InstaButton("moonsune.zip", "https://www.instagram.com/moonsune.zip/"));
+            box.Children.Add(row);
+            return box;
+        }
+
+        static Button InstaButton(string handle, string url)
+        {
+            var mark = InstaMark(11, Theme.Ink2);
+            mark.Margin = new Thickness(0, 0, 4, 0);
+            var content = new StackPanel { Orientation = Orientation.Horizontal };
+            content.Children.Add(mark);
+            content.Children.Add(new TextBlock { Text = handle, VerticalAlignment = VerticalAlignment.Center });
+            var b = new Button
+            {
+                Style = Theme.GetStyle("Line"),
+                Content = content,
+                Height = 28,
+                FontSize = 12,
+                Padding = new Thickness(6, 0, 7, 0),
+                Margin = new Thickness(0, 0, 0, 4),
+                ToolTip = "인스타그램 " + handle + " 열기"
+            };
+            System.Windows.Automation.AutomationProperties.SetName(b, "인스타그램 " + handle);
+            b.Click += delegate { Open(url); };
+            return b;
+        }
+
+        /// 인스타그램 모양(둥근 네모 + 렌즈 + 점)을 선으로 그린다. 로고 그림 파일은 넣지 않는다.
+        static FrameworkElement InstaMark(double size, Brush ink)
+        {
+            var g = new Grid { Width = size, Height = size, VerticalAlignment = VerticalAlignment.Center };
+            double t = Math.Max(1.2, size / 9);
+            g.Children.Add(new Border { BorderBrush = ink, BorderThickness = new Thickness(t), CornerRadius = new CornerRadius(size * 0.3) });
+            double lens = size * 0.46;
+            g.Children.Add(new System.Windows.Shapes.Ellipse { Width = lens, Height = lens, Stroke = ink, StrokeThickness = t, HorizontalAlignment = HorizontalAlignment.Center, VerticalAlignment = VerticalAlignment.Center });
+            double dot = Math.Max(1.6, size * 0.14);
+            g.Children.Add(new System.Windows.Shapes.Ellipse { Width = dot, Height = dot, Fill = ink, HorizontalAlignment = HorizontalAlignment.Right, VerticalAlignment = VerticalAlignment.Top, Margin = new Thickness(0, size * 0.17, size * 0.17, 0) });
+            return g;
+        }
+
+        static FrameworkElement SidebarTop(StackPanel nav)
         {
             var stack = new StackPanel { Margin = new Thickness(18, 26, 14, 18) };
             var head = new DockPanel { Margin = new Thickness(6, 0, 0, 26) };
