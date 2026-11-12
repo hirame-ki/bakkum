@@ -249,6 +249,18 @@ namespace Bakkum
                 if (running != null) running.Cancelled = true;
             }
         }
+
+        /// 하던 일과 기다리던 일이 모두 끝날 때까지(최대 max) 기다린다. 다 끝났으면 true.
+        public static bool WaitIdle(TimeSpan max)
+        {
+            var until = DateTime.UtcNow + max;
+            while (Busy)
+            {
+                if (DateTime.UtcNow > until) return false;
+                Thread.Sleep(100);
+            }
+            return true;
+        }
     }
 
     /// 오른쪽 아래 알림 카드: 할 일 색 아이콘 칩 + 할 일 색 진행 막대(얼마나 남았는지 모를 때는 무지개 막대가 흐른다).

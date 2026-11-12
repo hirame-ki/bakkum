@@ -321,7 +321,7 @@ namespace Bakkum
                     recent.DropDownItems.Add(Util.ShortName(path), null, delegate { Util.Reveal(path); });
                 }
             };
-            menu.Items.Add("프로그램 종료", null, delegate { Quit(); });
+            menu.Items.Add("프로그램 종료", null, delegate { QuitAsked(); });
             tray.ContextMenuStrip = menu;
             tray.MouseClick += delegate (object s, System.Windows.Forms.MouseEventArgs e)
             {
@@ -431,8 +431,17 @@ namespace Bakkum
         /// 끝내는 중(창들이 닫혀도 '저장 없이 닫기'로 보지 않게)
         public static bool Quitting;
 
+        /// 알림 영역의 [프로그램 종료]: 하던 변환이 있으면 먼저 묻는다.
+        static void QuitAsked()
+        {
+            if (Jobs.Busy && Dialog.Ask(null, Theme.Coral, "close", "하던 변환을 멈추고 끝낼까요?",
+                "지금 바꾸던 파일은 만들어지지 않아요. 원본은 그대로예요.", null, "계속 바꾸기", "멈추고 끝내기") != 1) return;
+            Quit();
+        }
+
         public static void Quit()
         {
+            if (Quitting) return;
             Quitting = true;
             RecordUi.StopForQuit();
             try { if (trigger != null) trigger.Dispose(); } catch { }
@@ -444,8 +453,19 @@ namespace Bakkum
                 tray.Dispose();
                 tray = null;
             }
-            Log.Write("끝냄");
-            Current.Shutdown();
+            // Main은 끝에서 프로세스를 바로 끝낸다. 그 전에 작업 줄이 취소를 받아 반쯤 쓴 결과를 지우고
+            // 띄운 한글·워드를 닫을 틈을 준다(설치 프로그램은 10초를 기다리니 그보다 짧게).
+            // 기다리는 동안 화면 스레드는 막지 않는다. 작업이 화면 스레드에 물을 수 있다.
+            var ui = Current.Dispatcher;
+            new Thread(delegate ()
+            {
+                bool idle = Jobs.WaitIdle(TimeSpan.FromSeconds(8));
+                ui.BeginInvoke(new Action(delegate
+                {
+                    Log.Write(idle ? "끝냄" : "끝냄(작업이 8초 안에 멈추지 않음)");
+                    Current.Shutdown();
+                }));
+            }) { IsBackground = true, Name = "끝내기" }.Start();
         }
     }
 
