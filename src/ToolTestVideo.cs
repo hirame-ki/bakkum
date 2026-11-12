@@ -982,20 +982,40 @@ namespace Bakkum
             wplan.Output = V("점검3.mp4");
             Check("점검: 화면 오른쪽 끝 글자를 화면 밖으로 잘못 알리지 않는다", !VideoExport.Checks(wide, wplan).Any(c => c.Text.Contains("화면 밖")), "");
 
-            // 용량 맞추기: 가장 작게 해도 목표를 넘는 긴 영상(20분·25MB)은 멈추고, 10분은 그대로 만든다(길이만 늘린 편집)
-            foreach (int minutes in new[] { 20, 10 })
+            // 용량 맞추기(25MB): 가장 작게 해도 넘으면 멈추고 최소 용량·구간을 안내한다. 소리가 있으면 약 13분 46초가 기준(길이만 늘린 편집).
+            Func<double, bool, double, VProject> sized = delegate (double seconds, bool sound, double range)
             {
                 var sp = new VProject { Aspect = "16:9", SourceW = 640, SourceH = 360 };
-                sp.Clips.Add(new VClip { Path = moving, In = 0, Out = minutes * 60 });
+                sp.Clips.Add(sound ? new VClip { Path = moving, In = 0, Out = seconds } : new VClip { Kind = "photo", Path = V("바탕.png"), Dur = seconds, Ken = "none" });
                 sp.Export.Preset = "size";
                 sp.Export.TargetMb = 25;
-                var splan = VideoExport.Plan(sp);
+                if (range > 0)
+                {
+                    sp.Export.RangeOnly = true;
+                    sp.Export.RangeStart = 0;
+                    sp.Export.RangeEnd = range;
+                }
+                return sp;
+            };
+            var cases = new[]
+            {
+                new { Name = "20분", P = sized(1200, true, 0), Stop = true },
+                new { Name = "13분 50초", P = sized(830, true, 0), Stop = true },
+                new { Name = "13분 40초", P = sized(820, true, 0), Stop = false },
+                new { Name = "20분 중 고른 구간 10분", P = sized(1200, true, 600), Stop = false },
+                new { Name = "소리 없는 20분", P = sized(1200, false, 0), Stop = false },
+            };
+            foreach (var c in cases)
+            {
+                var splan = VideoExport.Plan(c.P);
                 splan.Output = V("용량.mp4");
-                var stop = VideoExport.Checks(sp, splan).FirstOrDefault(c => c.Level == "stop");
+                var stop = VideoExport.Checks(c.P, splan).FirstOrDefault(x => x.Level == "stop");
                 bool over = splan.EstimatedBytes > 25L * 1024 * 1024;
-                bool ok = minutes == 20 ? over && stop != null && stop.Text.Contains("약 " + Conversions.Size(splan.EstimatedBytes)) && stop.Text.Contains("구간") && stop.Text.Contains("13분")
-                                        : !over && stop == null;
-                Check("점검: 용량 맞추기 " + minutes + "분·25MB " + (minutes == 20 ? "목표를 넘으면 멈추고 최소 용량·구간 안내" : "맞출 수 있으면 멈추지 않음"), ok, Conversions.Size(splan.EstimatedBytes) + " · " + (stop == null ? "멈춤 없음" : stop.Text));
+                bool ok = c.Stop ? over && stop != null && VideoExport.TooBig(c.P, splan) && stop.Text.Contains("약 " + Conversions.Size(splan.EstimatedBytes)) && stop.Text.Contains("구간") && stop.Text.Contains("13분")
+                                 : !over && stop == null && !VideoExport.TooBig(c.P, splan);
+                if (c.Name.StartsWith("소리 없는")) ok = ok && splan.AudioBytesPerSec == 0;
+                if (c.Name.Contains("구간")) ok = ok && Near(splan.Seconds, 600, 1e-9);
+                Check("점검: 용량 맞추기 25MB · " + c.Name + (c.Stop ? " → 멈추고 최소 용량·구간 안내" : " → 멈추지 않음"), ok, Conversions.Size(splan.EstimatedBytes) + " · 소리 " + splan.AudioBytesPerSec + " · " + (stop == null ? "멈춤 없음" : stop.Text));
             }
         }
 
