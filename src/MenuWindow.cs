@@ -86,6 +86,8 @@ namespace Bakkum
         [DllImport("user32.dll")]
         static extern int GetSystemMetrics(int index);
 
+        const int SM_SWAPBUTTON = 23;
+
         [DllImport("user32.dll")]
         static extern IntPtr GetDC(IntPtr hwnd);
 
@@ -1400,7 +1402,7 @@ namespace Bakkum
                 AnimateIn();
             }
             // GetAsyncKeyState는 물리 단추를 본다. 주·보조 단추를 바꾼 PC(SM_SWAPBUTTON)에서는 끄는 단추가 오른쪽이다(DragTrigger와 같게).
-            int primary = GetSystemMetrics(23) != 0 ? 0x02 : 0x01;
+            int primary = GetSystemMetrics(SM_SWAPBUTTON) != 0 ? 0x02 : 0x01;
             bool down = (GetAsyncKeyState(primary) & 0x8000) != 0;
             if (dragMode && !choosing)
             {

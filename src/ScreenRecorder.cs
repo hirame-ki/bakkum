@@ -1250,6 +1250,7 @@ namespace Bakkum
         [StructLayout(LayoutKind.Sequential)] struct PointXY { public int X, Y; }
         [DllImport("user32.dll")] static extern bool GetCursorPos(out PointXY p);
         [DllImport("user32.dll")] static extern short GetAsyncKeyState(int key);
+        [DllImport("user32.dll")] static extern int GetSystemMetrics(int index);
 
         readonly Box box;
         readonly System.Text.StringBuilder lines = new System.Text.StringBuilder();
@@ -1268,7 +1269,8 @@ namespace Bakkum
         {
             PointXY p;
             if (!GetCursorPos(out p)) return;
-            bool down = (GetAsyncKeyState(0x01) & 0x8000) != 0;
+            // 물리 단추를 본다. 주·보조 단추를 바꾼 PC(SM_SWAPBUTTON)에서는 누르는 단추가 오른쪽이다.
+            bool down = (GetAsyncKeyState(GetSystemMetrics(23) != 0 ? 0x02 : 0x01) & 0x8000) != 0;
             if (p.X == lastX && p.Y == lastY && down == lastDown) return;
             lastX = p.X;
             lastY = p.Y;
