@@ -1302,12 +1302,21 @@ namespace Bakkum
             quit.ToolTip = "바꿈을 완전히 꺼요. 파일을 끌 때 메뉴도 뜨지 않아요.";
             quit.Click += delegate
             {
-                int r = Dialog.Ask(this, Theme.Coral, "close", "프로그램을 종료할까요?",
-                    "종료하면 파일을 끌다가 Shift를 눌러도 메뉴가 뜨지 않아요. 설정만 마치려면 [설정 완료]를 누르세요. 다시 켜려면 바탕 화면이나 시작 메뉴에서 " + AppInfo.Name + "을 열면 돼요.",
-                    null, "취소", "종료");
-                if (r != 1) return;
+                // 변환 중이면 그것부터 묻는다(멈추고 끝낼지)
+                if (Jobs.Busy)
+                {
+                    if (!App.AskStopJobs(this)) return;
+                }
+                else
+                {
+                    int r = Dialog.Ask(this, Theme.Coral, "close", "프로그램을 종료할까요?",
+                        "종료하면 파일을 끌다가 Shift를 눌러도 메뉴가 뜨지 않아요. 설정만 마치려면 [설정 완료]를 누르세요. 다시 켜려면 바탕 화면이나 시작 메뉴에서 " + AppInfo.Name + "을 열면 돼요.",
+                        null, "취소", "종료");
+                    if (r != 1) return;
+                }
                 keep = true;
                 App.Quit();
+                Hide();   // 작업이 멈추기를 기다리는 동안(최대 8초) 창이 남아 안 꺼진 것처럼 보이지 않게
             };
             // 2026-11-10 사용자 요청: 창의 X는 저장 없이 바로 닫기. 그래서 바꾼 것을 남기며 닫는 단추는 [설정 완료]다([프로그램 종료]도 그대로 둔다).
             var close = Theme.MakeButton("설정 완료", "Primary");

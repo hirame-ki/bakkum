@@ -155,6 +155,8 @@ namespace Bakkum
 
         public static void Start(Job job)
         {
+            // 끝내는 중이면 새 일은 받지 않는다(끝내기가 기다려 주지 않으니 반쯤 쓴 결과가 남는다)
+            if (App.Quitting) return;
             job.Toast = Toast.ForJob(job);
             bool queued;
             lock (Gate)
