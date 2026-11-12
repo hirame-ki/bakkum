@@ -2659,6 +2659,7 @@ namespace Bakkum
             double dur0 = tmpl.Duration;
             int started = 0;
             var failed = new List<string>();
+            var tooBig = new List<string>();
             foreach (var f in others)
             {
                 VProject p;
@@ -2708,17 +2709,19 @@ namespace Bakkum
                     p.Sounds.Add(x);
                 }
                 var plan = VideoExport.Plan(p);
-                var stop = VideoExport.Checks(p, plan).FirstOrDefault(x => x.Level == "stop");
-                if (stop != null)
+                var stops = VideoExport.Checks(p, plan).Where(x => x.Level == "stop").ToList();
+                if (stops.Count > 0)
                 {
-                    failed.Add(Path.GetFileName(f));
+                    // 길어서 목표 용량에 맞지 않는 영상은 읽지 못한 영상과 나눠 알린다
+                    (stops.Count == 1 && VideoExport.TooBig(p, plan) ? tooBig : failed).Add(Path.GetFileName(f));
                     continue;
                 }
                 var job = new Job(action, new ActionOption("vexport", "영상 편집 내보내기", ""), new List<string> { f }) { Payload = new VExportPayload { Project = p, Plan = plan } };
                 Jobs.Start(job);
                 started++;
             }
-            SetStatus(started + "개 영상 만들기를 시작했어요." + (failed.Count > 0 ? " 읽지 못한 영상: " + string.Join(", ", failed) : ""));
+            SetStatus(started + "개 영상 만들기를 시작했어요." + (failed.Count > 0 ? " 읽지 못한 영상: " + string.Join(", ", failed) + "." : "")
+                + (tooBig.Count > 0 ? " 용량에 맞지 않아 만들지 않은 영상: " + string.Join(", ", tooBig) + "." : ""));
         }
     }
 }

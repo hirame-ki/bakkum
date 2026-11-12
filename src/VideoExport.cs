@@ -139,7 +139,7 @@ namespace Bakkum
                     {
                         double seconds = Math.Max(1, plan.Seconds);
                         double budget = Math.Max(0.5, e.TargetMb) * 1024 * 1024 * 8 * 0.94 / seconds;
-                        plan.AudioBytesPerSec = budget < 1.2e6 ? 12000u : 16000u;
+                        plan.AudioBytesPerSec = !HasSound(p) ? 0u : budget < 1.2e6 ? 12000u : 16000u;
                         double video = budget - plan.AudioBytesPerSec * 8;
                         shortSide = video > 3.5e6 ? 1080 : video > 1.5e6 ? 720 : video > 0.7e6 ? 540 : 360;
                         shortSide = Math.Min(shortSide, Math.Max(360, SourceShort(p)));
@@ -231,11 +231,27 @@ namespace Bakkum
                     if (free < need + 300L * 1024 * 1024) list.Add(new VCheck { Level = "stop", Text = "저장할 곳의 빈 자리가 모자라요(남은 자리 " + Conversions.Size(free) + ")." });
                 }
                 catch (Exception) { }
-                if (p.Export.Preset == "size" && plan.VideoBps < 400000)
-                    list.Add(new VCheck { Level = "warn", Text = "목표 용량에 비해 영상이 길어서 화면이 많이 뭉개질 수 있어요. 용량을 늘리거나 구간만 내보내 보세요." });
+                if (p.Export.Preset == "size")
+                {
+                    if (TooBig(p, plan))
+                    {
+                        double target = Math.Max(0.5, p.Export.TargetMb) * 1024 * 1024;
+                        double perSec = (plan.VideoBps / 8.0 + plan.AudioBytesPerSec) * 1.03;
+                        int fit = (int)Math.Max(1, (target - 64 * 1024) / perSec / 60);
+                        list.Add(new VCheck { Level = "stop", Text = "목표 용량(" + Math.Round(p.Export.TargetMb) + "MB)에 맞추기에는 영상이 너무 길어요. 가장 작게 만들어도 약 " + Conversions.Size(need) + "예요. 목표 용량을 늘리거나, '고른 구간만 내보내기'로 약 " + fit + "분씩 나눠 내보내 주세요." });
+                    }
+                    else if (plan.VideoBps < 400000)
+                        list.Add(new VCheck { Level = "warn", Text = "목표 용량에 비해 영상이 길어서 화면이 많이 뭉개질 수 있어요. 용량을 늘리거나 구간만 내보내 보세요." });
+                }
             }
             if (plan.Kind != "cover") list.Add(new VCheck { Level = "info", Text = "찍은 장소·기기 같은 원본 파일 정보는 새 파일에 담지 않아요." });
             return list;
+        }
+
+        /// 용량 맞추기: 영상·소리를 가장 낮게(바닥) 해도 목표 용량을 넘는지(만들어 봐야 소용없다)
+        public static bool TooBig(VProject p, VExportPlan plan)
+        {
+            return p.Export.Preset == "size" && plan.Kind == "video" && plan.EstimatedBytes > Math.Max(0.5, p.Export.TargetMb) * 1024 * 1024;
         }
 
         static string AspectName(VProject p)
