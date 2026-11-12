@@ -15,7 +15,7 @@ namespace Bakkum
     {
         public const string Id = "Bakkum";
         public const string Name = "바꿈";
-        public const string Version = "0.3.6";
+        public const string Version = "0.3.7";
         public const string Publisher = "hirame.ki";
 
         /// 시험(/selftest-net) 동안만: 설정·로그인 파일을 임시 폴더에 둔다(선생님의 진짜 설정을 건드리지 않게).

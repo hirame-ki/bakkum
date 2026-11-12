@@ -47,8 +47,15 @@ Additional terms under section 7 of the GNU GPL version 3:
 
  - 한컴오피스(한글·한셀·한쇼), Microsoft Office(Word·Excel·PowerPoint):
    PC에 설치된 프로그램을 그대로 불러 파일을 바꿉니다.
- - 윈도우 글자 인식(Windows.Media.Ocr)·PDF 보기(Windows.Data.Pdf):
+ - 윈도우 글자 인식(Windows.Media.Ocr)·PDF 보기(Windows.Data.Pdf)·
+   영상 처리(Media Foundation)·얼굴 찾기·목소리·카메라·기계 학습(Windows ML):
    윈도우에 들어 있는 기능을 부릅니다.
+ - 자동 자막(고를 때만): OpenAI Whisper 모델을 ONNX로 옮긴 파일
+   onnx-community/whisper-base(Apache License 2.0),
+   onnx-community/whisper-large-v3-turbo(MIT License).
+   처음 쓸 때 물어본 뒤 Hugging Face에서 정해 둔 판만 받아 SHA-256으로
+   확인하고, 이 PC 안에서만 돌립니다. 받은 모델은 프로그램을 지울 때
+   같이 지웁니다.
  - AI 연결(고를 때만): ChatGPT(OpenAI 'Sign in with ChatGPT'), Claude Code,
    Google Gemini API, OpenRouter. 보낼 때마다 먼저 묻습니다.
 
