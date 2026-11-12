@@ -231,8 +231,19 @@ namespace Bakkum
                     if (free < need + 300L * 1024 * 1024) list.Add(new VCheck { Level = "stop", Text = "저장할 곳의 빈 자리가 모자라요(남은 자리 " + Conversions.Size(free) + ")." });
                 }
                 catch (Exception) { }
-                if (p.Export.Preset == "size" && plan.VideoBps < 400000)
-                    list.Add(new VCheck { Level = "warn", Text = "목표 용량에 비해 영상이 길어서 화면이 많이 뭉개질 수 있어요. 용량을 늘리거나 구간만 내보내 보세요." });
+                if (p.Export.Preset == "size")
+                {
+                    // 영상·소리를 가장 낮게(바닥) 해도 목표를 넘으면 만들어 봐야 소용없다
+                    double target = Math.Max(0.5, p.Export.TargetMb) * 1024 * 1024;
+                    if (need > target)
+                    {
+                        double perSec = (plan.VideoBps / 8.0 + plan.AudioBytesPerSec) * 1.03;
+                        int fit = (int)Math.Max(1, (target - 64 * 1024) / perSec / 60);
+                        list.Add(new VCheck { Level = "stop", Text = "목표 용량(" + Math.Round(p.Export.TargetMb) + "MB)에 맞추기에는 영상이 너무 길어요. 가장 작게 만들어도 약 " + Conversions.Size(need) + "예요. 목표 용량을 늘리거나, '고른 구간만 내보내기'로 약 " + fit + "분씩 나눠 내보내 주세요." });
+                    }
+                    else if (plan.VideoBps < 400000)
+                        list.Add(new VCheck { Level = "warn", Text = "목표 용량에 비해 영상이 길어서 화면이 많이 뭉개질 수 있어요. 용량을 늘리거나 구간만 내보내 보세요." });
+                }
             }
             if (plan.Kind != "cover") list.Add(new VCheck { Level = "info", Text = "찍은 장소·기기 같은 원본 파일 정보는 새 파일에 담지 않아요." });
             return list;

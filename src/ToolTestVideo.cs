@@ -981,6 +981,22 @@ namespace Bakkum
             var wplan = VideoExport.Plan(wide);
             wplan.Output = V("점검3.mp4");
             Check("점검: 화면 오른쪽 끝 글자를 화면 밖으로 잘못 알리지 않는다", !VideoExport.Checks(wide, wplan).Any(c => c.Text.Contains("화면 밖")), "");
+
+            // 용량 맞추기: 가장 작게 해도 목표를 넘는 긴 영상(20분·25MB)은 멈추고, 10분은 그대로 만든다(길이만 늘린 편집)
+            foreach (int minutes in new[] { 20, 10 })
+            {
+                var sp = new VProject { Aspect = "16:9", SourceW = 640, SourceH = 360 };
+                sp.Clips.Add(new VClip { Path = moving, In = 0, Out = minutes * 60 });
+                sp.Export.Preset = "size";
+                sp.Export.TargetMb = 25;
+                var splan = VideoExport.Plan(sp);
+                splan.Output = V("용량.mp4");
+                var stop = VideoExport.Checks(sp, splan).FirstOrDefault(c => c.Level == "stop");
+                bool over = splan.EstimatedBytes > 25L * 1024 * 1024;
+                bool ok = minutes == 20 ? over && stop != null && stop.Text.Contains("약 " + Conversions.Size(splan.EstimatedBytes)) && stop.Text.Contains("구간") && stop.Text.Contains("13분")
+                                        : !over && stop == null;
+                Check("점검: 용량 맞추기 " + minutes + "분·25MB " + (minutes == 20 ? "목표를 넘으면 멈추고 최소 용량·구간 안내" : "맞출 수 있으면 멈추지 않음"), ok, Conversions.Size(splan.EstimatedBytes) + " · " + (stop == null ? "멈춤 없음" : stop.Text));
+            }
         }
 
         static void ExportKinds(string moving, string bg, string tex, string music)
