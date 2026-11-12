@@ -361,6 +361,8 @@ namespace Bakkum
         public VExport Export = new VExport();
         /// 처음 연 파일들(자동 저장 이름)
         public List<string> Opened = new List<string>();
+        /// 처음 연 파일들의 내용 지문(Opened와 같은 차례). 영상을 옮기거나 이름을 바꿔도 자동 저장을 찾는다.
+        public List<string> Prints = new List<string>();
         public DateTime Saved;
 
         static int counter;
@@ -650,6 +652,7 @@ namespace Bakkum
             if (p.Markers == null) p.Markers = new List<VMarker>();
             if (p.Export == null) p.Export = new VExport();
             if (p.Opened == null) p.Opened = new List<string>();
+            if (p.Prints == null) p.Prints = new List<string>();
             foreach (var c in p.Clips)
             {
                 if (c.Keys == null) c.Keys = new List<VKey>();
@@ -800,6 +803,56 @@ namespace Bakkum
                 Log.Write("영상 편집 자동 저장 읽기 실패: " + ex.GetType().Name);
                 return null;
             }
+        }
+
+        /// 파일 내용 지문(미리 보기 사본과 같은 방식: 크기와 앞뒤 조각). 읽지 못하면 null.
+        public static List<string> PrintsOf(List<string> files)
+        {
+            try
+            {
+                return files.Select(CursorLog.Fingerprint).ToList();
+            }
+            catch (Exception)
+            {
+                return null;
+            }
+        }
+
+        public static bool SamePrints(List<string> a, List<string> b)
+        {
+            return a != null && b != null && a.Count > 0 && a.OrderBy(x => x).SequenceEqual(b.OrderBy(x => x));
+        }
+
+        /// 경로로 찾고, 없으면 내용 지문이 같은 자동 저장 가운데 가장 최근 것을 찾아 옛 자리를 지금 자리로 바꾼다.
+        /// ponytail: 못 찾으면 자동 저장을 모두 읽는다(60일 치라 수십 개). 많아지면 지문 → 파일 이름 목록을 따로 둔다.
+        public static VProject Find(List<string> files, List<string> prints)
+        {
+            var found = Load(files);
+            if (found != null || prints == null) return found;
+            DateTime bestAt = DateTime.MinValue;
+            foreach (var f in Directory.GetFiles(Folder, "*.json"))
+            {
+                try
+                {
+                    var at = File.GetLastWriteTime(f);
+                    if (at <= bestAt) continue;
+                    string text = File.ReadAllText(f, Encoding.UTF8);
+                    if (!prints.All(x => text.Contains(x))) continue;
+                    var p = VProject.FromJson(text);
+                    if (p.Clips.Count == 0 || p.Prints.Count != p.Opened.Count || !SamePrints(p.Prints, prints)) continue;
+                    found = p;
+                    bestAt = at;
+                }
+                catch (Exception ex)
+                {
+                    Log.Write("영상 편집 자동 저장 찾기 실패: " + ex.GetType().Name);
+                }
+            }
+            if (found == null) return null;
+            for (int i = 0; i < found.Opened.Count; i++) found.Relink(found.Opened[i], files[prints.IndexOf(found.Prints[i])]);
+            found.Opened = files.ToList();
+            found.Prints = prints.ToList();
+            return found;
         }
 
         public static void Forget(IEnumerable<string> files)

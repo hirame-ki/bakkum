@@ -142,10 +142,22 @@ namespace Bakkum
         /// 메뉴의 [영상 편집]: 하던 편집이 있으면 이어서 할지 묻고, 없으면 놓은 파일로 새로 만든다.
         public static void OpenFor(MenuAction a, List<string> files)
         {
-            VAutoSave.Tidy();
             var full = files.Select(f => Path.GetFullPath(f)).ToList();
+            var prints = VAutoSave.PrintsOf(full);
+            // 같은 영상의 편집 창이 열려 있으면 그 창을 앞으로(두 창이 같은 자동 저장을 덮어쓰지 않게)
+            string key = VAutoSave.KeyOf(full);
+            var open = Application.Current == null ? null : Application.Current.Windows.OfType<VideoEditor>()
+                .FirstOrDefault(e => !e.demo && (VAutoSave.KeyOf(e.project.Opened) == key || VAutoSave.SamePrints(e.project.Prints, prints)));
+            if (open != null)
+            {
+                if (open.WindowState == WindowState.Minimized) open.WindowState = WindowState.Normal;
+                open.Activate();
+                open.SetStatus("이 영상은 이 창에서 편집하고 있어요.");
+                return;
+            }
+            VAutoSave.Tidy();
             VProject p = null;
-            var saved = VAutoSave.Load(full);
+            var saved = VAutoSave.Find(full, prints);
             if (saved != null)
             {
                 int n = Dialog.Ask(null, H, "media", "하던 편집이 있어요",
@@ -166,6 +178,7 @@ namespace Bakkum
                     return;
                 }
             }
+            if (prints != null) p.Prints = prints;
             var w = new VideoEditor(a, p, false);
             w.Show();
             w.Activate();

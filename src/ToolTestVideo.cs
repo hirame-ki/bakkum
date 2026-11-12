@@ -928,6 +928,26 @@ namespace Bakkum
             VAutoSave.Forget(new[] { moving });
             Check("자동 저장 지우기", VAutoSave.Load(new[] { moving }) == null, "");
 
+            // 영상을 다른 폴더로 옮기고 이름을 바꿔도 내용 지문으로 이어서 하기를 찾고, 새 자리로 바꿔 준다
+            string before = V("옮기기 전.mp4"), afterDir = V("옮긴 곳"), after = Path.Combine(afterDir, "새 이름.mp4");
+            File.Copy(moving, before, true);
+            var mp = new VProject();
+            mp.Clips.Add(new VClip { Path = before, In = 0, Out = 2 });
+            mp.Items.Add(new VItem { Kind = "text", Text = "옮겨도 남는 자막", Start = 0, End = 1 });
+            mp.Opened.Add(before);
+            mp.Prints = VAutoSave.PrintsOf(mp.Opened);
+            VAutoSave.Save(mp);
+            Directory.CreateDirectory(afterDir);
+            if (File.Exists(after)) File.Delete(after);
+            File.Move(before, after);
+            var moved = new List<string> { after };
+            var back2 = VAutoSave.Find(moved, VAutoSave.PrintsOf(moved));
+            bool relinked = back2 != null && back2.Clips[0].Path == after && back2.Opened.SequenceEqual(moved) && back2.Items.Count == 1;
+            var other = new List<string> { V("바탕.png") };
+            Check("자동 저장: 영상을 옮기거나 이름을 바꿔도 내용 지문으로 찾고 새 자리로 바꾼다", relinked && VAutoSave.Find(other, VAutoSave.PrintsOf(other)) == null, back2 == null ? "못 찾음" : back2.Clips[0].Path);
+            VAutoSave.Forget(new[] { before });
+            File.Delete(after);
+
             string cursorDir = Path.Combine(VAutoSave.Folder, "cursor"), lectureDir = Path.Combine(VAutoSave.Folder, "lecture");
             Directory.CreateDirectory(cursorDir);
             string oldLog = Path.Combine(cursorDir, "오래됨.txt"), newLog = Path.Combine(cursorDir, "최근.txt"), oldPages = Path.Combine(lectureDir, "오래된자료");
