@@ -512,6 +512,21 @@ namespace Bakkum
                 dc.DrawRoundedRectangle(Theme.Frozen(Color.FromArgb(225, 0xFF, 0xFF, 0xFF)), null, new Rect(lx - 2, r.Top + 3, Math.Min(t.Width + 8, r.Width - 6), t.Height + 2), 6, 6);
                 dc.DrawText(t, new Point(lx + 2, r.Top + 4));
             }
+            // 확대·옮기기 움직임 표시(키프레임): 영상은 원본 시각, 그 밖은 조각 안 시각
+            foreach (var k in c.Keys)
+            {
+                double local;
+                if (c.Kind == "video")
+                {
+                    if (!c.LocalOf(k.T, out local)) continue;
+                }
+                else
+                {
+                    if (k.T < -1e-6 || k.T > c.Length + 1e-6) continue;
+                    local = k.T;
+                }
+                KeyMark(dc, new Point(X(b.A + local), r.Top + stripH - 7), sel ? Theme.Ink : ClipHue.DeepBrush);
+            }
             dc.Pop();
             // 전환 표시(앞 조각과 만나는 곳)
             if (c.Trans != "none" && c.TransSec > 0.01)
@@ -707,6 +722,29 @@ namespace Bakkum
             dc.PushClip(geo);
             Label(dc, r, ItemText(it), sel ? Theme.Ink : hue.DeepBrush, 11);
             dc.Pop();
+            // 움직임 표시(키프레임): 그 시각에 ◆
+            foreach (var k in it.Keys)
+            {
+                if (k.T < -1e-6 || k.T > it.Length + 1e-6) continue;
+                KeyMark(dc, new Point(X(b.A + k.T), r.Bottom - 6), sel ? Theme.Ink : hue.DeepBrush);
+            }
+        }
+
+        /// 움직임 표시 하나(◆). 흰 테두리를 둘러 띠 색 위에서도 보이게.
+        void KeyMark(DrawingContext dc, Point at, Brush fill)
+        {
+            if (at.X < HeadW - 1 || at.X > ActualWidth + 6) return;
+            const double s = 4.6;
+            var g = new StreamGeometry();
+            using (var x = g.Open())
+            {
+                x.BeginFigure(new Point(at.X, at.Y - s), true, true);
+                x.LineTo(new Point(at.X + s, at.Y), true, false);
+                x.LineTo(new Point(at.X, at.Y + s), true, false);
+                x.LineTo(new Point(at.X - s, at.Y), true, false);
+            }
+            g.Freeze();
+            dc.DrawGeometry(fill, MakePen(Theme.Sheet, 1.4), g);
         }
 
         void DrawSound(DrawingContext dc, Block b, VSound s)

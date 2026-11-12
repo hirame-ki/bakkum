@@ -762,6 +762,9 @@ namespace Bakkum
                 var b = keys[i + 1];
                 if (t < a.T || t > b.T) continue;
                 double k = b.T - a.T < 1e-6 ? 1 : Ease((t - a.T) / (b.T - a.T));
+                // 기울기는 가까운 쪽으로 돈다(170°→-170°는 20°만). 한쪽에만 있으면 그 값.
+                double ra = a.HasRot ? a.Rot : b.Rot, rb = b.HasRot ? b.Rot : a.Rot;
+                double dr = ((rb - ra + 180) % 360 + 360) % 360 - 180;
                 return new VKey
                 {
                     T = t,
@@ -772,7 +775,9 @@ namespace Bakkum
                     Zoom = a.Zoom + (b.Zoom - a.Zoom) * k,
                     PanX = a.PanX + (b.PanX - a.PanX) * k,
                     PanY = a.PanY + (b.PanY - a.PanY) * k,
-                    Opacity = a.Opacity + (b.Opacity - a.Opacity) * k
+                    Opacity = a.Opacity + (b.Opacity - a.Opacity) * k,
+                    Rot = ra + dr * k,
+                    HasRot = a.HasRot || b.HasRot
                 };
             }
             return last;
@@ -815,6 +820,8 @@ namespace Bakkum
         {
             public bool Visible;
             public double X, Y, Scale = 1, Opacity = 1, Dx, Dy;
+            /// 기울기(도): 표시가 있으면 표시 사이를 이은 값
+            public double Rot;
             /// 글자가 하나씩 나타나기: 보이는 몫(0~1)
             public double Reveal = 1;
         }
@@ -822,6 +829,7 @@ namespace Bakkum
         public static State Item(VItem it, double t)
         {
             var s = new State();
+            s.Rot = it.Rot;
             if (t < it.Start - 1e-6 || t >= it.End) return s;
             s.Visible = true;
             double local = t - it.Start;
@@ -835,6 +843,7 @@ namespace Bakkum
                 s.Y = k.Y;
                 s.Scale = k.Zoom;
                 s.Opacity *= k.Opacity;
+                if (k.HasRot) s.Rot = k.Rot;
             }
             double a = Math.Max(0.05, Math.Min(it.AnimSec, it.Length / 2));
             double e = local / a;
@@ -1729,7 +1738,7 @@ namespace Bakkum
             m.Translate(-fw / 2.0, -fh / 2.0);
             if (rot != 0) m.Rotate(rot);
             m.Scale(s, s);
-            if (Math.Abs(it.Rot) > 0.01) m.Rotate(it.Rot);
+            if (Math.Abs(st.Rot) > 0.01) m.Rotate(st.Rot);
             m.Translate(box.X + box.Width / 2, box.Y + box.Height / 2);
             var o = Matrix.Identity;
             o.Translate(-fw / 2.0, -fh / 2.0);

@@ -48,6 +48,8 @@ namespace Bakkum
                 // 진짜 웹캠을 켜는 시험은 따로 부를 때만(불이 들어온다)
                 if (what == "camreal") CamRealTests();
                 if (what == "video") VideoTests();
+                // 움직임 표시(키프레임)·자막 너비만 빨리(파일을 만들지 않는다. video 시험도 맨 앞에서 부른다)
+                if (what == "keys") KeyframeTests();
                 // 2분짜리 영상을 만들어 넘기기 빠르기를 재는 무거운 시험(따로 부를 때만)
                 if (what == "proxyquick") ProxyTests(false);
                 if (what == "proxy")
