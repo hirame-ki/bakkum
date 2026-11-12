@@ -1,0 +1,9 @@
+# 줄 끝: 저장소에는 LF로 두고 작업 폴더에도 LF로 꺼낸다.
+# 두 사람의 Git 설정(core.autocrlf)이 달라도 줄 끝만 바뀐 변경이 생기지 않게 한다.
+* text=auto eol=lf
+
+# 사용자가 메모장으로 여는 글 파일(설치 안내.txt, NOTICE.txt)은 CRLF로 꺼낸다.
+*.txt text eol=crlf
+
+*.png binary
+*.ico binary
