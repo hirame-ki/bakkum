@@ -95,7 +95,20 @@ namespace Bakkum
             {
                 Func<bool> stop = () => busyCancel;
                 var sw = Stopwatch.StartNew();
-                WhisperModels.Prepare(m, report, stop);
+                try
+                {
+                    WhisperModels.Prepare(m, report, stop);
+                }
+                catch (UserFacingException ex)
+                {
+                    // 받기가 막혔을 때 할 일(허용할 주소 등)은 아래 상태 줄에 다 안 보여서 창으로도 알린다
+                    string msg = ex.Message;
+                    Dispatcher.BeginInvoke(new Action(delegate
+                    {
+                        if (windowOpen) Dialog.Ask(this, H, "subtitle", "자동 자막 모델을 받지 못했어요", msg, null, "확인");
+                    }));
+                    throw;
+                }
                 report("영상의 소리를 모으는 중", 0);
                 var audio = WhisperAudio.FromProject(snap, f => report("영상의 소리를 모으는 중", f), stop);
                 if (WhisperEngine.LoudFrames(audio, 0, audio.Length) < 8) throw new UserFacingException("영상에서 말소리를 찾지 못했어요. 영상의 소리가 꺼져 있거나 아주 작은지 확인해 주세요.");

@@ -250,6 +250,22 @@ namespace Bakkum
             report("다 받았어요", 1);
         }
 
+        // 받기가 막혔을 때 할 일. 모델 파일은 huggingface.co에서 hf.co(CDN)로 넘겨 받는다(11-12 확인: us.aws.cdn.hf.co).
+        const string AskAllow = "정보 담당 선생님께 huggingface.co와 hf.co 주소를 열어 달라고 부탁해 주세요.";
+        internal const string Blocked = "학교 인터넷에서 자동 자막 모델 받기가 막힌 것 같아요. " + AskAllow;
+
+        /// 받기 실패를 쉬운 말로(학교망이면 누구에게 무엇을 부탁할지까지)
+        internal static string Explain(WebException ex)
+        {
+            var hr = ex.Response as HttpWebResponse;
+            int code = hr != null ? (int)hr.StatusCode : 0;
+            if (code == 403) return Blocked;
+            if (code == 407) return "학교 인터넷이 따로 로그인(프록시 인증)을 요구해서 받지 못했어요. 정보 담당 선생님께 huggingface.co와 hf.co 주소를 로그인 없이 쓸 수 있게 해 달라고 부탁해 주세요.";
+            if (ex.Status == WebExceptionStatus.TrustFailure) return "보안 연결을 확인하지 못했어요(인증서 문제). 학교 인터넷의 보안 장비가 연결을 검사하는 것 같아요. 정보 담당 선생님께 huggingface.co와 hf.co 주소를 검사에서 빼 달라고 부탁해 주세요.";
+            if (ex.Status == WebExceptionStatus.NameResolutionFailure) return "huggingface.co 주소를 찾지 못했어요. 인터넷이 연결되어 있는지 확인해 주세요. 다른 사이트는 열린다면 학교망이 막은 것이니, " + AskAllow;
+            return "자동 자막 모델을 받지 못했어요. 인터넷 연결을 확인하고 다시 눌러 주세요(받던 것은 이어서 받아요). 계속 안 되면 " + AskAllow;
+        }
+
         /// 파일 하나 받기. 받다 만 파일이 있으면 이어서 받는다(서버가 이어 주지 않으면 처음부터).
         static void Fetch(string url, string dst, long size, Action<long> got, Func<bool> stop)
         {
@@ -268,6 +284,12 @@ namespace Bakkum
                 {
                     bool append = have > 0 && r.StatusCode == HttpStatusCode.PartialContent;
                     long done = append ? have : 0;
+                    // 차단 안내 페이지(200 HTML)나 길이가 다른 답이면 받지 않는다(받던 파일도 그대로 둔다)
+                    if ((r.ContentType ?? "").StartsWith("text/html", StringComparison.OrdinalIgnoreCase) || r.ContentLength >= 0 && r.ContentLength != size - done)
+                    {
+                        Log.Write("자동 자막 모델 받기: 다른 답 " + r.ContentType + " " + r.ContentLength + "/" + (size - done));
+                        throw new UserFacingException(Blocked);
+                    }
                     using (var s = r.GetResponseStream())
                     using (var f = new FileStream(dst, append ? FileMode.Append : FileMode.Create, FileAccess.Write))
                     {
@@ -283,7 +305,7 @@ namespace Bakkum
                                 throw new OperationCanceledException();
                             }
                             done += n;
-                            if (done > size) throw new UserFacingException("받는 파일이 예상보다 커요. 다시 눌러 주세요.");
+                            if (done > size) throw new UserFacingException(Blocked);
                             f.Write(buf, 0, n);
                             if (Environment.TickCount - tick > 250)
                             {
@@ -309,7 +331,7 @@ namespace Bakkum
                 if (ex.Status == WebExceptionStatus.RequestCanceled && stop()) throw new OperationCanceledException();
                 var hr = ex.Response as HttpWebResponse;
                 Log.Write("자동 자막 모델 받기 실패: " + ex.Status + (hr != null ? " " + (int)hr.StatusCode : ""));
-                throw new UserFacingException("자동 자막 모델을 받지 못했어요. 인터넷 연결을 확인하고 다시 눌러 주세요. 받던 것은 이어서 받아요.");
+                throw new UserFacingException(Explain(ex));
             }
             catch (IOException ex)
             {

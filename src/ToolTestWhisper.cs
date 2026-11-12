@@ -25,6 +25,8 @@ namespace Bakkum
             public readonly int Port;
             public readonly Dictionary<string, byte[]> Files = new Dictionary<string, byte[]>();
             public readonly List<string> Asked = new List<string>();
+            /// 이 경로에는 적어 둔 답을 그대로 보낸다(학교망 차단 흉내)
+            public readonly Dictionary<string, string> Raw = new Dictionary<string, string>();
 
             public RangeServer()
             {
@@ -68,6 +70,13 @@ namespace Bakkum
                             if (m.Success) from = long.Parse(m.Groups[1].Value);
                         }
                         lock (Asked) Asked.Add(path + " " + from);
+                        string raw;
+                        if (Raw.TryGetValue(path, out raw))
+                        {
+                            var rb = Encoding.UTF8.GetBytes(raw);
+                            s.Write(rb, 0, rb.Length);
+                            return;
+                        }
                         byte[] body;
                         string answer;
                         if (!Files.TryGetValue(path, out body))
@@ -212,6 +221,54 @@ namespace Bakkum
         static string WFile(WhisperModel m, WhisperModel.Part p)
         {
             return Path.Combine(P("whisper_onnx"), m.Id, p.Path.Replace('/', '\\'));
+        }
+
+        /// 학교망에서 모델 받기가 막혔을 때의 안내. 재료 없이 이 PC 안 서버로 보므로 video 묶음에서 부른다.
+        static void WhisperBlocked()
+        {
+            var body = Encoding.ASCII.GetBytes("{\"fake\":1}");
+            string sha;
+            using (var h = System.Security.Cryptography.SHA256.Create()) sha = string.Concat(h.ComputeHash(body).Select(x => x.ToString("x2")));
+            const string Commit = "0000000000000000000000000000000000000000";
+            const string Html = "<html><body>blocked</body></html>";
+            using (var server = new RangeServer())
+            {
+                WhisperModels.UrlBase = "http://127.0.0.1:" + server.Port + "/";
+                try
+                {
+                    Func<string, long, string, string> get = delegate (string repo, long size, string raw)
+                    {
+                        var m = new WhisperModel { Id = "t" + repo, Name = repo, Repo = "test/" + repo, Commit = Commit, License = "MIT", Disk = 1, Memory = 1, Parts = new[] { new WhisperModel.Part { Path = "config.json", Size = size, Sha256 = sha } } };
+                        if (raw != null) server.Raw["/test/" + repo + "/resolve/" + Commit + "/config.json"] = raw;
+                        try
+                        {
+                            WhisperModels.Prepare(m, delegate { }, () => false);
+                            return "받음";
+                        }
+                        catch (UserFacingException ex)
+                        {
+                            return ex.Message;
+                        }
+                    };
+                    Func<string, string> answer = head => head.Replace("|", "\r\n") + "\r\n\r\n";
+                    string html = get("html", Html.Length, answer("HTTP/1.1 200 OK|Content-Type: text/html; charset=utf-8|Content-Length: " + Html.Length + "|Connection: close") + Html);
+                    string longer = get("len", body.Length, answer("HTTP/1.1 200 OK|Content-Type: application/octet-stream|Content-Length: " + (body.Length + 5) + "|Connection: close") + "{\"fake\":1}12345");
+                    string forbid = get("forbid", body.Length, answer("HTTP/1.1 403 Forbidden|Content-Length: 0|Connection: close"));
+                    string proxy = get("proxy", body.Length, answer("HTTP/1.1 407 Proxy Authentication Required|Proxy-Authenticate: Basic realm=\"school\"|Content-Length: 0|Connection: close"));
+                    string missing = get("missing", body.Length, null);
+                    string trust = WhisperModels.Explain(new WebException("x", WebExceptionStatus.TrustFailure));
+                    string dns = WhisperModels.Explain(new WebException("x", WebExceptionStatus.NameResolutionFailure));
+                    bool noHalf = !File.Exists(Path.Combine(WhisperModels.Folder(new WhisperModel { Id = "thtml" }) + ".받는중", "config.json"));
+                    Check("자동 자막 받기: 차단 안내 페이지(HTML)·길이가 다른 답·403은 학교망 차단으로, 허용할 주소와 함께", html == WhisperModels.Blocked && longer == html && forbid == html && html.Contains("huggingface.co") && html.Contains("hf.co") && noHalf, html + " / " + longer + " / " + forbid);
+                    Check("자동 자막 받기: 프록시 로그인(407)·인증서 실패·주소 못 찾음은 나눠서 알린다", proxy.Contains("프록시") && trust.Contains("인증서") && dns.Contains("주소를 찾지 못했어요") && new[] { proxy, trust, dns }.All(x => x.Contains("huggingface.co")), proxy + " / " + trust + " / " + dns);
+                    Check("자동 자막 받기: 그 밖에는 다시 눌러 보게 하고, 계속 안 되면 허용할 주소를", missing.Contains("받지 못했어요") && missing.Contains("hf.co"), missing);
+                }
+                finally
+                {
+                    WhisperModels.UrlBase = "https://huggingface.co/";
+                    try { WhisperModels.DeleteAll(); } catch { }
+                }
+            }
         }
 
         static void WhisperTests(bool turbo)
