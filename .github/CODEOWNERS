@@ -1,0 +1,10 @@
+# 이 파일들이 바뀐 PR은 관리자(hirame-ki)가 승인해야 합쳐져요.
+/src/Common.cs     @hirame-ki
+/src/Installer.cs  @hirame-ki
+/src/Updater.cs    @hirame-ki
+/build.ps1         @hirame-ki
+/CLAUDE.md         @hirame-ki
+/DESIGN.md         @hirame-ki
+/LICENSE           @hirame-ki
+/NOTICE.txt        @hirame-ki
+/.github/          @hirame-ki
