@@ -424,7 +424,6 @@ namespace Bakkum
                 opts.Add(new ActionOption("docx", "워드로", "사진을 문서에"));
                 opts.Add(new ActionOption("pptx", "PPT로", "사진마다 슬라이드"));
             }
-            if (usable.Any(f => Formats.Ext(f) == ".ppt" || Formats.Ext(f) == ".show")) AddOnce(opts, new ActionOption("pptx", "PPTX", "새 PPT 형식"));
             if (usable.Any(f => Formats.Ext(f) == ".hwp")) opts.Add(new ActionOption("hwpx", "HWPX", "새 한글 형식"));
             if (usable.Any(f => Formats.Ext(f) == ".hwpx")) opts.Add(new ActionOption("hwp", "HWP", "예전 한글 형식"));
             if (Any(usable, Kind.Hwp))
@@ -494,6 +493,8 @@ namespace Bakkum
                         break;
                 }
             }
+            // 옛 PPT·한쇼 → PPTX. 한글·워드·PDF를 같이 놓았으면 그쪽 이름('PPT로')이 먼저 들어가 있다(같은 칸이 둘 다 한다)
+            if (usable.Any(f => Formats.Ext(f) == ".ppt" || Formats.Ext(f) == ".show")) AddOnce(opts, new ActionOption("pptx", "PPTX", "새 PPT 형식"));
             foreach (var f in usable.Where(x => Formats.KindOf(x) == Kind.Excel))
             {
                 string e = Formats.Ext(f);

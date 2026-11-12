@@ -27,6 +27,16 @@ namespace Bakkum
             var fmt = ActionOf("format");
             string xls = Path.Combine(w, "준비물표.xls"), ppt = Path.Combine(w, "물의순환.ppt");
 
+            // 0. 섞어 놓았을 때의 메뉴(파일이 없어도 이름으로만 정한다)
+            string pic = Path.Combine(w, "사진.png"), hwp = Path.Combine(w, "안내문.hwp"), newDeck = Path.Combine(w, "새것.pptx");
+            var mixPic = fmt.OptionsFor(new[] { pic, ppt });
+            Check("메뉴: 사진+.ppt → PPT 고르기 하나", mixPic.Count(o => o.Id == "pptx") == 1, string.Join(",", mixPic.Select(o => o.Id)));
+            var mixSheet = fmt.OptionsFor(new[] { xlsx, xls }).Select(o => o.Id).ToList();
+            Check("메뉴: .xlsx+.xls → XLSX·CSV", fmt.Usable(new[] { xlsx, xls }).Count == 2 && mixSheet.Contains("xlsx") && mixSheet.Contains("csv"), string.Join(",", mixSheet));
+            Check("메뉴: .pptx+.ppt → .ppt만", fmt.Usable(new[] { newDeck, ppt }).SequenceEqual(new[] { ppt }), string.Join(",", fmt.Usable(new[] { newDeck, ppt }).Select(Path.GetFileName)));
+            var mixHwp = fmt.OptionsFor(new[] { hwp, ppt }).FirstOrDefault(o => o.Id == "pptx");
+            Check("메뉴: 한글+.ppt면 'PPT로' 이름 그대로", mixHwp != null && mixHwp.Label == "PPT로", mixHwp == null ? "없음" : mixHwp.Label);
+
             // 1. 요즘 한셀의 .cell(속이 매크로 통합 문서와 같다)은 프로그램 없이 읽는다
             string cell = Path.Combine(w, "준비물표.cell");
             File.Copy(xlsx, cell);

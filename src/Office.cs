@@ -441,15 +441,20 @@ namespace Bakkum
         /// 한쇼는 이름 끝에 형식의 확장자를 덧붙일 때가 있다('가.show'를 기본 형식으로 → '가.show.pptx', 2026-11-13 실측).
         public void SaveAs(string src, string dst, int format, string what)
         {
+            string added = dst + (format == 1 ? ".ppt" : format == 32 ? ".pdf" : ".pptx");
+            bool addedBefore = File.Exists(added);
             dynamic pres = null;
             app.Arm(TimeSpan.FromMinutes(5));
             try
             {
                 pres = app.Obj.Presentations.Open(src, true, false, false);
-                // 한쇼는 옛 .ppt의 슬라이드 내용을 나중에 불러온다. 열자마자 PPTX로 저장하면 슬라이드가 텅 빈다(도형 0개).
-                // 슬라이드마다 도형 수를 한 번 읽으면 다 불러온다(2026-11-13 한컴오피스 2024 실측. PDF 저장은 그대로도 괜찮았다).
-                int count = (int)pres.Slides.Count;
-                for (int i = 1; i <= count; i++) { var n = pres.Slides.Item(i).Shapes.Count; }
+                if (format != 32)
+                {
+                    // 한쇼는 옛 .ppt의 슬라이드 내용을 나중에 불러온다. 열자마자 PPTX로 저장하면 슬라이드가 텅 빈다(도형 0개).
+                    // 슬라이드마다 도형 수를 한 번 읽으면 다 불러온다(2026-11-13 한컴오피스 2024 실측). PDF 저장은 그대로도 괜찮아서 손대지 않는다.
+                    int count = (int)pres.Slides.Count;
+                    for (int i = 1; i <= count; i++) { var n = pres.Slides.Item(i).Shapes.Count; }
+                }
                 pres.SaveAs(dst, format);
             }
             catch (Exception ex) { throw app.Failure(ex, what); }
@@ -458,8 +463,8 @@ namespace Bakkum
                 app.Disarm();
                 if (pres != null) { try { pres.Close(); } catch { } }
             }
-            string added = dst + (format == 1 ? ".ppt" : format == 24 ? ".pptx" : ".pdf");
-            if (!File.Exists(dst) && File.Exists(added)) File.Move(added, dst);
+            // 이번 저장이 만든 것만 옮긴다(전부터 있던 같은 이름의 파일은 건드리지 않는다)
+            if (!File.Exists(dst) && !addedBefore && File.Exists(added)) File.Move(added, dst);
         }
 
         public void Dispose()
