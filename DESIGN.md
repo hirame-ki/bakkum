@@ -138,7 +138,7 @@ radius:
 - 방향: up·chevdown(꺾쇠 한 쌍), left·right(꺾쇠), down(내려받기 화살표, 꺾쇠로 쓰지 않는다).
 
 ## 그림으로 확인
-- `Bakkum.exe /render-window settings|consent|install|dialog|toast|toast-done|toast-error|notice|photo|collage|pdfpages|aiconsent|prompt|compare|guide|update-toast|record|record-bar|record-count|record-area 결과.png [ai:연결] [state:...]`로 창을 화면 밖에서 2배로 찍는다(설정은 저장하지 않고 네트워크도 부르지 않음). 설정 창은 `page:shape|slots|key|ai|other`로 쪽을 고르고(없으면 지난번 쪽), `full`을 붙이면 쪽 내용을 스크롤 없이 끝까지 창 밖에서 펼쳐 찍는다. `state:unsaved`는 저장 전 알약을 보인다.
+- `Bakkum.exe /render-window settings|consent|install|dialog|toast|toast-done|toast-error|notice|photo|collage|pdfpages|aiconsent|organize|prompt|compare|guide|update-toast|record|record-bar|record-count|record-area 결과.png [ai:연결] [state:...]`로 창을 화면 밖에서 2배로 찍는다(설정은 저장하지 않고 네트워크도 부르지 않음). 설정 창은 `page:shape|slots|key|ai|other`로 쪽을 고르고(없으면 지난번 쪽), `full`을 붙이면 쪽 내용을 스크롤 없이 끝까지 창 밖에서 펼쳐 찍는다. `state:unsaved`는 저장 전 알약을 보인다.
 - 영상 편집 창은 `/render-window video 결과.png state:칸 demo [h:높이] [panel] 영상 파일`로 찍는다. `demo`는 예시 자막·스티커·표시를 얹고(자동 저장·내보내기는 하지 않음), `panel`은 오른쪽 칸만 스크롤 없이 끝까지 찍는다.
 - 디자인을 고치면 맑은 고딕으로 찍어 보고 낱말 쪼개짐·잘림·겹침을 확인한다.
 
