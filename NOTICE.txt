@@ -9,7 +9,8 @@ Copyright (C) 2026 hirame.ki, moonsune.zip
 바꿈은 법이 허락하는 한 아무런 보증 없이 제공됩니다(GPL-3.0 제15·16조).
 GPL-3.0 전문은 이 파일 맨 아래에 있습니다.
 
-바꿈의 코드는 모두 바꿈을 위해 새로 썼고, 다른 사람의 코드를 담고 있지 않습니다.
+바꿈의 코드는 바꿈을 위해 새로 썼습니다. 다만 자연스러운 목소리의 일부는
+Supertone의 공개 예제(MIT License)를 C#으로 옮긴 것이라, 그 표시를 3장에 함께 싣습니다.
 소스는 https://github.com/hirame-ki/bakkum 에 버전별로 있습니다.
 0.3.4까지의 버전은 Apache License 2.0으로 배포했고, 그 버전들에는 그 조건이 그대로 적용됩니다.
 
@@ -58,6 +59,14 @@ Additional terms under section 7 of the GNU GPL version 3:
    처음 쓸 때 물어본 뒤 Hugging Face에서 정해 둔 판만 받아 SHA-256으로
    확인하고, 이 PC 안에서만 돌립니다. 받은 모델은 프로그램을 지울 때
    같이 지웁니다.
+ - 자연스러운 목소리(고를 때만): Supertone의 Supertonic 3
+   (supertone-oss-archive/supertonic-3, BigScience Open RAIL-M License).
+   처음 쓸 때 받는 곳·크기·사용 조건을 보여 주고 물어본 뒤, Hugging Face에서
+   정해 둔 판만 받아 SHA-256으로 확인하고 이 PC 안에서만 돌립니다.
+   사용 조건에 따라 이 목소리로 만든 영상에는 'AI 목소리' 표시를 넣고,
+   조건 전문(LICENSE)도 함께 받습니다. 받은 목소리는 지우기 단추로 지울 수
+   있고, 프로그램을 지울 때 같이 지웁니다. 이 목소리를 돌리는 코드의 일부는
+   Supertone의 공개 예제를 옮긴 것이라 3장에 따로 적었습니다.
  - AI 연결(고를 때만): ChatGPT(OpenAI 'Sign in with ChatGPT'), Claude Code,
    Google Gemini API, OpenRouter. 보낼 때마다 먼저 묻습니다.
 
@@ -65,7 +74,40 @@ Additional terms under section 7 of the GNU GPL version 3:
 문서 내용은 보내지 않고, 설정 → 그 밖에서 끌 수 있습니다.
 
 ========================================================================
-3. 상표
+3. 바꿈 안에 옮겨 쓴 코드
+========================================================================
+
+ - 자연스러운 목소리(src/NaturalVoice.cs): 글자 다듬기(유니코드 풀기, 따옴표·
+   대시 맞추기, 문장 끝 마침표, 말 표시 붙이기)와 목소리를 만드는 순서(길이
+   예측 → 글자 인코더 → 잡음에서 여러 단계 다듬기 → 보코더)는 Supertone의
+   공개 예제(https://github.com/supertone-oss-archive/supertonic 의
+   py/helper.py)를 C#으로 옮긴 것입니다. 그 부분에는 아래 MIT 허가 문구가
+   함께 붙습니다. 바꿈 전체는 GPL-3.0으로 배포합니다.
+
+   MIT License
+
+   Copyright (c) 2025 Supertone Inc.
+
+   Permission is hereby granted, free of charge, to any person obtaining a copy
+   of this software and associated documentation files (the "Software"), to deal
+   in the Software without restriction, including without limitation the rights
+   to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+   copies of the Software, and to permit persons to whom the Software is
+   furnished to do so, subject to the following conditions:
+
+   The above copyright notice and this permission notice shall be included in all
+   copies or substantial portions of the Software.
+
+   THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+   IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+   FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+   AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+   LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+   OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+   SOFTWARE.
+
+========================================================================
+4. 상표
 ========================================================================
 
 "한글", "한컴", "HWP", "HWPX"는 한글과컴퓨터의 등록 상표입니다.
@@ -79,7 +121,7 @@ Additional terms under section 7 of the GNU GPL version 3:
 "바꿈"이라는 이름과 바꿈 아이콘은 hirame.ki가 이 프로그램에 쓰는 표시입니다(1장 다).
 
 ========================================================================
-4. GNU General Public License 3.0 전문
+5. GNU General Public License 3.0 전문
 ========================================================================
 
                     GNU GENERAL PUBLIC LICENSE

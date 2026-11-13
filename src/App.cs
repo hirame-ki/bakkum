@@ -580,7 +580,7 @@ namespace Bakkum
             return 0;
         }
 
-        /// /render-window settings|consent|install|dialog|toast|toast-done|toast-error|notice|photo|video 결과.png [ai:연결] [state:chatgpt,openrouter] [h:높이] (settings: [page:shape|slots|key|ai|other] [full]) (video: [state:칸] [demo] 영상 파일)
+        /// /render-window settings|consent|install|dialog|toast|toast-done|toast-error|notice|photo|video 결과.png [ai:연결] [state:chatgpt,openrouter] [h:높이] (settings: [page:shape|slots|key|ai|other] [full]) (dialog: [state:autosub|autosub-base|naturalvoice|naturalvoice-memory]) (video: [state:칸] [demo] 영상 파일)
         /// 창을 화면 밖에 잠깐 띄워 그림으로 찍는다. 설정은 저장하지 않고, 네트워크·Claude Code도 부르지 않는다.
         public static int RenderWindow(string[] args)
         {
@@ -634,6 +634,18 @@ namespace Bakkum
                     if (state == "autosub" || state == "autosub-base")
                     {
                         w = Dialog.Build(null, Theme.Teal, "subtitle", "자동 자막 모델을 받을까요?", VideoEditor.DownloadBody(state == "autosub" ? WhisperModels.Turbo : WhisperModels.Base), null, "그만두기", "받고 만들기");
+                        break;
+                    }
+                    if (state == "naturalvoice")
+                    {
+                        // 자막을 음성으로: 자연스러운 목소리를 받지 않았을 때 묻는 창(VideoEditor.NaturalReady)
+                        w = Dialog.Build(null, Theme.Teal, "wave", "자연스러운 목소리를 받을까요?", VideoEditor.NaturalDownloadBody(), null, "그만두기", "윈도우 목소리로", "동의하고 받기");
+                        break;
+                    }
+                    if (state == "naturalvoice-memory")
+                    {
+                        // 받았지만 메모리가 모자라 보일 때(남은 메모리는 예시 값)
+                        w = Dialog.Build(null, Theme.Teal, "wave", "메모리가 모자랄 수 있어요", VideoEditor.NaturalMemoryBody(700L * 1024 * 1024), null, "그만두기", "윈도우 목소리로", "그래도 하기");
                         break;
                     }
                     w = Dialog.Build(null, Theme.Green, "check", "ChatGPT 요금제를 사용하고 있어요",

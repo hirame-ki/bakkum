@@ -647,8 +647,13 @@ namespace Bakkum
             bool wantNotes = lectureNotes && kind == Kind.Ppt, subs = lectureSubs;
             string ext = Path.GetExtension(file).ToLowerInvariant();
             bool pptx = ext == ".pptx" || ext == ".ppsx" || ext == ".pptm" || ext == ".ppsm";
-            string voice = ttsVoice;
+            // 자연스러운 목소리를 골랐는데 아직 받지 않았으면 받을지 묻는다(받으면 다 받은 뒤 이어서 넣는다). 읽을 노트가 있을 때만.
+            bool toWindows;
+            if (wantNotes && pptx && NaturalVoices.IsNatural(ttsVoice) && HasNotes(file)
+                && !NaturalReady(true, delegate { AddLecture(file); }, out toWindows)) return;
+            string voice = ttsVoice, winVoice = ttsWinVoice;
             double rate = ttsRate;
+            VTts.Batch batch = null;
             List<List<VLecture.Spoken>> spoken = null;
             string notesWhy = wantNotes && !pptx ? "발표자 노트는 .pptx 파일에서만 읽을 수 있어요(PPT에서 .pptx로 저장해 다시 넣어 보세요)" : null;
             int noted = 0;
@@ -705,6 +710,8 @@ namespace Bakkum
                     return;
                 }
                 if (string.IsNullOrEmpty(voice) || !voices.Any(v => v.Id == voice)) voice = voices.First(v => v.Korean).Id;
+                // 자연스러운 목소리가 안 되면(메모리 등) 윈도우 목소리로 이어서 읽는다
+                batch = new VTts.Batch(voices, winVoice);
                 int made = 0;
                 var result = new List<List<VLecture.Spoken>>();
                 foreach (var l in lists)
@@ -715,9 +722,12 @@ namespace Bakkum
                         if (busyCancel) throw new OperationCanceledException();
                         report("노트를 음성으로 바꾸는 중 (" + (made + 1) + "/" + all + ")", made / (double)all);
                         string who = VLecture.VoiceFor(s, voice, voices);
-                        string wav = VTts.Speak(s, who, rate);
-                        parts.Add(new VLecture.Spoken { Text = s, Wav = wav, Len = SoundSeconds(wav), Voice = who, Rate = rate });
+                        if (NaturalVoices.IsNatural(who) && batch.Because == null && !NaturalVoiceEngine.Loaded) report("자연스러운 목소리를 여는 중", made / (double)all);
+                        string wav = batch.Speak(s, ref who, rate);
                         made++;
+                        // 읽을 글자가 없는 문장(이모지·한자만)은 건너뛴다
+                        if (wav == null) continue;
+                        parts.Add(new VLecture.Spoken { Text = s, Wav = wav, Len = SoundSeconds(wav), Voice = who, Rate = rate });
                     }
                     result.Add(parts);
                 }
@@ -731,16 +741,22 @@ namespace Bakkum
                     return;
                 }
                 int read = 0;
+                bool labeled = false;
                 Change(null, delegate
                 {
                     double local;
                     int i = project.ClipAt(t, out local);
                     int at = i < 0 ? project.Clips.Count : (local < project.Clips[i].Length / 2 ? i : i + 1);
                     read = VLecture.Insert(project, at, pages, spoken, secs, subs, project.Items.LastOrDefault(x => x.Subtitle));
+                    // AI 목소리로 읽었으면 화면에 밝힌다(목소리 모델의 사용 조건). 쪽을 넣은 뒤라 표시가 새 길이 끝까지 간다.
+                    if (read > 0 && spoken != null && spoken.Any(l => l.Any(x => NaturalVoices.IsNatural(x.Voice)))) labeled = VAiLabel.Ensure(project);
                 });
                 string head = "'" + Path.GetFileName(file) + "'의 " + pages.Count + "쪽을 넣었어요." + (total > pages.Count ? " (앞 " + pages.Count + "쪽만 넣었어요)" : "");
                 if (read > 0)
-                    SetStatus(head + " 노트가 있는 " + noted + "쪽은 노트 " + read + "문장을 음성으로 넣고" + (subs ? " 자막으로도 보여 주며" : "") + ", 노트가 없는 쪽은 " + Sec(secs) + "씩 보여 줘요. 음성은 [소리] 칸에서 바꾸거나 지울 수 있어요.");
+                    SetStatus(head + " 노트가 있는 " + noted + "쪽은 노트 " + read + "문장을 음성으로 넣고" + (subs ? " 자막으로도 보여 주며" : "") + ", 노트가 없는 쪽은 " + Sec(secs) + "씩 보여 줘요. 음성은 [소리] 칸에서 바꾸거나 지울 수 있어요."
+                        + (batch != null && batch.Switched > 0 ? " " + batch.Because + " 노트 " + batch.Switched + "문장은 윈도우 목소리로 읽었어요." : "")
+                        + (batch != null && batch.Unreadable > 0 ? " 읽을 글자가 없는 문장 " + batch.Unreadable + "개(이모지·한자·기호만)는 건너뛰었어요." : "")
+                        + (labeled ? " AI 목소리라서 화면 왼쪽 위에 'AI 목소리' 표시를 넣었어요(목소리 모델의 사용 조건)." : ""));
                 else
                     SetStatus(head + " 쪽마다 " + Sec(secs) + "씩 보여 줘요." + (notesWhy != null ? " " + notesWhy + "." : "") + " [소리] 칸의 녹음으로 설명을 입혀 보세요.");
                 fileText.Text = Theme.Keep(FilesLine());
@@ -1769,11 +1785,12 @@ namespace Bakkum
             return pick.Take(Math.Min(used, pick.Count)).Select(x => x.Text ?? "").ToList();
         }
 
-        /// 이 글을 읽을 목소리: 한글이 없고 영어 글자가 대부분이면 영어 목소리(있을 때), 아니면 고른 목소리
+        /// 이 글을 읽을 목소리: 한글이 없고 영어 글자가 대부분이면 영어 목소리(있을 때), 아니면 고른 목소리.
+        /// 자연스러운 목소리는 한 목소리로 영어도 읽으니(영어 문장은 영어로 읽는다) 고른 목소리 그대로.
         internal static string VoiceFor(string text, string chosen, List<VTts.Voice> voices)
         {
-            if (!LooksEnglish(text) || voices == null) return chosen;
-            var en = voices.FirstOrDefault(v => (v.Lang ?? "").StartsWith("en", StringComparison.OrdinalIgnoreCase));
+            if (NaturalVoices.IsNatural(chosen) || !LooksEnglish(text) || voices == null) return chosen;
+            var en = voices.FirstOrDefault(v => !v.Natural && (v.Lang ?? "").StartsWith("en", StringComparison.OrdinalIgnoreCase));
             return en != null ? en.Id : chosen;
         }
 

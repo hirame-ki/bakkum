@@ -896,7 +896,7 @@ namespace Bakkum
         // ══ 자막 ══
 
         string findText = "", replaceText = "";
-        string ttsVoice;
+        /// 음성 빠르기(목소리 고르기는 VideoVoice.cs)
         double ttsRate = 1;
 
         void AddSubtitle()
@@ -1149,31 +1149,7 @@ namespace Bakkum
             Chips(new[] { "none", "fade" }, new[] { "바로", "서서히" }, it.Out, v => SetItem(null, x => x.Out = v));
         }
 
-        void TtsControls()
-        {
-            List<VTts.Voice> voices;
-            try
-            {
-                voices = VTts.Voices();
-            }
-            catch (Exception ex)
-            {
-                Log.Write("목소리 목록 실패: " + ex.GetType().Name);
-                voices = new List<VTts.Voice>();
-            }
-            var korean = voices.Where(v => v.Korean).ToList();
-            if (korean.Count == 0)
-            {
-                Hint("이 PC에 한국어 목소리가 없어요. 윈도우 설정 › 시간 및 언어 › 음성에서 한국어 목소리를 더할 수 있어요.");
-                return;
-            }
-            if (ttsVoice == null || !korean.Any(v => v.Id == ttsVoice)) ttsVoice = korean[0].Id;
-            if (korean.Count > 1) Chips(korean.Select(v => v.Id).ToArray(), korean.Select(v => ShortVoice(v.Name)).ToArray(), ttsVoice, v => ttsVoice = v);
-            else Hint("목소리: " + ShortVoice(korean[0].Name));
-            SliderRow("음성 빠르기", 0.6, 1.6, ttsRate, 0.1, Times, v => ttsRate = v);
-        }
-
-        /// 자막 칸의 '자막을 음성으로'. 자막을 고르지 않아도 보인다([모든 자막을 음성으로]).
+        /// 자막 칸의 '자막을 음성으로'. 자막을 고르지 않아도 보인다([모든 자막을 음성으로]). 목소리 고르기는 VideoVoice.cs.
         void VoiceSection(VItem it)
         {
             Label("자막을 음성으로");
@@ -1185,6 +1161,8 @@ namespace Bakkum
             Hint("자막 글을 목소리로 읽어 음성으로 넣어요. 자막을 옮기면 음성도 따라가요. 글은 이 PC 밖으로 나가지 않아요.");
             var stale = VideoExport.StaleVoices(project);
             if (stale != null) CheckRow(stale);
+            var ai = VideoExport.AiVoice(project, false);
+            if (ai != null) CheckRow(ai);
             TtsControls();
             if (it != null)
             {
@@ -1236,14 +1214,23 @@ namespace Bakkum
                 RefreshPanel();
                 return;
             }
-            string chosen = ttsVoice;
-            int english = 0, noEnglish = 0;
+            // 자연스러운 목소리를 아직 받지 않았으면 받을지 묻는다(받으면 다 받은 뒤 이 일을 이어서 한다)
+            bool toWindows;
+            if (!NaturalReady(jobs.Any(j => NaturalVoices.IsNatural(j.Voice)), delegate { SubtitlesToVoice(ids, again); }, out toWindows)) return;
+            if (toWindows)
+                foreach (var j in jobs)
+                    if (NaturalVoices.IsNatural(j.Voice)) j.Voice = null;
+            string chosen = ttsVoice, winVoice = ttsWinVoice;
+            int english = 0, noEnglish = 0, englishNatural = 0;
+            VTts.Batch batch = null;
             RunBusy("자막을 음성으로 바꾸는 중", delegate (Action<string, double> report)
             {
                 var voices = VTts.Voices();
                 var korean = voices.Where(v => v.Korean).ToList();
                 if (korean.Count == 0) throw new UserFacingException("이 PC에 한국어 목소리가 없어요. 윈도우 설정 › 시간 및 언어 › 음성에서 한국어 목소리를 더할 수 있어요.");
                 string fallback = chosen != null && korean.Any(v => v.Id == chosen) ? chosen : korean[0].Id;
+                // 자연스러운 목소리가 안 되면(메모리 등) 윈도우 목소리로 이어서 만든다
+                batch = new VTts.Batch(voices, winVoice);
                 for (int i = 0; i < jobs.Count; i++)
                 {
                     if (busyCancel) throw new OperationCanceledException();
@@ -1252,35 +1239,58 @@ namespace Bakkum
                     string speak = j.Text.Replace("\r", " ").Replace("\n", " ");
                     // 바탕은 한국어 목소리(전에 영어 자막을 읽은 목소리였으면 고른 한국어 목소리로), 영어 문장이면 영어 목소리
                     string baseVoice = j.Voice != null && korean.Any(v => v.Id == j.Voice) ? j.Voice : fallback;
-                    j.Voice = VLecture.VoiceFor(speak, baseVoice, voices);
+                    string voice = VLecture.VoiceFor(speak, baseVoice, voices);
+                    if (NaturalVoices.IsNatural(voice) && batch.Because == null && !NaturalVoiceEngine.Loaded) report("자연스러운 목소리를 여는 중", i / (double)jobs.Count);
+                    j.Path = batch.Speak(speak, ref voice, j.Rate);
+                    j.Voice = voice;
+                    // 읽을 글자가 없는 자막(이모지·한자만)은 음성을 만들지 않는다
+                    if (j.Path == null) continue;
+                    j.Len = SoundSeconds(j.Path);
                     if (VLecture.LooksEnglish(speak))
                     {
-                        if (j.Voice != baseVoice) english++;
+                        // 자연스러운 목소리는 같은 목소리로 영어 문장을 영어로 읽는다
+                        if (NaturalVoices.IsNatural(j.Voice)) englishNatural++;
+                        else if (voices.Any(v => v.Id == j.Voice && !v.Korean)) english++;
                         else noEnglish++;
                     }
-                    j.Path = VTts.Speak(speak, j.Voice, j.Rate);
-                    j.Len = SoundSeconds(j.Path);
                 }
             }, delegate
             {
-                int made = 0, longer = 0;
+                int made = 0, longer = 0, dropped = 0;
+                bool labeled = false;
                 Change(null, delegate
                 {
                     if (clear.Count > 0) project.Sounds.RemoveAll(s => s.ItemId != null && clear.Contains(s.ItemId));
+                    bool natural = false;
                     foreach (var j in jobs)
                     {
                         // 만드는 동안 지운 자막은 건너뛴다. 그동안 글을 고쳤으면 '바뀐 자막'으로 잡힌다(읽은 글을 적어 두므로).
                         var it = project.FindItem(j.ItemId);
                         if (it == null) continue;
+                        if (j.Path == null)
+                        {
+                            // 새 글에 읽을 글자가 없으면 옛 글을 읽던 음성은 뺀다
+                            if (again) dropped += project.Sounds.RemoveAll(s => s.Kind == "voice" && s.ItemId == j.ItemId);
+                            continue;
+                        }
                         if (project.PutVoice(it, j.Text, j.Path, j.Len, j.Voice, j.Rate)) longer++;
                         made++;
+                        if (NaturalVoices.IsNatural(j.Voice)) natural = true;
                     }
+                    // AI 목소리를 넣었으면 화면에 밝힌다(목소리 모델의 사용 조건). 이미 밝혀 두었으면 그대로.
+                    if (natural) labeled = VAiLabel.Ensure(project);
                 });
-                var sb = new StringBuilder(again ? "바뀐 자막 " + made + "개의 음성을 새 글로 다시 만들었어요." : "자막 " + made + "개를 음성으로 바꿨어요.");
+                int unreadable = batch != null ? batch.Unreadable : 0;
+                var sb = new StringBuilder();
+                if (made > 0 || unreadable == 0) sb.Append(again ? "바뀐 자막 " + made + "개의 음성을 새 글로 다시 만들었어요." : "자막 " + made + "개를 음성으로 바꿨어요.");
+                if (unreadable > 0) sb.Append((sb.Length > 0 ? " " : "") + "읽을 글자가 없는 자막 " + unreadable + "개(이모지·한자·기호만 있는 자막)는 음성을 만들지 않았어요" + (dropped > 0 ? "(옛 글을 읽던 음성은 뺐어요)." : "."));
                 if (clear.Count > 0) sb.Append(" 글이 빈 자막 " + clear.Count + "개의 음성은 뺐어요.");
+                if (batch != null && batch.Switched > 0) sb.Append(" " + batch.Because + " 자막 " + batch.Switched + "개는 윈도우 목소리로 만들었어요.");
+                if (englishNatural > 0) sb.Append(" 영어 자막 " + englishNatural + "개는 같은 목소리로 영어로 읽었어요.");
                 if (english > 0) sb.Append(" 영어 자막 " + english + "개는 영어 목소리로 읽었어요.");
                 if (noEnglish > 0) sb.Append(" 이 PC에 영어 목소리가 없어서 영어 자막 " + noEnglish + "개는 한국어 목소리로 읽었어요(윈도우 설정 › 시간 및 언어 › 음성에서 영어 목소리를 더할 수 있어요).");
                 if (longer > 0) sb.Append(" 음성이 다음 자막과 겹치는 곳이 " + longer + "군데 있어요. 자막을 나누거나 음성 빠르기를 올려 보세요.");
+                if (labeled) sb.Append(" AI 목소리라서 화면 왼쪽 위에 'AI 목소리' 표시를 넣었어요(목소리 모델의 사용 조건).");
                 SetStatus(sb.ToString());
                 RefreshPanel();
             });
@@ -2585,6 +2595,7 @@ namespace Bakkum
                 case "aspect916": return "9:16으로 바꾸기";
                 case "subtitle_slow": return "자막 늘리기";
                 case "voice_stale": return "바뀐 자막만 다시 만들기";
+                case "ai_label": return "'AI 목소리' 표시 넣기";
             }
             return "고치기";
         }
@@ -2641,6 +2652,10 @@ namespace Bakkum
                 case "voice_stale":
                     // 음성으로 바꾼 뒤 글을 고친 자막만, 전에 쓴 목소리·빠르기로 다시 만든다(끝나면 칸을 다시 그린다)
                     SubtitlesToVoice(project.StaleVoiceItems().Select(i => i.Id).ToList(), true);
+                    break;
+                case "ai_label":
+                    Change(null, delegate { VAiLabel.Ensure(project); });
+                    SetStatus("화면 왼쪽 위에 'AI 목소리' 표시를 넣었어요. 끌어서 옮기거나 글을 바꿀 수 있어요.");
                     break;
             }
             RefreshPanel();
