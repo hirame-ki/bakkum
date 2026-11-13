@@ -3,6 +3,7 @@
 // 영상 편집 시간 막대: 눈금(표시·구간), 본 영상(그림 띠·소리 모양), 자막, 글자·그림, 작은 화면, 소리 줄.
 // 조각은 끌어서 순서를 바꾸고 앞뒤 끝을 끌어 자른다(놓을 때 뒤가 당겨 붙는다).
 // 얹은 것·소리는 끌어서 옮기거나 길이를 바꾼다. 자석을 켜면 재생 위치·경계·표시에 붙는다. Ctrl+휠은 확대.
+// 자막·글자·그림·소리 줄 이름 옆에는 연한 + 단추가 있다. 마우스를 올리면 넣을 자리를 옅게 보이고, 누르면 Plus를 부른다.
 using System;
 using System.Collections.Generic;
 using System.Globalization;
@@ -17,8 +18,11 @@ namespace Bakkum
 {
     sealed class VTimeline : FrameworkElement
     {
-        public const double HeadW = 74;
+        // 줄 이름 칸 너비: 이름표('글자·그림' 약 67) + 연한 + 단추(지름 20)가 나란히 들어가게 74에서 104로(2026-11-13 #69)
+        public const double HeadW = 104;
         const double RulerH = 26, VideoH = 64, WaveH = 18, LaneH = 24, SoundLaneH = 30, RowGap = 5, Edge = 7, SnapPx = 9;
+        /// + 단추 지름(줄이 눌리면 같이 줄어든다, 14 아래로는 안 내림)
+        const double PlusD = 20;
         // 글자 크기(화면 점, 윈도우 배율만큼 같이 커짐). 작은 노트북에서도 읽히게 막대 이름·시각은 12,
         // 소리 띠 안의 짧은 알림만 11(띠 높이 18). 2026-11-13 사용자 요청 "너무 작게 나오는 글자가 없게".
         const double TextSize = 12, SmallTextSize = 11;
@@ -55,8 +59,13 @@ namespace Bakkum
         public Action ViewChanged;
         /// 구간(I~O)이 바뀜
         public Action RangeChanged;
+        /// 줄 이름 옆 + 단추를 누름("sub" 자막 · "deco" 글자·그림 · "sound" 소리)
+        public Action<string> Plus;
 
         enum RowKind { Video, Sub, Deco, Pip, Sound }
+
+        /// 마우스가 올라간 + 단추(없으면 null)
+        string hoverPlus;
 
         sealed class Block
         {
@@ -280,7 +289,8 @@ namespace Bakkum
 
             rows.Add(RowKind.Video);
             rows.Add(RowKind.Sub);
-            if (blocks.Any(b => b.Row == RowKind.Deco)) rows.Add(RowKind.Deco);
+            // 글자·그림 줄은 비어 있어도 늘 보인다(줄 이름 옆 + 단추로 넣으려면 줄이 있어야 한다)
+            rows.Add(RowKind.Deco);
             if (blocks.Any(b => b.Row == RowKind.Pip)) rows.Add(RowKind.Pip);
             rows.Add(RowKind.Sound);
 
@@ -375,6 +385,7 @@ namespace Bakkum
                     default: DrawItem(dc, b, (VItem)b.Obj); break;
                 }
             }
+            if (hoverPlus != null && mode == DragMode.None) DrawPlusGhost(dc, W);
             DrawDragExtras(dc, W, H);
             dc.Pop();
 
@@ -393,15 +404,226 @@ namespace Bakkum
                 }
             }
 
-            // 줄 이름
+            // 줄 이름(+ 단추가 있는 줄은 이름표가 + 앞에서 끝난다)
             dc.DrawRectangle(Theme.Sheet, null, new Rect(0, 0, HeadW - 4, H));
             foreach (var r in rows)
             {
+                string kind = PlusKind(r);
+                Rect pr = kind != null ? PlusRectOf(r) : Rect.Empty;
+                double chipMax = kind != null ? pr.Left - 8 : HeadW - 12;
                 var t = Txt(RowName(r), 12, RowHue(r).DeepBrush, true);
+                t.MaxTextWidth = Math.Max(8, chipMax - 14);
+                t.MaxLineCount = 1;
+                t.Trimming = TextTrimming.CharacterEllipsis;
                 double y = rowTop[r] + Math.Min(rowH[r], r == RowKind.Video ? rowH[r] : laneH[r]) / 2 - t.Height / 2;
-                dc.DrawRoundedRectangle(RowHue(r).TintBrush, null, new Rect(4, y - 3, Math.Min(HeadW - 12, t.Width + 14), t.Height + 6), 8, 8);
+                dc.DrawRoundedRectangle(RowHue(r).TintBrush, null, new Rect(4, y - 3, Math.Min(chipMax, t.Width + 14), t.Height + 6), 8, 8);
                 dc.DrawText(t, new Point(11, y));
+                if (kind != null) DrawPlusButton(dc, pr, RowHue(r), kind == hoverPlus && mode == DragMode.None);
             }
+            if (hoverPlus != null && mode == DragMode.None) DrawPlusTip(dc, W, H);
+        }
+
+        // ── 줄 이름 옆 + 단추 ──
+
+        static string PlusKind(RowKind r)
+        {
+            switch (r)
+            {
+                case RowKind.Sub: return "sub";
+                case RowKind.Deco: return "deco";
+                case RowKind.Sound: return "sound";
+                default: return null;
+            }
+        }
+
+        static RowKind RowOfPlus(string kind)
+        {
+            return kind == "sub" ? RowKind.Sub : kind == "deco" ? RowKind.Deco : RowKind.Sound;
+        }
+
+        /// + 단추 자리: 줄 이름 칸 오른쪽 끝, 그 줄 첫 칸의 가운데 높이
+        Rect PlusRectOf(RowKind r)
+        {
+            double lane = Math.Min(rowH[r], laneH[r]);
+            double d = Math.Max(14, Math.Min(PlusD, lane - 2));
+            double cy = rowTop[r] + lane / 2;
+            return new Rect(HeadW - 8 - d, cy - d / 2, d, d);
+        }
+
+        /// + 단추 자리(이 시간 막대 기준). 그 줄이 없으면 Rect.Empty
+        internal Rect PlusRect(string kind)
+        {
+            if (Project == null || kind == null) return Rect.Empty;
+            Layout();
+            var r = RowOfPlus(kind);
+            return rows.Contains(r) ? PlusRectOf(r) : Rect.Empty;
+        }
+
+        /// 그 자리의 + 단추(누르기 쉽게 그린 것보다 사방 3씩 넓게 받는다). 없으면 null
+        internal string PlusAt(Point p)
+        {
+            if (Project == null || p.X >= HeadW - 2 || p.X < 0) return null;
+            Layout();
+            foreach (var r in rows)
+            {
+                string kind = PlusKind(r);
+                if (kind == null) continue;
+                var hit = PlusRectOf(r);
+                hit.Inflate(3, 3);
+                if (hit.Contains(p)) return kind;
+            }
+            return null;
+        }
+
+        /// 그림 확인용: + 단추에 마우스가 올라간 모습
+        internal void ShowPlusHover(string kind)
+        {
+            hoverPlus = kind;
+            InvalidateVisual();
+        }
+
+        void DrawPlusButton(DrawingContext dc, Rect r, Hue hue, bool hot)
+        {
+            // 쉴 때는 옅은 칠 + 깊은 색 +, 올리면 진한 칠 + 잉크색 +로 살짝 커진다
+            if (hot) r.Inflate(1.5, 1.5);
+            var c = new Point(r.X + r.Width / 2, r.Y + r.Height / 2);
+            var ring = hot ? null : MakePen(Theme.Frozen(Color.FromArgb(80, hue.Deep.R, hue.Deep.G, hue.Deep.B)), 1);
+            dc.DrawEllipse(hot ? hue.VividBrush : hue.TintBrush, ring, c, r.Width / 2, r.Height / 2);
+            double a = r.Width * 0.24;
+            var pen = MakePen(hot ? Theme.Ink : hue.DeepBrush, 2);
+            dc.DrawLine(pen, new Point(c.X - a, c.Y), new Point(c.X + a, c.Y));
+            dc.DrawLine(pen, new Point(c.X, c.Y - a), new Point(c.X, c.Y + a));
+        }
+
+        static string PlusTip(string kind)
+        {
+            return kind == "sub" ? "자막 넣기 (T)" : kind == "deco" ? "글자·그림 넣기" : "소리 넣기";
+        }
+
+        /// 넣을 자리(재생 위치부터). 자막·글자·그림은 넣기 함수와 같은 길이로 셈한다.
+        void PlusSpan(RowKind r, out double a, out double b)
+        {
+            double d = Duration, t = Math.Max(0, Math.Min(d, playhead));
+            double len = r == RowKind.Sub ? 2.5 : r == RowKind.Deco ? 3 : 1.5;
+            double least = r == RowKind.Sub ? 0.4 : Math.Min(len, 1);
+            a = t;
+            b = Math.Min(d, t + len);
+            if (b - a < least)
+            {
+                a = Math.Max(0, d - len);
+                b = d;
+            }
+            if (r == RowKind.Sub && Project != null)
+            {
+                double from = a;
+                var next = Project.Items.Where(i => i.Subtitle && i.Start > from + 0.01).OrderBy(i => i.Start).FirstOrDefault();
+                if (next != null && next.Start < b) b = Math.Max(a + 0.4, next.Start);
+            }
+        }
+
+        /// 넣은 것이 들어갈 칸. 시간 막대가 칸을 나누는 방식(AddLaned: 시작 순서대로 처음 빈 칸)을
+        /// 넣은 뒤로 미리 셈한다. 새 것은 목록 끝에 붙으니 시작이 같은 것들보다 뒤에 놓인다.
+        int PlusLane(RowKind r, double a)
+        {
+            var ends = new List<double>();
+            foreach (var k in blocks.Where(x => x.Row == r && x.A <= a + 1e-9).OrderBy(x => x.A))
+            {
+                int i = ends.FindIndex(e => e <= k.A + 1e-6);
+                if (i < 0) ends.Add(k.B);
+                else ends[i] = k.B;
+            }
+            int lane = ends.FindIndex(e => e <= a + 1e-6);
+            return lane < 0 ? ends.Count : lane;
+        }
+
+        /// + 위에 마우스가 있을 때 넣을 자리. 화면 밖이면 Rect.Empty.
+        /// newLane: 빈 칸이 없어 넣으면 줄이 한 칸 늘어나는 때. 그때는 아랫줄을 침범해 다른 줄에 들어갈 것처럼
+        /// 보이지 않게, 이 줄 전체에 옅게 겹쳐 보인다(2026-11-13: 자막 칸이 아래 글자·그림 줄 위에 그려졌음).
+        Rect PlusGhost(out bool newLane)
+        {
+            newLane = false;
+            if (hoverPlus == null || Project == null) return Rect.Empty;
+            var r = RowOfPlus(hoverPlus);
+            if (!rows.Contains(r)) return Rect.Empty;
+            double a, b;
+            PlusSpan(r, out a, out b);
+            double x0 = X(a), x1 = X(b), W = ActualWidth;
+            if (x1 < HeadW || x0 > W) return Rect.Empty;
+            int lane = PlusLane(r, a);
+            int lanes = Math.Max(1, blocks.Where(k => k.Row == r).Select(k => k.Lane + 1).DefaultIfEmpty(1).Max());
+            newLane = lane >= lanes;
+            double top = newLane ? rowTop[r] : rowTop[r] + lane * laneH[r];
+            double h = newLane ? rowH[r] - 3 : laneH[r] - 3;
+            return new Rect(x0, top, Math.Max(6, x1 - x0 - 1), Math.Max(6, h));
+        }
+
+        internal Rect PlusGhostRect()
+        {
+            bool newLane;
+            return PlusGhost(out newLane);
+        }
+
+        /// 시험용: 넣을 것이 들어갈 칸 번호(지금 칸 수 이상이면 새 칸)
+        internal int PlusLaneForTest(string kind, out int lanes)
+        {
+            Layout();
+            var r = RowOfPlus(kind);
+            lanes = Math.Max(1, blocks.Where(k => k.Row == r).Select(k => k.Lane + 1).DefaultIfEmpty(1).Max());
+            double a, b;
+            PlusSpan(r, out a, out b);
+            return PlusLane(r, a);
+        }
+
+        /// + 위에 마우스가 있을 때 그 줄의 넣을 자리를 옅게
+        void DrawPlusGhost(DrawingContext dc, double W)
+        {
+            bool newLane;
+            var rect = PlusGhost(out newLane);
+            if (rect.IsEmpty) return;
+            var hue = RowHue(RowOfPlus(hoverPlus));
+            var pen = new Pen(hue.DeepBrush, 1.4) { DashStyle = new DashStyle(new double[] { 3, 2 }, 0) };
+            pen.Freeze();
+            // 줄 전체에 겹칠 때는 아래 이름표 글이 읽히게 더 옅게
+            byte alpha = (byte)(newLane ? 70 : 110);
+            dc.DrawRoundedRectangle(Theme.Frozen(Color.FromArgb(alpha, hue.Vivid.R, hue.Vivid.G, hue.Vivid.B)), pen, rect, 7, 7);
+        }
+
+        /// + 단추 옆의 짧은 말풍선(끌 때 보이는 말풍선과 같은 모양). 넣을 자리는 가리지 않는다.
+        internal Rect PlusTipRect()
+        {
+            if (hoverPlus == null || Project == null) return Rect.Empty;
+            var r = RowOfPlus(hoverPlus);
+            if (!rows.Contains(r)) return Rect.Empty;
+            double W = ActualWidth, H = ActualHeight;
+            var pr = PlusRectOf(r);
+            var t = Txt(PlusTip(hoverPlus), TextSize + 0.5, Theme.Sheet, true);
+            double w = t.Width + 12, h = t.Height + 6;
+            var box = new Rect(pr.Right + 10, pr.Top + pr.Height / 2 - h / 2, w, h);
+            var ghost = PlusGhostRect();
+            if (!ghost.IsEmpty)
+            {
+                // 보이는 부분만 따진다(왼쪽 줄 이름 칸 뒤는 가려져 있다)
+                double gl = Math.Max(HeadW, ghost.Left), gr = Math.Min(W, ghost.Right);
+                var seen = new Rect(gl, ghost.Top - 2, Math.Max(0, gr - gl) + 4, ghost.Height + 4);
+                if (seen.IntersectsWith(box))
+                {
+                    // 넣을 자리 뒤에 놓고, 뒤에 자리가 없으면 + 위(윗줄 쪽)에 놓는다
+                    if (gr + 8 + w <= W - 4) box.X = gr + 8;
+                    else box.Y = rowTop[r] - h - 4;
+                }
+            }
+            box.X = Math.Max(0, Math.Min(W - w - 4, box.X));
+            box.Y = Math.Max(RulerH + 2, Math.Min(H - h - 4, box.Y));
+            return box;
+        }
+
+        void DrawPlusTip(DrawingContext dc, double W, double H)
+        {
+            var box = PlusTipRect();
+            if (box.IsEmpty) return;
+            var t = Txt(PlusTip(hoverPlus), TextSize + 0.5, Theme.Sheet, true);
+            dc.DrawRoundedRectangle(Theme.Ink, null, box, 8, 8);
+            dc.DrawText(t, new Point(box.X + 6, box.Y + 3));
         }
 
         void DrawRuler(DrawingContext dc, double W)
@@ -914,6 +1136,16 @@ namespace Bakkum
             base.OnMouseLeftButtonDown(e);
             Focus();
             var p = e.GetPosition(this);
+            string plus = PlusAt(p);
+            if (plus != null)
+            {
+                e.Handled = true;
+                hoverPlus = null;
+                InvalidateVisual();
+                // 버릇처럼 두 번 눌러도 두 번 넣지 않는다
+                if (e.ClickCount == 1 && Plus != null) Plus(plus);
+                return;
+            }
             if (p.X < HeadW - 4 || Project == null) return;
             Layout();
             downAt = p;
@@ -1004,7 +1236,13 @@ namespace Bakkum
             var p = e.GetPosition(this);
             if (mode == DragMode.None || !IsMouseCaptured)
             {
-                Cursor = CursorAt(p);
+                string plus = PlusAt(p);
+                if (plus != hoverPlus)
+                {
+                    hoverPlus = plus;
+                    InvalidateVisual();
+                }
+                Cursor = plus != null ? Cursors.Hand : CursorAt(p);
                 return;
             }
             double t = TimeAt(p.X);
@@ -1299,6 +1537,14 @@ namespace Bakkum
             begun = false;
             snapLine = -1;
             dragLabel = null;
+            InvalidateVisual();
+        }
+
+        protected override void OnMouseLeave(MouseEventArgs e)
+        {
+            base.OnMouseLeave(e);
+            if (hoverPlus == null) return;
+            hoverPlus = null;
             InvalidateVisual();
         }
 

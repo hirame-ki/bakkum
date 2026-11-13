@@ -196,6 +196,8 @@ namespace Bakkum
 
             // ── 9. 저장·되돌리기·자동 저장 정리 ──
             SaveAndTidy(moving);
+            // 편집 창의 줄 이름 옆 + ·아래 빈 곳 단추(실제 창을 화면 밖에 띄워 누른다)
+            EditorPlus(moving);
 
             // ── 10. 내보내기 전 점검 ──
             ExportChecks(moving);

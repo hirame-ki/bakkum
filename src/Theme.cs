@@ -1169,7 +1169,10 @@ namespace Bakkum
             { "split", "M12,3 V21 M4,7 H9 V17 H4 M20,7 H15 V17 H20" },
             { "safe", "M4,4 H20 V20 H4 Z M7,7.5 H17 M7,16.5 H17" },
             { "wave", "M3,12 H5 M7,8 V16 M10,5 V19 M13,9 V15 M16,6.5 V17.5 M19,10 V14 M21,12 H21.1" },
-            { "range", "M5,5 V19 M19,5 V19 M5,12 H19 M9,9 L5,12 L9,15 M15,9 L19,12 L15,15" }
+            { "range", "M5,5 V19 M19,5 V19 M5,12 H19 M9,9 L5,12 L9,15 M15,9 L19,12 L15,15" },
+            // 여기서 시작(막대에서 오른쪽으로 나가는 화살표)·여기서 끝(막대로 들어오는 화살표)
+            { "setstart", "M6,5 V19 M10,12 H19 M15,8 L19,12 L15,16" },
+            { "setend", "M18,5 V19 M5,12 H14 M10,8 L14,12 L10,16" }
         };
 
         static readonly Dictionary<string, Geometry> GlyphCache = new Dictionary<string, Geometry>();

@@ -47,6 +47,8 @@ HEIC·AVIF·WEBP 그림은 PC에 해당 이미지 확장이 있어야 열립니�
 | 선생님 도구 | 조용한 곳 한 번에 자르기, 화면 녹화 다듬기(누른 곳 확대·마우스 강조), 내 얼굴 작은 화면, 수업 자료(PDF·PPT·한글)로 영상(PPT 발표자 노트를 음성으로), 제목 화면·이름 띠, 유튜브 챕터 |
 | 내보내기 | 그대로·릴스·쇼츠·유튜브·카카오톡·용량 맞추기·소리만·표지 그림, 고른 구간만, 내보내기 전 점검(없는 원본·빠른 자막·화면 밖 글자·세로 영상의 가려지는 곳 등) |
 
+시간 막대의 자막·글자·그림·소리 줄 이름 옆 +를 누르면 오른쪽 칸을 내리지 않고 재생 위치에 바로 넣습니다(글자·그림·소리는 작은 고르기 창에서 고름). 고른 것의 [여기서 시작]·[여기서 끝]과 자막의 [다음 자막]·[음성으로], 글자·그림의 [맨 앞으로]·[맨 뒤로]는 창 맨 아래 왼쪽에도 있습니다.
+
 얼굴·목소리·화면은 이 PC 안에서만 다루고 어디로도 보내지 않습니다. 자동 자막도 이 PC에서 받아쓰며, 받아쓰기 모델(OpenAI Whisper, 빠르게 약 74MB·정확하게 약 1.0GB)은 처음 쓸 때 물어본 뒤 받습니다. 자연스러운 목소리(Supertone Supertonic 3, 약 383MB)도 학생 이름 같은 자막 글을 인터넷으로 보내지 않으려고, 목소리 파일을 이 PC에 받아 PC 안에서만 만듭니다. 처음 쓸 때 받는 까닭·받는 곳·크기·사용 조건을 보여 주고 물어본 뒤 받습니다. 휴대폰으로 찍은 영상의 촬영 위치 정보는 결과 파일에 남기지 않습니다. 하던 편집은 자동으로 저장되어 다음에 같은 영상을 넣으면 이어서 할 수 있습니다.
 
 PDF·한글·워드 → PPT는 글자를 글상자로 옮기고 표의 선과 그림은 슬라이드 배경으로 둡니다. 스캔본은 글자 인식으로 읽으므로 틀린 글자가 있을 수 있습니다.
@@ -150,6 +152,7 @@ build\Bakkum.exe /run text local 스캔.pdf
 | `src/PptDeck.cs`, `src/PdfToPpt.cs`, `src/DeckDesign.cs` | PPT 쓰기, PDF → 글자 고칠 수 있는 PPT, AI 수업 PPT 디자인 |
 | `src/Media.cs`, `src/MediaFoundation.cs`, `src/Mkv.cs`, `src/Gif.cs` | 영상·소리 |
 | `src/VideoEditor.cs`, `src/VideoEditorPanels.cs`, `src/VideoTimeline.cs`, `src/VideoPreview.cs` | 영상 편집 창(칸 메뉴·오른쪽 칸·시간 막대·미리 보기) |
+| `src/VideoEditorPlus.cs` | 영상 편집 시간 막대 줄 이름 옆 +의 고르기 창, 창 맨 아래 왼쪽 시간·순서 단추 |
 | `src/VideoModel.cs`, `src/VideoDecode.cs`, `src/VideoRender.cs`, `src/VideoOverlay.cs`, `src/VideoAudio.cs`, `src/VideoExport.cs` | 영상 편집 저장 형식, 장면 꺼내기, 그리기, 소리, 내보내기와 점검 |
 | `src/VideoTeacher.cs` | 영상 편집의 가리기 따라가기·얼굴 찾기·조용한 곳·화면 녹화 다듬기·수업 자료·제목 화면·챕터 |
 | `src/VideoAutoSub.cs`, `src/Whisper.cs`, `src/OnnxPatch.cs` | 자동 자막(받아쓰기 모델 받기·확인·이 PC에서 돌리기) |

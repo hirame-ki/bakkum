@@ -580,14 +580,14 @@ namespace Bakkum
             return 0;
         }
 
-        /// /render-window settings|consent|install|dialog|toast|toast-done|toast-error|notice|photo|video 결과.png [ai:연결] [state:chatgpt,openrouter] [h:높이] (settings: [page:shape|slots|key|ai|other] [full]) (dialog: [state:autosub|autosub-base|naturalvoice|naturalvoice-memory]) (video: [state:칸] [demo] 영상 파일)
+        /// /render-window settings|consent|install|dialog|toast|toast-done|toast-error|notice|photo|video 결과.png [ai:연결] [state:chatgpt,openrouter] [h:높이] (settings: [page:shape|slots|key|ai|other] [full]) (dialog: [state:autosub|autosub-base|naturalvoice|naturalvoice-memory]) (video: [state:칸] [demo] [panel] [plus:deco|sound] [hover:sub|deco|sound] 영상 파일)
         /// 창을 화면 밖에 잠깐 띄워 그림으로 찍는다. 설정은 저장하지 않고, 네트워크·Claude Code도 부르지 않는다.
         public static int RenderWindow(string[] args)
         {
             Active = true;
             if (args.Length < 3)
             {
-                Print("사용: /render-window settings|consent|install|dialog|toast|toast-done|toast-error|notice|photo|video 결과.png [ai:연결] [state:...] [h:높이] (settings: [page:쪽] [full]) (video: [state:칸] [demo] [panel] 영상 파일)");
+                Print("사용: /render-window settings|consent|install|dialog|toast|toast-done|toast-error|notice|photo|video 결과.png [ai:연결] [state:...] [h:높이] (settings: [page:쪽] [full]) (video: [state:칸] [demo] [panel] [plus:deco|sound] [hover:sub|deco|sound] 영상 파일)");
                 return 2;
             }
             string what = args[1].ToLowerInvariant();
@@ -769,6 +769,12 @@ namespace Bakkum
                         return 2;
                     }
                     var ve = VideoEditor.ForPreview(a, media, string.IsNullOrEmpty(state) ? "edit" : state, args.Contains("demo"));
+                    // plus:deco|sound 는 줄 이름 옆 + 의 고르기 창을 연 모습, hover:sub|deco|sound 는 + 에 마우스를 올린 모습
+                    foreach (var x in args)
+                    {
+                        if (x.StartsWith("plus:")) ve.PreviewPlus = x.Substring(5);
+                        else if (x.StartsWith("hover:")) ve.PreviewHover = x.Substring(6);
+                    }
                     if (args.Contains("panel"))
                     {
                         // 오른쪽 칸을 스크롤 없이 끝까지: 창을 화면 밖에 한 번 띄워 칸을 채운 뒤, 칸만 떼어 내 찍는다

@@ -41,6 +41,7 @@ namespace Bakkum
             building = true;
             groupCounter = 0;
             focusBox = null;
+            decoSelAnchor = null;
             liveSliders.Clear();
             try
             {
@@ -69,6 +70,7 @@ namespace Bakkum
                 building = false;
             }
             RefreshBar();
+            RefreshFoot();
             if (sameTab) Dispatcher.BeginInvoke(DispatcherPriority.Loaded, new Action(delegate { panelScroll.ScrollToVerticalOffset(offset); }));
             else panelScroll.ScrollToTop();
             if (focus && focusBox != null)
@@ -958,38 +960,8 @@ namespace Bakkum
                 }
                 Hint(Clock(it.Start) + " ~ " + Clock(it.End) + " (" + Sec(it.Length) + ") · 1초에 " + Math.Round((it.Text ?? "").Replace(" ", "").Length / Math.Max(0.1, it.Length), 1) + "자");
                 Buttons(new[] { "복사 (Ctrl+D)", "지우기" }, new Action[] { Duplicate, DeleteSelected });
-                Buttons(new[] { "여기서 시작", "여기서 끝", "다음 자막" }, new Action[] { delegate
-                {
-                    double t = CurrentTime;
-                    SetItem(null, x =>
-                    {
-                        // 음성도 같은 만큼 따라 옮긴다
-                        var keep = project.KeepVoices(new[] { x.Id });
-                        x.Start = Math.Min(t, x.End - 0.2);
-                        keep();
-                    });
-                    RefreshPanel();
-                }, delegate
-                {
-                    double t = CurrentTime;
-                    SetItem(null, x =>
-                    {
-                        x.End = Math.Max(t, x.Start + 0.2);
-                    });
-                    RefreshPanel();
-                }, delegate
-                {
-                    var nx = project.Items.Where(i => i.Subtitle && i.Start > it.Start + 0.01).OrderBy(i => i.Start).FirstOrDefault();
-                    if (nx == null)
-                    {
-                        SeekTo(it.End);
-                        AddSubtitle();
-                        return;
-                    }
-                    SeekTo(nx.Start + 0.01);
-                    Select(nx.Id, true);
-                    RefreshPanel(true);
-                } });
+                // 아래 빈 곳 단추와 같은 일(VideoEditorPlus.cs). 여기서 시작은 음성도 같은 만큼 따라 옮긴다.
+                Buttons(new[] { "여기서 시작", "여기서 끝", "다음 자막" }, new Action[] { StartHere, EndHere, NextSubtitle });
 
                 Label("자리");
                 Chips(new[] { "0.86", "0.5", "0.14" }, new[] { "아래", "가운데", "위" }, PosChip(it.Y), v =>
@@ -1545,6 +1517,8 @@ namespace Bakkum
                 return;
             }
             Label(ItemTitle(it) + " · " + Clock(it.Start) + " ~ " + Clock(it.End));
+            // +로 넣은 뒤에는 칸을 여기까지 내려 넣은 것의 설정을 바로 보인다
+            decoSelAnchor = (FrameworkElement)panel.Children[panel.Children.Count - 1];
             switch (it.Kind)
             {
                 case "text":
@@ -1595,37 +1569,10 @@ namespace Bakkum
             ItemLookSliders(it);
             ItemMotionSection(it);
 
+            // 아래 빈 곳 단추와 같은 일(VideoEditorPlus.cs)
             Label("시간·순서");
-            Buttons(new[] { "여기서 시작", "여기서 끝" }, new Action[] { delegate
-            {
-                double t = CurrentTime;
-                SetItem(null, x => x.Start = Math.Min(t, x.End - 0.1));
-                RefreshPanel();
-            }, delegate
-            {
-                double t = CurrentTime;
-                SetItem(null, x => x.End = Math.Max(t, x.Start + 0.1));
-                RefreshPanel();
-            } });
-            Buttons(new[] { "맨 앞으로", "맨 뒤로" }, new Action[] { delegate
-            {
-                string id = it.Id;
-                Change(null, delegate
-                {
-                    var x = project.FindItem(id);
-                    project.Items.Remove(x);
-                    project.Items.Add(x);
-                });
-            }, delegate
-            {
-                string id = it.Id;
-                Change(null, delegate
-                {
-                    var x = project.FindItem(id);
-                    project.Items.Remove(x);
-                    project.Items.Insert(0, x);
-                });
-            } });
+            Buttons(new[] { "여기서 시작", "여기서 끝" }, new Action[] { StartHere, EndHere });
+            Buttons(new[] { "맨 앞으로", "맨 뒤로" }, new Action[] { delegate { ItemOrder(true); }, delegate { ItemOrder(false); } });
             Buttons(new[] { "복제 (Ctrl+D)", "지우기" }, new Action[] { Duplicate, DeleteSelected });
         }
 
@@ -2011,12 +1958,7 @@ namespace Bakkum
                 SliderRow("서서히 커지기", 0, 5, s.FadeIn, 0.1, Sec, v => SetSound("fi", x => x.FadeIn = v));
                 SliderRow("서서히 작아지기", 0, 5, s.FadeOut, 0.1, Sec, v => SetSound("fo", x => x.FadeOut = v));
                 if (s.IsMusic) Toggle("영상 끝까지 되풀이", null, s.Loop, v => SetSound(null, x => x.Loop = v));
-                Buttons(new[] { "여기서 시작", "지우기" }, new Action[] { delegate
-                {
-                    double t = CurrentTime;
-                    SetSound(null, x => x.Start = t);
-                    RefreshPanel();
-                }, DeleteSelected });
+                Buttons(new[] { "여기서 시작", "여기서 끝", "지우기" }, new Action[] { StartHere, EndHere, DeleteSelected });
                 Act("원본 소리 다듬기로", "Quiet", delegate { Select(null, false); });
                 return;
             }
@@ -2072,26 +2014,7 @@ namespace Bakkum
 
             Label("효과음");
             Chips(VSfx.All.Select(x => x[0]).ToArray(), VSfx.All.Select(x => x[1]).ToArray(), sfxPick, v => sfxPick = v);
-            Buttons(new[] { "미리 듣기", "재생 위치에 넣기" }, new Action[] { PreviewSfx, delegate
-            {
-                string path;
-                try
-                {
-                    path = VSfx.PathOf(sfxPick);
-                }
-                catch (Exception ex)
-                {
-                    Log.Write("효과음 만들기 실패: " + ex.GetType().Name);
-                    SetStatus("효과음을 만들지 못했어요.");
-                    return;
-                }
-                double t = CurrentTime;
-                string label = VSfx.Label(sfxPick);
-                double len = SoundSeconds(path);
-                Change(null, delegate { project.Sounds.Add(new VSound { Kind = "effect", Path = path, Start = t, In = 0, Out = len, Volume = 0.8, Name = label }); });
-                SetStatus("효과음 '" + label + "'을 넣었어요.");
-                RefreshPanel();
-            } });
+            Buttons(new[] { "미리 듣기", "재생 위치에 넣기" }, new Action[] { PreviewSfx, delegate { InsertSfx(sfxPick, false); } });
 
             var list = project.Sounds.OrderBy(x => x.Start).ToList();
             if (list.Count > 0)
@@ -2150,16 +2073,7 @@ namespace Bakkum
 
         void PreviewSfx()
         {
-            try
-            {
-                var player = new System.Media.SoundPlayer(VSfx.PathOf(sfxPick));
-                player.Play();
-            }
-            catch (Exception ex)
-            {
-                Log.Write("효과음 미리 듣기 실패: " + ex.GetType().Name);
-                SetStatus("효과음을 들려주지 못했어요.");
-            }
+            PlaySfx(sfxPick);
         }
 
         void StartRecording()
