@@ -2,6 +2,7 @@
 // Bakkum - Copyright (C) 2026 hirame.ki - additional terms under GPL-3.0 section 7 apply, see NOTICE.txt
 // 바꿈 디자인(DESIGN.md '색종이'): 아홉 가지 색, 둥근 모서리, 부드러운 그림자, 톡 튀는 움직임.
 // 글꼴은 Pretendard가 깔려 있으면 쓰고, 없으면 맑은 고딕.
+// 색·모서리·그림자는 설정에서 고른 스타일·색감(Look.cs)을 켤 때 한 번 읽는다. 기본은 색종이 그대로다.
 using System;
 using System.Collections.Generic;
 using System.Runtime.InteropServices;
@@ -24,12 +25,16 @@ namespace Bakkum
         readonly Color vivid, tint, deep;
         readonly Brush vividBrush, tintBrush, deepBrush;
 
-        public Hue(string name, uint vivid, uint tint, uint deep)
+        public Hue(string name, uint vivid, uint tint, uint deep) : this(name, Theme.Hex(vivid), Theme.Hex(tint), Theme.Hex(deep))
+        {
+        }
+
+        public Hue(string name, Color vivid, Color tint, Color deep)
         {
             this.name = name;
-            this.vivid = Theme.Hex(vivid);
-            this.tint = Theme.Hex(tint);
-            this.deep = Theme.Hex(deep);
+            this.vivid = vivid;
+            this.tint = tint;
+            this.deep = deep;
             vividBrush = Theme.Frozen(this.vivid);
             tintBrush = Theme.Frozen(this.tint);
             deepBrush = Theme.Frozen(this.deep);
@@ -47,18 +52,19 @@ namespace Bakkum
     public static class Theme
     {
         // ── 바탕색 ──
-        public static readonly Color DeskColor = Hex(0xF6F3EE);
-        public static readonly Color SheetColor = Hex(0xFFFFFF);
-        public static readonly Color Sheet2Color = Hex(0xFAF7F2);
-        public static readonly Color InkColor = Hex(0x22252F);
-        public static readonly Color Ink2Color = Hex(0x4B5160);
-        public static readonly Color Ink3Color = Hex(0x696F7D);
-        public static readonly Color LineColor = Hex(0xECE7DF);
-        public static readonly Color Line2Color = Hex(0xDDD7CD);
-        public static readonly Color FocusColor = Hex(0x3D7BFF);
-        public static readonly Color MutedFillColor = Hex(0xEFECE6);
+        // 색종이 기본값: 책상 F6F3EE · 흰 면 FFFFFF · 옅은 면 FAF7F2 · 잉크 22252F/4B5160/696F7D · 선 ECE7DF/DDD7CD · 포커스 3D7BFF · 흐린 칸 EFECE6
+        public static readonly Color DeskColor = Look.Current.Desk;
+        public static readonly Color SheetColor = Look.Current.Sheet;
+        public static readonly Color Sheet2Color = Look.Current.Sheet2;
+        public static readonly Color InkColor = Look.Current.Ink;
+        public static readonly Color Ink2Color = Look.Current.Ink2;
+        public static readonly Color Ink3Color = Look.Current.Ink3;
+        public static readonly Color LineColor = Look.Current.Line;
+        public static readonly Color Line2Color = Look.Current.Line2;
+        public static readonly Color FocusColor = Look.Current.Focus;
+        public static readonly Color MutedFillColor = Look.Current.Muted;
 
-        public static readonly Brush Desk = Frozen(DeskColor);
+        public static readonly Brush Desk = Look.DeskBrush();
         public static readonly Brush Sheet = Frozen(SheetColor);
         public static readonly Brush Sheet2 = Frozen(Sheet2Color);
         public static readonly Brush Ink = Frozen(InkColor);
@@ -69,18 +75,18 @@ namespace Bakkum
         public static readonly Brush Focus = Frozen(FocusColor);
 
         // ── 색종이 아홉 장 ──
-        public static readonly Hue Coral = new Hue("coral", 0xFF8473, 0xFFE8E3, 0xB53A28);
-        public static readonly Hue Orange = new Hue("orange", 0xFFAA4D, 0xFFEEDB, 0xA85A0B);
-        public static readonly Hue Yellow = new Hue("yellow", 0xFFD447, 0xFFF6D6, 0x8A6A00);
-        public static readonly Hue Green = new Hue("green", 0x52D3A0, 0xDDF7EC, 0x13795A);
-        public static readonly Hue Blue = new Hue("blue", 0x6CA8FF, 0xE3EEFF, 0x2259B8);
-        public static readonly Hue Purple = new Hue("purple", 0xB596FF, 0xEFE8FF, 0x6237C2);
-        public static readonly Hue Pink = new Hue("pink", 0xFF8FC2, 0xFFE6F1, 0xB02A6B);
-        public static readonly Hue Slate = new Hue("slate", 0xAEB6C5, 0xEEF0F4, 0x465063);
-        public static readonly Hue Sky = new Hue("sky", 0x4FC3E8, 0xDFF5FC, 0x0E6F8C);
-        public static readonly Hue Lime = new Hue("lime", 0xA5D64C, 0xF0F9DF, 0x4E7A0C);
-        public static readonly Hue Teal = new Hue("teal", 0x38C7B8, 0xDFF7F4, 0x0D6F66);
-        public static readonly Hue Indigo = new Hue("indigo", 0x8E9BFF, 0xE9EBFF, 0x3B4BC0);
+        public static readonly Hue Coral = Look.HueFor(Look.Current, "coral", 0xFF8473, 0xFFE8E3, 0xB53A28);
+        public static readonly Hue Orange = Look.HueFor(Look.Current, "orange", 0xFFAA4D, 0xFFEEDB, 0xA85A0B);
+        public static readonly Hue Yellow = Look.HueFor(Look.Current, "yellow", 0xFFD447, 0xFFF6D6, 0x8A6A00);
+        public static readonly Hue Green = Look.HueFor(Look.Current, "green", 0x52D3A0, 0xDDF7EC, 0x13795A);
+        public static readonly Hue Blue = Look.HueFor(Look.Current, "blue", 0x6CA8FF, 0xE3EEFF, 0x2259B8);
+        public static readonly Hue Purple = Look.HueFor(Look.Current, "purple", 0xB596FF, 0xEFE8FF, 0x6237C2);
+        public static readonly Hue Pink = Look.HueFor(Look.Current, "pink", 0xFF8FC2, 0xFFE6F1, 0xB02A6B);
+        public static readonly Hue Slate = Look.HueFor(Look.Current, "slate", 0xAEB6C5, 0xEEF0F4, 0x465063);
+        public static readonly Hue Sky = Look.HueFor(Look.Current, "sky", 0x4FC3E8, 0xDFF5FC, 0x0E6F8C);
+        public static readonly Hue Lime = Look.HueFor(Look.Current, "lime", 0xA5D64C, 0xF0F9DF, 0x4E7A0C);
+        public static readonly Hue Teal = Look.HueFor(Look.Current, "teal", 0x38C7B8, 0xDFF7F4, 0x0D6F66);
+        public static readonly Hue Indigo = Look.HueFor(Look.Current, "indigo", 0x8E9BFF, 0xE9EBFF, 0x3B4BC0);
 
         public static readonly Hue[] Rainbow = { Coral, Orange, Yellow, Green, Blue, Purple, Pink };
 
@@ -124,12 +130,13 @@ namespace Bakkum
             return Color.FromArgb(a, c.R, c.G, c.B);
         }
 
+        /// 그림자(값은 색종이 기준, 고른 스타일에 맞게 Look이 바꾼다)
         public static DropShadowEffect Shadow(Color color, double blur, double depth, double opacity)
         {
-            return new DropShadowEffect { Color = color, BlurRadius = blur, ShadowDepth = depth, Direction = 270, Opacity = opacity };
+            return Look.Shadow(color, blur, depth, opacity);
         }
 
-        const string Xaml = @"
+        internal const string Xaml = @"
 <ResourceDictionary xmlns='http://schemas.microsoft.com/winfx/2006/xaml/presentation'
                     xmlns:x='http://schemas.microsoft.com/winfx/2006/xaml'>
   <FontFamily x:Key='UiFont'>Pretendard, Malgun Gothic</FontFamily>
@@ -794,7 +801,7 @@ namespace Bakkum
 
         public static void Install(Application app)
         {
-            var dict = (ResourceDictionary)XamlReader.Parse(Xaml);
+            var dict = (ResourceDictionary)XamlReader.Parse(Look.Restyle(Xaml, Look.Current));
             app.Resources.MergedDictionaries.Add(dict);
         }
 
@@ -946,13 +953,13 @@ namespace Bakkum
         public static FrameworkElement Card(UIElement child, double pad)
         {
             var g = new Grid();
-            var shade = new Border { Background = Sheet, CornerRadius = new CornerRadius(20), Effect = Shadow(InkColor, 22, 3, 0.08) };
+            var shade = new Border { Background = Sheet, CornerRadius = new CornerRadius(Look.R(20)), Effect = Shadow(InkColor, 22, 3, 0.08) };
             var face = new Border
             {
                 Background = Sheet,
-                BorderBrush = Frozen(Hex(0xEFEAE2)),
-                BorderThickness = new Thickness(1),
-                CornerRadius = new CornerRadius(20),
+                BorderBrush = Look.Outline > 0 ? Ink : Frozen(Look.Neutral(Hex(0xEFEAE2))),
+                BorderThickness = new Thickness(Look.Outline > 0 ? Look.Outline : 1),
+                CornerRadius = new CornerRadius(Look.R(20)),
                 Padding = new Thickness(pad),
                 Child = child
             };

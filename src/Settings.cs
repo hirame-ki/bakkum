@@ -56,6 +56,16 @@ namespace Bakkum
         public string RecordCam { get; set; }
         /// 지난번에 고른 화면 녹화 영역 비율: free · 16:9 · 9:16 · 1:1 · 4:5 · 4:3 · 3:4
         public string RecordRatio { get; set; }
+        /// 화면 스타일(Look.Styles의 Id). 바꾸면 다시 켤 때 보인다.
+        public string UiStyle { get; set; }
+        /// 색감(Look.Moods의 Id). 빈 값이면 기본 색감
+        public string UiMood { get; set; }
+        /// 이용자 수 알리기를 껐는지(기본은 켬)
+        public bool UsageOff { get; set; }
+        /// 이용 신호에 쓰는 임의 번호. 처음 보낼 때 만들고, 알리기를 끄면 남긴 문서와 함께 지운다.
+        public string InstallId { get; set; }
+        /// 이용 신호를 마지막으로 보낸 날(yyyy-MM-dd)
+        public string UsageSent { get; set; }
 
         public AppSettings()
         {
@@ -72,6 +82,11 @@ namespace Bakkum
             RecordSound = "none";
             RecordCam = "none";
             RecordRatio = "free";
+            UiStyle = "paper";
+            UiMood = "";
+            UsageOff = false;
+            InstallId = "";
+            UsageSent = "";
             ClaudeAllowMetered = false;
             MenuShape = "index";
             TriggerKey = "Shift";

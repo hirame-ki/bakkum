@@ -100,17 +100,17 @@ namespace Bakkum
             UpdateHeadSub();
 
             var nav = new StackPanel();
-            nav.Children.Add(NavItem("shape", "메뉴 모양", Theme.Purple, "shape"));
+            nav.Children.Add(NavItem("shape", "모양·스타일", Theme.Purple, "shape"));
             nav.Children.Add(NavItem("slots", "메뉴 칸", Theme.Yellow, "star"));
             nav.Children.Add(NavItem("key", "메뉴를 띄우는 키", Theme.Orange, "key"));
             nav.Children.Add(NavItem("ai", "AI 연결", Theme.Blue, "spark"));
             nav.Children.Add(NavItem("other", "그 밖에", Theme.Green, "check"));
 
-            pages.Add(Page(Theme.DialogHead("메뉴 모양", "파일을 끌다가 키를 누르면 뜨는 메뉴의 모양을 골라요.", Theme.Purple, "shape"), Card(ShapeSection())));
+            pages.Add(Page(Theme.DialogHead("모양·스타일", "메뉴 모양과 화면 스타일·색감을 골라요.", Theme.Purple, "shape"), TitledCard("메뉴 모양", ShapeSection()), TitledCard("화면 스타일과 색감", StyleSection())));
             pages.Add(Page(Theme.DialogHead("메뉴 칸", "메뉴에 나올 칸과 차례를 정해요.", Theme.Yellow, "star"), Card(SlotSection())));
             pages.Add(Page(keyHead, Card(KeySection())));
             pages.Add(Page(Theme.DialogHead("AI 연결", "'AI로' 칸의 요약·번역·문제 만들기와 글자 뽑기의 'AI로'에 써요. 선생님 계정을 이어 쓰고, 보낼 때마다 먼저 물어봐요.", Theme.Blue, "spark"), Card(AiSection())));
-            pages.Add(Page(Theme.DialogHead("그 밖에", "켤 때와 다 된 뒤, 새 버전 알림, 이 프로그램 정보를 모았어요.", Theme.Green, "check"), OtherCards()));
+            pages.Add(Page(Theme.DialogHead("그 밖에", "켤 때와 다 된 뒤, 새 버전 알림, 이용자 수 알리기, 이 프로그램 정보를 모았어요.", Theme.Green, "check"), OtherCards()));
 
             var body = new Grid { Margin = new Thickness(30, 28, 30, 12) };
             foreach (var p in pages) body.Children.Add(p);
@@ -138,7 +138,7 @@ namespace Bakkum
             Closing += delegate
             {
                 // 창의 X(또는 Alt+F4): 저장하지 않고 닫는다. 이 창에서 바꾼 고르기·스위치·차례를 열 때 값으로 되돌린다.
-                // 로그인·키 저장·새 버전 받기처럼 단추로 바로 한 일은 되돌리지 않는다.
+                // 로그인·키 저장·새 버전 받기처럼 단추로 바로 한 일은 되돌리지 않는다. 이용자 수 알리기도 켜고 끄는 즉시 보내거나 지우므로 되돌리지 않는다.
                 if (keep || Demo || App.Quitting) return;
                 if (opened.Same(Choices.Of(s))) return;
                 opened.ApplyTo(s);
@@ -325,7 +325,7 @@ namespace Bakkum
         /// 로그인·키·즐겨찾기·쓴 횟수처럼 다른 단추나 메뉴가 바로 정하는 값은 넣지 않는다.
         sealed class Choices
         {
-            string menuShape, triggerKey, aiProvider;
+            string menuShape, triggerKey, aiProvider, uiStyle, uiMood;
             bool anySource, startWithWindows, revealResult, claudeMetered, orNoTraining, autoOrder, checkUpdates;
             List<string> slotOrder, hiddenSlots;
 
@@ -334,6 +334,8 @@ namespace Bakkum
                 return new Choices
                 {
                     menuShape = s.MenuShape,
+                    uiStyle = s.UiStyle,
+                    uiMood = s.UiMood ?? "",
                     triggerKey = s.TriggerKey,
                     aiProvider = s.AiProvider,
                     anySource = s.AnySource,
@@ -350,7 +352,7 @@ namespace Bakkum
 
             public bool Same(Choices o)
             {
-                return menuShape == o.menuShape && triggerKey == o.triggerKey && (aiProvider ?? "none") == (o.aiProvider ?? "none")
+                return menuShape == o.menuShape && uiStyle == o.uiStyle && uiMood == o.uiMood && triggerKey == o.triggerKey && (aiProvider ?? "none") == (o.aiProvider ?? "none")
                     && anySource == o.anySource && startWithWindows == o.startWithWindows && revealResult == o.revealResult
                     && claudeMetered == o.claudeMetered && orNoTraining == o.orNoTraining && autoOrder == o.autoOrder
                     && checkUpdates == o.checkUpdates
@@ -361,6 +363,8 @@ namespace Bakkum
             public void ApplyTo(AppSettings s)
             {
                 s.MenuShape = menuShape;
+                s.UiStyle = uiStyle;
+                s.UiMood = uiMood;
                 s.TriggerKey = triggerKey;
                 s.AiProvider = aiProvider;
                 s.AnySource = anySource;
@@ -455,6 +459,111 @@ namespace Bakkum
             tip.Margin = new Thickness(2, 14, 0, 0);
             stack.Children.Add(tip);
             return stack;
+        }
+
+        // ── 화면 스타일과 색감(Look.cs). 고른 것은 다시 켤 때 보인다 ──
+
+        readonly List<KeyValuePair<UiStyle, Border>> stylePreviews = new List<KeyValuePair<UiStyle, Border>>();
+        TextBlock moodName;
+        FrameworkElement lookNote;
+
+        UIElement StyleSection()
+        {
+            var stack = new StackPanel();
+            var grid = new UniformGrid { Columns = 3, Margin = new Thickness(-5, 0, -5, 0) };
+            var mood = Look.MoodOf(s.UiMood);
+            foreach (var st in Look.Styles)
+            {
+                var pick = st;
+                var tile = new StackPanel();
+                var frame = new Border { Child = Look.Preview(st, mood) };
+                stylePreviews.Add(new KeyValuePair<UiStyle, Border>(st, frame));
+                tile.Children.Add(frame);
+                var label = new DockPanel { Margin = new Thickness(4, 9, 2, 0) };
+                if (st == Look.Styles[0])
+                {
+                    var tag = Theme.Tag("기본", Theme.Purple);
+                    tag.Background = Theme.Sheet;
+                    tag.BorderBrush = Theme.Purple.TintBrush;
+                    tag.BorderThickness = new Thickness(1);
+                    tag.Padding = new Thickness(7, 1, 7, 2);
+                    DockPanel.SetDock(tag, Dock.Right);
+                    label.Children.Add(tag);
+                }
+                label.Children.Add(new TextBlock { Text = st.Name, VerticalAlignment = VerticalAlignment.Center });
+                tile.Children.Add(label);
+                var desc = Theme.MetaLabel(st.Desc);
+                desc.Margin = new Thickness(4, 3, 2, 2);
+                tile.Children.Add(desc);
+                var rb = new RadioButton { Style = Theme.GetStyle("Tile"), GroupName = "uistyle", Content = tile, Tag = Theme.Purple, Margin = new Thickness(5, 0, 5, 10) };
+                rb.IsChecked = Look.StyleOf(s.UiStyle) == st;
+                rb.Checked += delegate
+                {
+                    s.UiStyle = pick.Id;
+                    Save();
+                    ShowLookNote();
+                };
+                grid.Children.Add(rb);
+            }
+            stack.Children.Add(grid);
+
+            var head = new DockPanel { Margin = new Thickness(2, 10, 0, 10) };
+            moodName = Theme.MetaLabel("");
+            moodName.VerticalAlignment = VerticalAlignment.Center;
+            DockPanel.SetDock(moodName, Dock.Right);
+            head.Children.Add(moodName);
+            head.Children.Add(Theme.Text("색감", 14.5, FontWeights.Bold, Theme.Ink));
+            stack.Children.Add(head);
+            var swatches = new WrapPanel();
+            swatches.Children.Add(MoodSwatch(null));
+            foreach (var m in Look.Moods) swatches.Children.Add(MoodSwatch(m));
+            stack.Children.Add(swatches);
+            ShowMoodName();
+
+            lookNote = Theme.Note("고른 스타일·색감은 바꿈을 다시 켜면 보여요. [설정 완료]를 누르면 지금 다시 켤지 물어봐요.", Theme.Purple);
+            stack.Children.Add(Spaced(lookNote, 14));
+            ShowLookNote();
+            return stack;
+        }
+
+        FrameworkElement MoodSwatch(UiMood m)
+        {
+            var rb = new RadioButton
+            {
+                Style = Theme.GetStyle("Swatch"),
+                GroupName = "uimood",
+                Background = Theme.Frozen(m == null ? Theme.Hex(0xF6F3EE) : m.Color),
+                ToolTip = m == null ? "기본 색감" : m.Name,
+                IsChecked = Look.MoodOf(s.UiMood) == m
+            };
+            System.Windows.Automation.AutomationProperties.SetName(rb, m == null ? "기본 색감" : m.Name);
+            rb.Checked += delegate
+            {
+                s.UiMood = m == null ? "" : m.Id;
+                Save();
+                foreach (var pair in stylePreviews) pair.Value.Child = Look.Preview(pair.Key, m);
+                ShowMoodName();
+                ShowLookNote();
+            };
+            var label = Theme.MetaLabel(m == null ? "기본" : m.Name);
+            label.FontSize = 12;
+            label.HorizontalAlignment = HorizontalAlignment.Center;
+            var cell = new StackPanel { Width = 62, Margin = new Thickness(0, 0, 4, 8) };
+            rb.HorizontalAlignment = HorizontalAlignment.Center;
+            cell.Children.Add(rb);
+            cell.Children.Add(label);
+            return cell;
+        }
+
+        void ShowMoodName()
+        {
+            var m = Look.MoodOf(s.UiMood);
+            if (moodName != null) moodName.Text = "고른 색감: " + (m == null ? "기본" : m.Name);
+        }
+
+        void ShowLookNote()
+        {
+            if (lookNote != null) lookNote.Visibility = Look.Pending(s) ? Visibility.Visible : Visibility.Collapsed;
         }
 
         // ── 메뉴 칸: 보이기·차례 ──
@@ -1262,6 +1371,10 @@ namespace Bakkum
             {
                 TitledCard("켜기와 결과", start),
                 TitledCard("새 버전", UpdateArea()),
+                TitledCard("이용자 수 알리기", Theme.Switch("몇 명이 쓰는지 알리기", "켠 날 하루 한 번, 처음 보낼 때 만든 임의 번호와 버전·날짜만 문수네집 서버에 남겨요. 파일·이름·PC 정보는 보내지 않아요. 끄면 남긴 것도 지워요.", !s.UsageOff, delegate (bool on)
+                {
+                    if (!Demo) Usage.Set(on);
+                })),
                 TitledCard("이 프로그램", AboutArea())
             };
         }
@@ -1393,8 +1506,13 @@ namespace Bakkum
             close.Margin = new Thickness(10, 0, 0, 0);
             close.Click += delegate
             {
+                // 녹화 중이면 묻지 않는다(다시 켜면 녹화가 끝난다). 다음에 켤 때 새 스타일이 보인다.
+                bool again = !Demo && Look.Pending(s) && !RecordUi.Active
+                    && Dialog.Ask(this, Theme.Purple, "shape", "다시 켜면 새 스타일이 보여요", "바꿈을 지금 다시 켤까요? 메뉴는 다시 켠 뒤부터 새 스타일로 떠요.", null, "나중에", "지금 다시 켜기") == 1
+                    && App.AskStopJobs(this);
                 keep = true;
                 Close();
+                if (again) App.Restart();
             };
             right.Children.Add(quit);
             right.Children.Add(close);
