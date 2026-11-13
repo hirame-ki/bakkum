@@ -373,6 +373,31 @@ namespace Bakkum
             SettingsWindow.Demo = false;
         }
 
+        /// 사용법 창: 처음 켤 때는 [시작하기], 다시 열면 [닫기]. [사용법 영상 보기]는 사이트의 영상 칸을 연다(브라우저는 띄우지 않고 가로챈다).
+        static void GuideChecks()
+        {
+            Cli.Print("[사용법 창]");
+            var first = (GuideWindow)GuideWindow.ForPreview(true);
+            var again = (GuideWindow)GuideWindow.ForPreview(false);
+            string a = first.EndButtonForTest.Content as string, b = again.EndButtonForTest.Content as string;
+            Check("처음 켤 때 끝 단추는 [시작하기]", a == "시작하기", a);
+            Check("다시 열면 끝 단추는 [닫기]", b == "닫기", b);
+            Check("두 창 모두 [사용법 영상 보기]가 있다", (first.VideoButtonForTest.Content as string) == "사용법 영상 보기" && (again.VideoButtonForTest.Content as string) == "사용법 영상 보기", null);
+            string opened = null;
+            Web.BrowserHook = delegate (string url) { opened = url; };
+            try
+            {
+                again.VideoButtonForTest.RaiseEvent(new RoutedEventArgs(ButtonBase.ClickEvent, again.VideoButtonForTest));
+            }
+            finally
+            {
+                Web.BrowserHook = null;
+            }
+            Check("[사용법 영상 보기]는 사이트의 사용법 영상 칸을 연다", opened == "https://hirame-ki.github.io/bakkum/#guide", opened);
+            first.Close();
+            again.Close();
+        }
+
         static void SlotChecks()
         {
             Cli.Print("[메뉴 칸]");

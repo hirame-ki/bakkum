@@ -78,6 +78,7 @@ namespace Bakkum
                     UpdateTests();
                     CompareChecks();
                     SlotChecks();
+                    GuideChecks();
                 }
             }
             catch (Exception ex)

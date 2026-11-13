@@ -255,7 +255,7 @@ namespace Bakkum
             bool quiet = flags.Contains("/background") || flags.Contains("/updated");
             if (flags.Contains("/updated")) Toast.ShowMessage("새 버전으로 바꿨어요", AppInfo.Name + " " + AppInfo.Version, false);
             if (files.Count > 0) ShowMenuForFiles(files);
-            else if (!quiet && AppInfo.RunningInstalled && !AppSettings.Current.GuideShown) GuideWindow.Open();
+            else if (!quiet && AppInfo.RunningInstalled && !AppSettings.Current.GuideShown) GuideWindow.OpenFirst();
             else if (!quiet) OpenSettings();
             if (AppInfo.RunningInstalled)
             {
@@ -703,7 +703,8 @@ namespace Bakkum
                     break;
                 }
                 case "guide":
-                    w = GuideWindow.ForPreview();
+                    // state:again 이면 설정·알림 영역에서 다시 연 창([닫기])
+                    w = GuideWindow.ForPreview(state != "again");
                     break;
                 case "record":
                     w = RecordUi.PreviewOptions();
