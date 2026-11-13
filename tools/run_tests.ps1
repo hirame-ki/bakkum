@@ -9,7 +9,7 @@
 # - -Dir is a folder made only for tests. Suites write result files into it.
 #   Never use a folder that holds real school or student files.
 # - The default suites make their own test files (patterned video, beeps, invented documents) and need
-#   nothing in -Dir: video, record, proxyquick, phone, update.
+#   nothing in -Dir: video, record, proxyquick, phone, update, look (styles and the usage signal, fake server on this PC).
 # - net is the AI connection test (/selftest-net): OpenRouter and ChatGPT sign-in, refresh and sign-out,
 #   and Claude Code, against fake servers on this PC (tools\mock_ai.py, tools\mock_claude.py).
 #   Nothing goes to the internet. Needs Python 3 with the cryptography package (pip install cryptography).
@@ -23,7 +23,7 @@
 # - Suites run one after another, never at the same time (video suites are heavy on the GPU).
 # - The full output of each suite is saved as <Dir>\result_<suite>.txt (UTF-8).
 param(
-    [string[]]$Suites = @("video,record,proxyquick,phone,update"),
+    [string[]]$Suites = @("video,record,proxyquick,phone,update,look"),
     [string]$Dir = "",
     [string]$Exe = "",
     [string]$Inner = "",

@@ -514,8 +514,9 @@ namespace Bakkum
             c.BadgeTextBrush = new SolidColorBrush();
             c.CapBrush = new SolidColorBrush();
             c.CapTextBrush = new SolidColorBrush();
-            c.Shade = new DropShadowEffect { Direction = 270, RenderingBias = RenderingBias.Quality };
-            root.Children.Add(new ShapePath { Data = local, Fill = c.Fill, Effect = c.Shade });
+            c.Shade = new DropShadowEffect { Direction = Look.ShadowDirection, RenderingBias = RenderingBias.Quality };
+            // 테두리를 굵게 쓰는 스타일(카툰풍·레트로)은 칸에도 잉크색 테두리
+            root.Children.Add(new ShapePath { Data = local, Fill = c.Fill, Effect = c.Shade, Stroke = Look.Outline > 0 ? Theme.Ink : null, StrokeThickness = Look.Outline });
 
             c.Scale = new ScaleTransform(1, 1);
             c.Move = new TranslateTransform(0, 0);
@@ -942,7 +943,7 @@ namespace Bakkum
             {
                 l.Fill = on ? Theme.InkColor : White;
                 l.Text = on ? White : Theme.InkColor;
-                l.Sub = on ? Theme.Hex(0xC9CDD6) : Theme.Ink3Color;
+                l.Sub = on ? Look.Neutral(Theme.Hex(0xC9CDD6)) : Theme.Ink3Color;
                 l.Shadow = Theme.InkColor;
                 l.Blur = on ? 22 : 14;
                 l.Depth = on ? 6 : 3;
@@ -953,12 +954,12 @@ namespace Bakkum
             {
                 l.Fill = Theme.MutedFillColor;
                 l.Text = Theme.Ink3Color;
-                l.Sub = Theme.Hex(0xA3A7B1);
-                l.Chip = Theme.Hex(0xDCD8D0);
-                l.Glyph = Theme.Hex(0x8A8F9B);
-                l.Badge = Theme.Hex(0xB9B5AD);
+                l.Sub = Look.Neutral(Theme.Hex(0xA3A7B1));
+                l.Chip = Look.Neutral(Theme.Hex(0xDCD8D0));
+                l.Glyph = Look.Neutral(Theme.Hex(0x8A8F9B));
+                l.Badge = Look.Neutral(Theme.Hex(0xB9B5AD));
                 l.BadgeText = White;
-                l.Cap = Theme.Hex(0xE4E0D8);
+                l.Cap = Look.Neutral(Theme.Hex(0xE4E0D8));
                 l.CapText = Theme.Ink3Color;
                 l.Shadow = Theme.InkColor;
                 l.Blur = 8;
@@ -1024,9 +1025,11 @@ namespace Bakkum
                 c.Shade.Color = l.Shadow;
             }
             else c.Shade.BeginAnimation(DropShadowEffect.ColorProperty, new ColorAnimation(l.Shadow, st));
-            Tween(c.Shade, DropShadowEffect.BlurRadiusProperty, l.Blur, instant, st, null);
-            Tween(c.Shade, DropShadowEffect.ShadowDepthProperty, l.Depth, instant, st, null);
-            Tween(c.Shade, DropShadowEffect.OpacityProperty, l.Opacity, instant, st, null);
+            double blur = l.Blur, depth = l.Depth, opacity = l.Opacity;
+            Look.Shade(ref blur, ref depth, ref opacity);
+            Tween(c.Shade, DropShadowEffect.BlurRadiusProperty, blur, instant, st, null);
+            Tween(c.Shade, DropShadowEffect.ShadowDepthProperty, depth, instant, st, null);
+            Tween(c.Shade, DropShadowEffect.OpacityProperty, opacity, instant, st, null);
         }
 
         void RefreshEnabled()

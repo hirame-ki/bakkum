@@ -141,6 +141,18 @@ namespace Bakkum
 
         static int RunMain(List<string> files, List<string> flags)
         {
+            // 스타일을 바꾸고 다시 켤 때: 앞 프로세스가 끝나기를 기다린다(같은 이름의 파이프·잠금을 넘겨받게)
+            foreach (var f in flags)
+            {
+                int pid;
+                if (!f.StartsWith("/after:") || !int.TryParse(f.Substring(7), out pid)) continue;
+                try
+                {
+                    using (var p = Process.GetProcessById(pid)) p.WaitForExit(10000);
+                }
+                catch (ArgumentException) { }
+                catch (InvalidOperationException) { }
+            }
             bool created;
             instanceMutex = new Mutex(true, MutexName, out created);
             if (!created)
@@ -168,7 +180,30 @@ namespace Bakkum
             app.Startup += delegate { Start(files, flags); };
             int code = app.Run();
             try { instanceMutex.ReleaseMutex(); } catch { }
+            if (restarting) StartAgain(flags);
             return code;
+        }
+
+        static bool restarting;
+
+        /// 끝낸 뒤 새로 켠다(스타일·색감을 바꾼 뒤). 새로 켠 쪽은 설정 창을 연다.
+        public static void Restart()
+        {
+            restarting = true;
+            Quit();
+        }
+
+        static void StartAgain(List<string> flags)
+        {
+            try
+            {
+                string args = "/after:" + Process.GetCurrentProcess().Id + (flags.Contains("/portable") ? " /portable" : "");
+                using (Process.Start(new ProcessStartInfo(AppInfo.ExePath, args) { UseShellExecute = false, WorkingDirectory = Path.GetDirectoryName(AppInfo.ExePath) })) { }
+            }
+            catch (Exception ex)
+            {
+                Log.Write("다시 켜기 실패: " + ex.GetType().Name);
+            }
         }
 
         /// 이미 떠 있는 프로그램이 있는지(설치·제거 때 확인)
@@ -225,6 +260,7 @@ namespace Bakkum
                 Installer.EnsureAppListedLater();
                 Updater.CleanUp();
                 Updater.StartChecks(Current.Dispatcher);
+                Usage.StartDaily();
             }
             Log.Write("시작 " + AppInfo.Version + (AppInfo.RunningInstalled ? "" : " (설치 안 한 채)"));
         }
@@ -501,9 +537,20 @@ namespace Bakkum
             return 0;
         }
 
+        /// 그림 확인용: style:카툰풍처럼 스타일·색감을 고른다(테마를 읽기 전에, 저장하지 않음).
+        static void PickLook(string[] args)
+        {
+            foreach (var a in args)
+            {
+                if (a.StartsWith("style:")) AppSettings.Current.UiStyle = a.Substring(6);
+                else if (a.StartsWith("mood:")) AppSettings.Current.UiMood = a.Substring(5);
+            }
+        }
+
         public static int RenderMenu(string[] args)
         {
             Active = true;
+            PickLook(args);
             if (args.Length < 3)
             {
                 Print("사용: /render-menu index|fan|wave|honeycomb 결과.png [칸번호] [choose:shrink] [at:x,y] [파일...]");
@@ -537,6 +584,7 @@ namespace Bakkum
         public static int RenderWindow(string[] args)
         {
             Active = true;
+            PickLook(args);
             if (args.Length < 3)
             {
                 Print("사용: /render-window settings|consent|install|dialog|toast|toast-done|toast-error|notice|photo|video 결과.png [ai:연결] [state:...] [h:높이] (settings: [page:쪽] [full]) (video: [state:칸] [demo] [panel] 영상 파일)");
