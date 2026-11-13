@@ -933,12 +933,29 @@ namespace Bakkum
             var it = SelectedItem;
             if (it != null && !it.Subtitle) it = null;
             Head("자막", "재생 위치에 자막을 넣고 글을 써요. 시간 막대에서 자막의 끝을 끌면 길이가 바뀌어요.");
-            Buttons(new[] { "자막 넣기 (T)", "SRT 불러오기", "SRT로 저장" }, new Action[] { AddSubtitle, ImportSrt, ExportSrt });
+            Buttons(new[] { "자막 넣기 (T)" }, new Action[] { AddSubtitle });
+            // 'SRT'라는 말은 선생님들이 모를 수 있어서 '자막 파일'로 쓴다(2026-11-13 관리자)
+            Buttons(new[] { "자막 파일 불러오기", "자막 파일로 저장" }, new Action[] { ImportSrt, ExportSrt });
             if (it != null)
             {
                 string id = it.Id;
                 Label("글");
-                focusBox = Field(it.Text, "자막을 써 주세요", true, v => SetItem("text", x => x.Text = v));
+                // 음성으로 바꾼 자막의 글을 고치면 음성은 고치기 전 글을 읽는다: 쓰는 동안 바로 알린다
+                var voiced = project.Sounds.FirstOrDefault(s => s.Kind == "voice" && s.ItemId == id);
+                TextBlock staleNote = null;
+                focusBox = Field(it.Text, "자막을 써 주세요", true, v =>
+                {
+                    SetItem("text", x => x.Text = v);
+                    if (staleNote != null) staleNote.Visibility = VProject.SameText(voiced.Text, v) ? Visibility.Collapsed : Visibility.Visible;
+                });
+                if (voiced != null)
+                {
+                    staleNote = Theme.Text("글을 고쳐서 음성과 달라요. 아래 [이 자막을 음성으로]를 누르면 새 글로 다시 만들어요.", 13, FontWeights.Bold, Theme.Yellow.DeepBrush);
+                    staleNote.TextWrapping = TextWrapping.Wrap;
+                    staleNote.Margin = new Thickness(0, 4, 0, 2);
+                    staleNote.Visibility = VProject.SameText(voiced.Text, it.Text) ? Visibility.Collapsed : Visibility.Visible;
+                    panel.Children.Add(staleNote);
+                }
                 Hint(Clock(it.Start) + " ~ " + Clock(it.End) + " (" + Sec(it.Length) + ") · 1초에 " + Math.Round((it.Text ?? "").Replace(" ", "").Length / Math.Max(0.1, it.Length), 1) + "자");
                 Buttons(new[] { "복사 (Ctrl+D)", "지우기" }, new Action[] { Duplicate, DeleteSelected });
                 Buttons(new[] { "여기서 시작", "여기서 끝", "다음 자막" }, new Action[] { delegate
@@ -946,7 +963,10 @@ namespace Bakkum
                     double t = CurrentTime;
                     SetItem(null, x =>
                     {
+                        // 음성도 같은 만큼 따라 옮긴다
+                        var keep = project.KeepVoices(new[] { x.Id });
                         x.Start = Math.Min(t, x.End - 0.2);
+                        keep();
                     });
                     RefreshPanel();
                 }, delegate
@@ -1000,20 +1020,14 @@ namespace Bakkum
                     });
                     SetStatus("모든 자막을 같은 모양으로 맞췄어요.");
                 } });
-
-                Label("읽어 주기");
-                Hint("윈도우에 들어 있는 목소리로 자막을 읽어 소리로 넣어요. 글은 이 PC 밖으로 나가지 않아요.");
-                TtsControls();
-                Buttons(new[] { "이 자막 읽기", "모든 자막 읽기" }, new Action[] { delegate { ReadAloud(new List<string> { id }); }, delegate
-                {
-                    ReadAloud(project.Items.Where(i => i.Subtitle && !string.IsNullOrWhiteSpace(i.Text)).OrderBy(i => i.Start).Select(i => i.Id).ToList());
-                } });
             }
             else
             {
-                Hint("시간 막대의 자막을 누르거나 T를 눌러 새 자막을 넣으면, 글·모양·읽어 주기를 여기서 바꿀 수 있어요.");
+                Hint("시간 막대의 자막을 누르거나 T를 눌러 새 자막을 넣으면, 글과 모양을 여기서 바꿀 수 있어요.");
                 AutoSubSection();
             }
+
+            VoiceSection(it);
 
             Label("찾아 바꾸기");
             Field(findText, "찾을 말", false, v => findText = v);
@@ -1156,7 +1170,31 @@ namespace Bakkum
             if (ttsVoice == null || !korean.Any(v => v.Id == ttsVoice)) ttsVoice = korean[0].Id;
             if (korean.Count > 1) Chips(korean.Select(v => v.Id).ToArray(), korean.Select(v => ShortVoice(v.Name)).ToArray(), ttsVoice, v => ttsVoice = v);
             else Hint("목소리: " + ShortVoice(korean[0].Name));
-            SliderRow("읽는 빠르기", 0.6, 1.6, ttsRate, 0.1, Times, v => ttsRate = v);
+            SliderRow("음성 빠르기", 0.6, 1.6, ttsRate, 0.1, Times, v => ttsRate = v);
+        }
+
+        /// 자막 칸의 '자막을 음성으로'. 자막을 고르지 않아도 보인다([모든 자막을 음성으로]).
+        void VoiceSection(VItem it)
+        {
+            Label("자막을 음성으로");
+            if (!project.Items.Any(i => i.Subtitle && !string.IsNullOrWhiteSpace(i.Text)))
+            {
+                Hint("자막을 넣으면 그 글을 목소리로 읽어 음성으로 넣을 수 있어요.");
+                return;
+            }
+            Hint("자막 글을 목소리로 읽어 음성으로 넣어요. 자막을 옮기면 음성도 따라가요. 글은 이 PC 밖으로 나가지 않아요.");
+            var stale = VideoExport.StaleVoices(project);
+            if (stale != null) CheckRow(stale);
+            TtsControls();
+            if (it != null)
+            {
+                string id = it.Id;
+                Act("이 자막을 음성으로", "Line", delegate { SubtitlesToVoice(new List<string> { id }, false); });
+            }
+            Act("모든 자막을 음성으로", "Line", delegate
+            {
+                SubtitlesToVoice(project.Items.Where(i => i.Subtitle && !string.IsNullOrWhiteSpace(i.Text)).OrderBy(i => i.Start).Select(i => i.Id).ToList(), false);
+            });
         }
 
         static string ShortVoice(string name)
@@ -1167,54 +1205,83 @@ namespace Bakkum
             return s.Replace("Microsoft ", "");
         }
 
-        /// 자막을 윈도우 목소리로 읽어 소리로 넣는다. 자막보다 길면 자막을 늘린다(다음 자막과 겹치지 않는 만큼).
-        void ReadAloud(List<string> ids)
+        sealed class VoiceJob
         {
-            if (ids.Count == 0)
+            public string ItemId, Text, Voice, Path;
+            public double Rate, Len;
+        }
+
+        /// 자막을 음성으로 바꿔 넣는다. 영어 자막은 영어 목소리로 읽는다(이 PC에 영어 목소리가 있을 때).
+        /// 음성이 자막보다 길면 자막을 늘린다(다음 자막과 겹치지 않는 만큼).
+        /// again이면 '바뀐 자막만 다시 만들기': 음성마다 전에 쓴 목소리·빠르기로 만들고, 글이 빈 자막의 음성은 뺀다.
+        void SubtitlesToVoice(List<string> ids, bool again)
+        {
+            var items = ids.Select(id => project.FindItem(id)).Where(i => i != null).ToList();
+            var clear = again ? items.Where(i => string.IsNullOrWhiteSpace(i.Text)).Select(i => i.Id).ToList() : new List<string>();
+            var jobs = new List<VoiceJob>();
+            foreach (var i in items.Where(x => !string.IsNullOrWhiteSpace(x.Text)))
             {
-                SetStatus("읽을 자막이 없어요.");
+                var old = again ? project.Sounds.FirstOrDefault(s => s.Kind == "voice" && s.ItemId == i.Id) : null;
+                jobs.Add(new VoiceJob { ItemId = i.Id, Text = i.Text, Voice = old != null ? old.Voice : ttsVoice, Rate = old != null && old.Rate > 0 ? old.Rate : ttsRate });
+            }
+            if (jobs.Count == 0 && clear.Count == 0)
+            {
+                SetStatus(items.Count == 0 ? "음성으로 바꿀 자막이 없어요." : "자막에 글을 먼저 써 주세요.");
                 return;
             }
-            var jobs = ids.Select(id => project.FindItem(id)).Where(i => i != null && !string.IsNullOrWhiteSpace(i.Text)).Select(i => new KeyValuePair<string, string>(i.Id, i.Text.Replace("\r", " ").Replace("\n", " "))).ToList();
             if (jobs.Count == 0)
             {
-                SetStatus("자막에 글이 없어요.");
+                Change(null, delegate { project.Sounds.RemoveAll(s => s.ItemId != null && clear.Contains(s.ItemId)); });
+                SetStatus("글이 빈 자막 " + clear.Count + "개의 음성을 뺐어요.");
+                RefreshPanel();
                 return;
             }
-            string voice = ttsVoice;
-            double rate = ttsRate;
-            var made = new List<KeyValuePair<string, string>>();
-            RunBusy("읽는 소리를 만드는 중", delegate (Action<string, double> report)
+            string chosen = ttsVoice;
+            int english = 0, noEnglish = 0;
+            RunBusy("자막을 음성으로 바꾸는 중", delegate (Action<string, double> report)
             {
+                var voices = VTts.Voices();
+                var korean = voices.Where(v => v.Korean).ToList();
+                if (korean.Count == 0) throw new UserFacingException("이 PC에 한국어 목소리가 없어요. 윈도우 설정 › 시간 및 언어 › 음성에서 한국어 목소리를 더할 수 있어요.");
+                string fallback = chosen != null && korean.Any(v => v.Id == chosen) ? chosen : korean[0].Id;
                 for (int i = 0; i < jobs.Count; i++)
                 {
                     if (busyCancel) throw new OperationCanceledException();
-                    report("읽는 소리를 만드는 중 (" + (i + 1) + "/" + jobs.Count + ")", i / (double)jobs.Count);
-                    made.Add(new KeyValuePair<string, string>(jobs[i].Key, VTts.Speak(jobs[i].Value, voice, rate)));
+                    report("자막을 음성으로 바꾸는 중 (" + (i + 1) + "/" + jobs.Count + ")", i / (double)jobs.Count);
+                    var j = jobs[i];
+                    string speak = j.Text.Replace("\r", " ").Replace("\n", " ");
+                    // 바탕은 한국어 목소리(전에 영어 자막을 읽은 목소리였으면 고른 한국어 목소리로), 영어 문장이면 영어 목소리
+                    string baseVoice = j.Voice != null && korean.Any(v => v.Id == j.Voice) ? j.Voice : fallback;
+                    j.Voice = VLecture.VoiceFor(speak, baseVoice, voices);
+                    if (VLecture.LooksEnglish(speak))
+                    {
+                        if (j.Voice != baseVoice) english++;
+                        else noEnglish++;
+                    }
+                    j.Path = VTts.Speak(speak, j.Voice, j.Rate);
+                    j.Len = SoundSeconds(j.Path);
                 }
             }, delegate
             {
-                int longer = 0;
+                int made = 0, longer = 0;
                 Change(null, delegate
                 {
-                    foreach (var m in made)
+                    if (clear.Count > 0) project.Sounds.RemoveAll(s => s.ItemId != null && clear.Contains(s.ItemId));
+                    foreach (var j in jobs)
                     {
-                        var it = project.FindItem(m.Key);
+                        // 만드는 동안 지운 자막은 건너뛴다. 그동안 글을 고쳤으면 '바뀐 자막'으로 잡힌다(읽은 글을 적어 두므로).
+                        var it = project.FindItem(j.ItemId);
                         if (it == null) continue;
-                        double len = SoundSeconds(m.Value);
-                        project.Sounds.RemoveAll(s => s.ItemId == it.Id);
-                        project.Sounds.Add(new VSound { Kind = "voice", Path = m.Value, Start = it.Start, In = 0, Out = len, Text = it.Text, Voice = voice, Rate = rate, ItemId = it.Id, Name = "읽어 주기" });
-                        if (len > it.Length + 0.05)
-                        {
-                            var next = project.Items.Where(i => i.Subtitle && i.Start > it.Start + 0.01).OrderBy(i => i.Start).FirstOrDefault();
-                            double limit = next != null ? next.Start : project.Duration;
-                            double end = Math.Min(limit, it.Start + len);
-                            if (end > it.End) it.End = end;
-                            if (it.Start + len > limit + 0.05) longer++;
-                        }
+                        if (project.PutVoice(it, j.Text, j.Path, j.Len, j.Voice, j.Rate)) longer++;
+                        made++;
                     }
                 });
-                SetStatus(made.Count + "개 자막을 읽어 넣었어요." + (longer > 0 ? " 읽는 소리가 다음 자막과 겹치는 곳이 " + longer + "군데 있어요. 자막을 나누거나 빠르기를 올려 보세요." : ""));
+                var sb = new StringBuilder(again ? "바뀐 자막 " + made + "개의 음성을 새 글로 다시 만들었어요." : "자막 " + made + "개를 음성으로 바꿨어요.");
+                if (clear.Count > 0) sb.Append(" 글이 빈 자막 " + clear.Count + "개의 음성은 뺐어요.");
+                if (english > 0) sb.Append(" 영어 자막 " + english + "개는 영어 목소리로 읽었어요.");
+                if (noEnglish > 0) sb.Append(" 이 PC에 영어 목소리가 없어서 영어 자막 " + noEnglish + "개는 한국어 목소리로 읽었어요(윈도우 설정 › 시간 및 언어 › 음성에서 영어 목소리를 더할 수 있어요).");
+                if (longer > 0) sb.Append(" 음성이 다음 자막과 겹치는 곳이 " + longer + "군데 있어요. 자막을 나누거나 음성 빠르기를 올려 보세요.");
+                SetStatus(sb.ToString());
                 RefreshPanel();
             });
         }
@@ -1274,26 +1341,25 @@ namespace Bakkum
             Change("shiftsub", delegate
             {
                 double d = project.Duration;
-                foreach (var it in project.Items.Where(i => i.Subtitle))
+                var subs = project.Items.Where(i => i.Subtitle).ToList();
+                // 음성은 자막이 옮겨진 만큼 따라간다(따로 옮겨 둔 간격은 그대로)
+                var keep = project.KeepVoices(subs.Select(i => i.Id));
+                foreach (var it in subs)
                 {
                     double len = it.Length;
                     it.Start = Math.Max(0, Math.Min(d - 0.1, it.Start + dt));
                     it.End = Math.Min(d, it.Start + len);
                 }
-                foreach (var s in project.Sounds.Where(x => x.ItemId != null))
-                {
-                    var it = project.FindItem(s.ItemId);
-                    if (it != null) s.Start = it.Start;
-                }
+                keep();
             });
             SetStatus("모든 자막을 " + (dt > 0 ? "뒤로 " : "앞으로 ") + Math.Abs(dt) + "초 옮겼어요.");
         }
 
-        // ── SRT ──
+        // ── 자막 파일(SRT·VTT) ──
 
         void ImportSrt()
         {
-            var dlg = new Microsoft.Win32.OpenFileDialog { Title = "자막 파일(SRT) 고르기", Filter = "자막 파일|*.srt|모든 파일|*.*" };
+            var dlg = new Microsoft.Win32.OpenFileDialog { Title = "자막 파일 고르기", Filter = "자막 파일|*.srt;*.vtt|모든 파일|*.*" };
             if (dlg.ShowDialog(this) != true) return;
             List<VItem> subs;
             try
@@ -1359,7 +1425,8 @@ namespace Bakkum
                 var parts = lines[ti].Split(new[] { "-->" }, StringSplitOptions.None);
                 double a, b;
                 if (parts.Length < 2 || !SrtTime(parts[0], out a) || !SrtTime(parts[1], out b) || b <= a) continue;
-                string body = string.Join("\n", lines.Skip(ti + 1).Select(StripTags));
+                // VTT는 &amp; 같은 글자 표시를 쓴다
+                string body = System.Net.WebUtility.HtmlDecode(string.Join("\n", lines.Skip(ti + 1).Select(StripTags)));
                 list.Add(new VItem { Kind = "text", Subtitle = true, Text = body, Start = a, End = b, X = 0.5, Y = 0.86, W = 0.86 });
             }
             return list;
@@ -1376,9 +1443,11 @@ namespace Bakkum
             s = s.Trim();
             int sp = s.IndexOf(' ');
             if (sp > 0) s = s.Substring(0, sp);
-            var m = System.Text.RegularExpressions.Regex.Match(s, "^(\\d+):(\\d{1,2}):(\\d{1,2})[,.](\\d{1,3})$");
+            // SRT는 시:분:초,천분의 일. 유튜브에서 받은 VTT는 시가 없을 수 있다(분:초.천분의 일).
+            var m = System.Text.RegularExpressions.Regex.Match(s, "^(?:(\\d+):)?(\\d{1,2}):(\\d{1,2})[,.](\\d{1,3})$");
             if (!m.Success) return false;
-            t = int.Parse(m.Groups[1].Value) * 3600 + int.Parse(m.Groups[2].Value) * 60 + int.Parse(m.Groups[3].Value) + int.Parse(m.Groups[4].Value.PadRight(3, '0')) / 1000.0;
+            int hours = m.Groups[1].Success ? int.Parse(m.Groups[1].Value) : 0;
+            t = hours * 3600 + int.Parse(m.Groups[2].Value) * 60 + int.Parse(m.Groups[3].Value) + int.Parse(m.Groups[4].Value.PadRight(3, '0')) / 1000.0;
             return true;
         }
 
@@ -1963,7 +2032,7 @@ namespace Bakkum
             }
 
             Label("전체 소리");
-            Toggle("말할 때 음악 줄이기", "목소리·읽어 주기가 나올 때 배경 음악을 낮춰요", project.Duck, v =>
+            Toggle("말할 때 음악 줄이기", "목소리·자막 음성이 나올 때 배경 음악을 낮춰요", project.Duck, v =>
             {
                 Change(null, delegate { project.Duck = v; });
                 RefreshPanel();
@@ -2036,7 +2105,7 @@ namespace Bakkum
             {
                 case "music": return "배경 음악" + (string.IsNullOrEmpty(s.Path) ? "" : " · " + Path.GetFileNameWithoutExtension(s.Path));
                 case "record": return "내 목소리";
-                case "voice": return "읽어 주기 · " + (s.Text ?? "");
+                case "voice": return "음성 · " + (s.Text ?? "");
                 case "effect": return "효과음 · " + (s.Name ?? "");
             }
             return s.Name ?? (string.IsNullOrEmpty(s.Path) ? "소리" : Path.GetFileNameWithoutExtension(s.Path));
@@ -2515,6 +2584,7 @@ namespace Bakkum
                 case "level": return "크기 맞추기 켜기";
                 case "aspect916": return "9:16으로 바꾸기";
                 case "subtitle_slow": return "자막 늘리기";
+                case "voice_stale": return "바뀐 자막만 다시 만들기";
             }
             return "고치기";
         }
@@ -2568,6 +2638,10 @@ namespace Bakkum
                         SetStatus(n > 0 ? n + "개 자막을 읽을 만큼 늘렸어요. 다음 자막에 막혀 못 늘린 것은 자막을 나눠 주세요." : "다음 자막에 막혀 늘리지 못했어요. 자막을 둘로 나누거나 글을 줄여 주세요.");
                         break;
                     }
+                case "voice_stale":
+                    // 음성으로 바꾼 뒤 글을 고친 자막만, 전에 쓴 목소리·빠르기로 다시 만든다(끝나면 칸을 다시 그린다)
+                    SubtitlesToVoice(project.StaleVoiceItems().Select(i => i.Id).ToList(), true);
+                    break;
             }
             RefreshPanel();
         }
