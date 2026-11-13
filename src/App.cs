@@ -87,6 +87,8 @@ namespace Bakkum
             }
             string first = args.Length > 0 && args[0].StartsWith("/") ? args[0].ToLowerInvariant() : "";
 
+            // 그림 확인의 style:·mood:는 Theme를 읽기 전에 정해야 한다(Theme 칸을 읽는 메서드는 JIT가 먼저 Theme를 초기화한다)
+            if (first == "/render-window" || first == "/render-menu") Cli.PickLook(args);
             try
             {
                 switch (first)
@@ -141,6 +143,18 @@ namespace Bakkum
 
         static int RunMain(List<string> files, List<string> flags)
         {
+            // 스타일을 바꾸고 다시 켤 때: 앞 프로세스가 끝나기를 기다린다(같은 이름의 파이프·잠금을 넘겨받게)
+            foreach (var f in flags)
+            {
+                int pid;
+                if (!f.StartsWith("/after:") || !int.TryParse(f.Substring(7), out pid)) continue;
+                try
+                {
+                    using (var p = Process.GetProcessById(pid)) p.WaitForExit(10000);
+                }
+                catch (ArgumentException) { }
+                catch (InvalidOperationException) { }
+            }
             bool created;
             instanceMutex = new Mutex(true, MutexName, out created);
             if (!created)
@@ -168,7 +182,30 @@ namespace Bakkum
             app.Startup += delegate { Start(files, flags); };
             int code = app.Run();
             try { instanceMutex.ReleaseMutex(); } catch { }
+            if (restarting) StartAgain(flags);
             return code;
+        }
+
+        static bool restarting;
+
+        /// 끝낸 뒤 새로 켠다(스타일·색감을 바꾼 뒤). 새로 켠 쪽은 설정 창을 연다.
+        public static void Restart()
+        {
+            restarting = true;
+            Quit();
+        }
+
+        static void StartAgain(List<string> flags)
+        {
+            try
+            {
+                string args = "/after:" + Process.GetCurrentProcess().Id + (flags.Contains("/portable") ? " /portable" : "");
+                using (Process.Start(new ProcessStartInfo(AppInfo.ExePath, args) { UseShellExecute = false, WorkingDirectory = Path.GetDirectoryName(AppInfo.ExePath) })) { }
+            }
+            catch (Exception ex)
+            {
+                Log.Write("다시 켜기 실패: " + ex.GetType().Name);
+            }
         }
 
         /// 이미 떠 있는 프로그램이 있는지(설치·제거 때 확인)
@@ -225,6 +262,7 @@ namespace Bakkum
                 Installer.EnsureAppListedLater();
                 Updater.CleanUp();
                 Updater.StartChecks(Current.Dispatcher);
+                Usage.StartDaily();
             }
             Log.Write("시작 " + AppInfo.Version + (AppInfo.RunningInstalled ? "" : " (설치 안 한 채)"));
         }
@@ -499,6 +537,16 @@ namespace Bakkum
             DeckWriter.Write(args[2], DeckDesign.Build(d, "제목 없음", DeckDesign.StyleOf(args.Length > 3 ? args[3] : "paper")));
             Print("만듦: " + args[2]);
             return 0;
+        }
+
+        /// 그림 확인용: style:cartoon처럼 스타일·색감을 고른다(테마를 읽기 전에 App.Start에서, 저장하지 않음).
+        internal static void PickLook(string[] args)
+        {
+            foreach (var a in args)
+            {
+                if (a.StartsWith("style:")) AppSettings.Current.UiStyle = a.Substring(6);
+                else if (a.StartsWith("mood:")) AppSettings.Current.UiMood = a.Substring(5);
+            }
         }
 
         public static int RenderMenu(string[] args)

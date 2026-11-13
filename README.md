@@ -8,6 +8,8 @@
 - 영상·소리·화면 녹화도 윈도우에 들어 있는 기능만 씁니다. 따로 깔 프로그램이 없습니다.
 - AI는 'AI로' 칸이나 '글자 뽑기 → AI로'를 고를 때만 쓰고, 보낼 때마다 먼저 묻습니다. 사진 가리기는 이 PC 안에서만 합니다.
 - 하루 한 번 새 버전이 있는지 버전 번호만 확인합니다(설정에서 끌 수 있습니다). 문서 내용은 보내지 않습니다.
+- 몇 명이 쓰는지 세려고, 켠 날 하루 한 번 익명 신호(처음 보낼 때 만든 임의 번호, 프로그램 버전, 날짜)를 문수네집 서버에 남깁니다. 파일·이름·PC 정보는 보내지 않고, 설정 → 그 밖에의 '몇 명이 쓰는지 알리기'를 끄면 더 보내지 않고 남긴 것도 지웁니다.
+- 화면 스타일 여섯 가지(색종이·카툰풍·클레이모피즘·깔끔·한지·레트로)와 색감 열 가지를 설정 → 모양·스타일에서 고를 수 있습니다.
 
 ## 할 수 있는 일
 
@@ -140,6 +142,7 @@ build\Bakkum.exe /run text local 스캔.pdf
 | `src/PdfFile.cs`, `src/Imaging.cs`, `src/WinRt.cs` | PDF 읽기·쓰기·줄이기, 그림, 윈도우 PDF·글자 인식 |
 | `src/Ai.cs`, `src/ChatGpt.cs`, `src/OpenRouter.cs`, `src/Web.cs` | AI 연결 |
 | `src/Settings.cs`, `src/SettingsWindow.cs`, `src/Dialogs.cs`, `src/Theme.cs` | 설정과 화면 |
+| `src/Look.cs`, `src/Usage.cs` | 화면 스타일·색감, 이용자 수 알리기(하루 한 번 익명 신호) |
 | `src/PhotoEditor.cs`, `src/PhotoOps.cs`, `src/PhotoJobs.cs`, `src/FaceFinder.cs`, `src/WebpLossless.cs` | 사진 손질 |
 | `src/PdfTools.cs`, `src/PdfCrypt.cs`, `src/PdfText.cs`, `src/PdfPagesWindow.cs`, `src/PdfJobs.cs` | PDF 편집 |
 | `src/DocConvert.cs`, `src/Ooxml.cs`, `src/Workbench.cs` | 문서 바꾸기, 되묻는 창 |
