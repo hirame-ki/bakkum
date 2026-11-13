@@ -400,9 +400,193 @@ namespace Bakkum
             return n == 0 ? 0 : sum / (3.0 * n);
         }
 
+        static bool AreaSame(Rect? r, double x, double y, double w, double h)
+        {
+            if (r == null) return false;
+            Rect v = r.Value;
+            return Math.Abs(v.X - x) < 0.01 && Math.Abs(v.Y - y) < 0.01 && Math.Abs(v.Width - w) < 0.01 && Math.Abs(v.Height - h) < 0.01;
+        }
+
+        static string AreaSay(Rect? r)
+        {
+            if (r == null) return "없음";
+            Rect v = r.Value;
+            return v.X.ToString("0.##") + "," + v.Y.ToString("0.##") + " " + v.Width.ToString("0.##") + "×" + v.Height.ToString("0.##");
+        }
+
+        /// 정수 자리, 짝수 크기, 딱 a:b
+        static bool AreaExact(Rect r, int a, int b)
+        {
+            bool whole = r.X == Math.Floor(r.X) && r.Y == Math.Floor(r.Y) && r.Width == Math.Floor(r.Width) && r.Height == Math.Floor(r.Height);
+            long w = (long)r.Width, h = (long)r.Height;
+            return whole && w % 2 == 0 && h % 2 == 0 && w * b == h * a;
+        }
+
+        static bool AreaInside(Rect r, int w, int h)
+        {
+            return r.X >= 0 && r.Y >= 0 && r.Right <= w && r.Bottom <= h;
+        }
+
+        /// 녹화할 곳 고르기(창 없이 계산만): 비율, 꼭짓점·변 손잡이, 옮기기, 화면 안, 짝수 크기, 배율·둘째 모니터
+        static void AreaTests()
+        {
+            double k169 = 16.0 / 9, k916 = 9.0 / 16;
+            var r1 = AreaMath.Drag(new Point(100, 100), new Point(-50, 300), 0, 1920, 1080, 0);
+            Check("영역: 자유로 끌면 화면 끝에서 멈춤", AreaSame(r1, 0, 100, 100, 200), AreaSay(r1));
+            var r2 = AreaMath.Drag(new Point(100, 100), new Point(900, 300), k169, 1920, 1080, 0);
+            Check("영역: 16:9로 끌기", AreaSame(r2, 100, 100, 800, 450), AreaSay(r2));
+            var r3 = AreaMath.Drag(new Point(1000, 900), new Point(700, 100), k916, 1920, 1080, 0);
+            Check("영역: 9:16 왼쪽 위로 끌기", AreaSame(r3, 550, 100, 450, 800), AreaSay(r3));
+            var r4 = AreaMath.Drag(new Point(1500, 600), new Point(2500, 700), k169, 1920, 1080, 0);
+            Check("영역: 화면 끝에서도 비율 그대로", AreaSame(r4, 1500, 600, 420, 236.25), AreaSay(r4));
+
+            // 정한 비율: 여러 화면 크기·이상한 영역에서도 정수, 짝수, 딱 그 비율, 화면 안, 64 이상
+            var bad = new List<string>();
+            var screens = new[] { new Size(1920, 1080), new Size(1366, 768), new Size(2880, 1620), new Size(1281, 721) };
+            var rects = new[] { new Rect(333.3, 222.7, 517.9, 301.1), new Rect(-10, -10, 5000, 5000), new Rect(10, 10, 5, 5), new Rect(1900, 1000, 300, 300) };
+            foreach (string id in AreaRatio.Ids)
+            {
+                int a, b;
+                if (!AreaRatio.Parse(id, out a, out b)) continue;
+                foreach (var sc in screens)
+                {
+                    foreach (var r in rects)
+                    {
+                        var s = AreaMath.Settle(r, a, b, 0.5, 0.5, (int)sc.Width, (int)sc.Height, AreaSelect.Smallest);
+                        if (!AreaExact(s, a, b) || !AreaInside(s, (int)sc.Width, (int)sc.Height) || s.Width < 64 || s.Height < 64)
+                            bad.Add(id + " " + sc.Width + "×" + sc.Height + " → " + AreaSay(s));
+                    }
+                }
+            }
+            Check("영역: 정한 비율은 딱 그 비율·짝수·화면 안", bad.Count == 0, string.Join(" / ", bad.Take(3)));
+            var s6 = AreaMath.Settle(new Rect(100.4, 200.6, 801.3, 449.2), 16, 9, 0, 0, 1920, 1080, 64);
+            var s6b = AreaMath.Settle(new Rect(100.4, 200.6, 801.3, 449.2), 16, 9, 1, 1, 1920, 1080, 64);
+            Check("영역: 맞출 때 잡은 쪽은 제자리(1픽셀 안)", Math.Abs(s6.X - 100.4) <= 1 && Math.Abs(s6.Y - 200.6) <= 1 && Math.Abs(s6b.Right - 901.7) <= 1 && Math.Abs(s6b.Bottom - 649.8) <= 1, AreaSay(s6) + " / " + AreaSay(s6b));
+            var s7 = AreaMath.Settle(new Rect(10.2, 20.7, 301.4, 199.6), 0, 0, 0, 0, 1920, 1080, 64);
+            Check("영역: 자유도 짝수 크기", AreaSame(s7, 10, 21, 302, 200), AreaSay(s7));
+            var s8 = AreaMath.Settle(new Rect(500, 500, 10, 10), 16, 9, 0.5, 0.5, 1920, 1080, 64);
+            Check("영역: 16:9 가장 작은 크기 128×72", s8.Width == 128 && s8.Height == 72, AreaSay(s8));
+            var s9 = AreaMath.Settle(new Rect(0, 0, 1366, 768), 9, 16, 0.5, 0.5, 1366, 768, 64);
+            Check("영역: 1366×768 화면의 9:16은 432×768", s9.Width == 432 && s9.Height == 768 && AreaInside(s9, 1366, 768), AreaSay(s9));
+
+            // 그리기 → 꼭짓점으로 다듬기(16:9)
+            var sel = new AreaSelect(1920, 1080, "16:9");
+            sel.Press(new Point(100, 100), 18);
+            sel.Move(new Point(900, 300), 6);
+            var got = sel.Release(new Point(900, 300), 6);
+            Check("영역: 16:9로 그리기", got == AreaRelease.Chosen && AreaSame(sel.Chosen, 100, 100, 800, 450), got + " " + AreaSay(sel.Chosen));
+            sel.Press(new Point(900, 550), 18);
+            bool corner = sel.Held == AreaGrip.BottomRight;
+            sel.Move(new Point(1203.7, 640.2), 6);
+            Rect? plan = sel.Planned;
+            sel.Release(new Point(1203.7, 640.2), 6);
+            var c1 = sel.Chosen.Value;
+            Check("영역: 오른쪽 아래 꼭짓점 → 왼쪽 위 그대로, 딱 16:9", corner && c1.X == 100 && c1.Y == 100 && c1.Width > 800 && AreaExact(c1, 16, 9), AreaSay(c1));
+            Check("영역: 끄는 동안 보인 크기 = 손 뗀 뒤 크기", AreaSame(plan, c1.X, c1.Y, c1.Width, c1.Height), AreaSay(plan) + " / " + AreaSay(c1));
+            sel.Press(new Point(c1.Left, c1.Top), 18);
+            bool corner2 = sel.Held == AreaGrip.TopLeft;
+            sel.Move(new Point(300.4, 250.9), 6);
+            sel.Release(new Point(300.4, 250.9), 6);
+            var c2 = sel.Chosen.Value;
+            Check("영역: 왼쪽 위 꼭짓점 → 오른쪽 아래 그대로", corner2 && Math.Abs(c2.Right - c1.Right) <= 1 && Math.Abs(c2.Bottom - c1.Bottom) <= 1 && AreaExact(c2, 16, 9), AreaSay(c1) + " → " + AreaSay(c2));
+            var mid = new Point(c2.Right, c2.Y + c2.Height / 2);
+            var fixedHit = sel.Hit(mid, 18);
+            sel.SetRatio("free");
+            var freeHit = sel.Hit(mid, 18);
+            Check("영역: 변 손잡이는 자유 비율에서만", (fixedHit == AreaGrip.Inside || fixedHit == AreaGrip.None) && freeHit == AreaGrip.Right && AreaSame(sel.Chosen, c2.X, c2.Y, c2.Width, c2.Height), fixedHit + " / " + freeHit);
+
+            // 자유 비율: 변 끌기, 뒤집기, 가장 작은 크기
+            var fr = new AreaSelect(1920, 1080, "free");
+            fr.Choose(new Rect(100, 100, 600, 400));
+            fr.Press(new Point(700, 300), 18);
+            bool rightEdge = fr.Held == AreaGrip.Right;
+            fr.Move(new Point(1000, 310), 6);
+            fr.Release(new Point(1000, 310), 6);
+            Check("영역: 자유 비율 오른쪽 변 끌기", rightEdge && AreaSame(fr.Chosen, 100, 100, 900, 400), AreaSay(fr.Chosen));
+            fr.Press(new Point(100, 300), 18);
+            fr.Move(new Point(1200, 300), 6);
+            fr.Release(new Point(1200, 300), 6);
+            Check("영역: 왼쪽 변을 오른쪽 너머로 끌면 뒤집힘", AreaSame(fr.Chosen, 1000, 100, 200, 400), AreaSay(fr.Chosen));
+            fr.Press(new Point(1200, 300), 18);
+            fr.Move(new Point(1010, 300), 6);
+            fr.Release(new Point(1010, 300), 6);
+            fr.Press(new Point(1032, 500), 18);
+            fr.Move(new Point(1032, 105), 6);
+            fr.Release(new Point(1032, 105), 6);
+            Check("영역: 가장 작은 크기 64×64", AreaSame(fr.Chosen, 1000, 100, 64, 64), AreaSay(fr.Chosen));
+
+            // 안을 끌면 옮기기(화면 밖으로 안 나감). 그냥 누르기·아주 작게 그리기는 고른 곳을 지우지 않는다.
+            var mv = new AreaSelect(1920, 1080, "free");
+            mv.Choose(new Rect(100, 100, 600, 400));
+            mv.Press(new Point(400, 300), 18);
+            bool inside = mv.Held == AreaGrip.Inside;
+            mv.Move(new Point(5000, 5000), 6);
+            mv.Release(new Point(5000, 5000), 6);
+            Check("영역: 안을 끌어 옮겨도 화면 안", inside && AreaSame(mv.Chosen, 1320, 680, 600, 400), AreaSay(mv.Chosen));
+            mv.Press(new Point(100, 100), 18);
+            var click = mv.Release(new Point(101, 101), 6);
+            Check("영역: 그냥 누르면 고른 곳 그대로", click == AreaRelease.Nothing && AreaSame(mv.Chosen, 1320, 680, 600, 400), click + " " + AreaSay(mv.Chosen));
+            mv.Press(new Point(100, 100), 18);
+            mv.Move(new Point(140, 130), 6);
+            var tiny = mv.Release(new Point(140, 130), 6);
+            Check("영역: 너무 작게 그리면 알리고 고른 곳 그대로", tiny == AreaRelease.TooSmall && AreaSame(mv.Chosen, 1320, 680, 600, 400), tiny + " " + AreaSay(mv.Chosen));
+
+            // 비율 바꾸기: 가운데·넓이 지키기, 화면 끝이면 안으로. 화살표로 옮기기.
+            var rt = new AreaSelect(1920, 1080, "free");
+            rt.Choose(new Rect(400, 300, 800, 450));
+            rt.SetRatio("1:1");
+            var q1 = rt.Chosen.Value;
+            double area0 = 800 * 450, area1 = q1.Width * q1.Height;
+            Check("영역: 비율을 바꾸면 가운데·넓이 그대로", AreaExact(q1, 1, 1) && Math.Abs(q1.X + q1.Width / 2 - 800) <= 2 && Math.Abs(q1.Y + q1.Height / 2 - 525) <= 2 && Math.Abs(area1 - area0) <= area0 * 0.1, AreaSay(q1));
+            var rt2 = new AreaSelect(1920, 1080, "free");
+            rt2.Choose(new Rect(1500, 100, 400, 900));
+            rt2.SetRatio("16:9");
+            var q2 = rt2.Chosen.Value;
+            Check("영역: 화면 끝에서 비율을 바꿔도 화면 안", AreaExact(q2, 16, 9) && AreaInside(q2, 1920, 1080), AreaSay(q2));
+            rt2.Nudge(1000, 0);
+            bool rightEnd = rt2.Chosen.Value.Right == 1920;
+            rt2.Nudge(-5000, -5000);
+            Check("영역: 화살표로 옮겨도 화면 안", rightEnd && AreaSame(rt2.Chosen, 0, 0, q2.Width, q2.Height), AreaSay(rt2.Chosen));
+
+            // 결과 비율 → 실제 픽셀: 150% 둘째 모니터, 125% 화면
+            var big = new Box(1920, 0, 2880, 1620);
+            var bsel = new AreaSelect(big.Width, big.Height, "16:9");
+            bsel.Choose(new Rect(700.3, 400.6, 1000, 560));
+            var bc = bsel.Chosen.Value;
+            var bb = RecordUi.BoxFor(big, bsel.Fraction.Value);
+            var small = new Box(0, 0, 2400, 1350);
+            var ssel = new AreaSelect(small.Width, small.Height, "9:16");
+            ssel.Choose(new Rect(900, 200, 500, 900));
+            var sc2 = ssel.Chosen.Value;
+            var sb = RecordUi.BoxFor(small, ssel.Fraction.Value);
+            Check("영역: 배율·둘째 모니터에서도 고른 픽셀 그대로", bb.X == 1920 + (int)bc.X && bb.Y == (int)bc.Y && bb.Width == (int)bc.Width && bb.Height == (int)bc.Height && (long)bb.Width * 9 == (long)bb.Height * 16 && sb.X == (int)sc2.X && sb.Y == (int)sc2.Y && sb.Width == (int)sc2.Width && sb.Height == (int)sc2.Height && (long)sb.Width * 16 == (long)sb.Height * 9, bb + " / " + sb);
+
+            int pa, pb;
+            bool parsed = AreaRatio.Parse("16:9", out pa, out pb) && pa == 16 && pb == 9;
+            Check("영역: 비율 이름", AreaRatio.Known("2:1") == "free" && AreaRatio.Known(null) == "free" && AreaRatio.Known("4:5") == "4:5" && parsed && !AreaRatio.Parse("free", out pa, out pb) && Math.Abs(AreaRatio.Of("9:16") - 0.5625) < 1e-9, null);
+
+            // 고르기 창(띄우지 않고 150% 화면으로): 정한 비율은 꼭짓점 손잡이 4개, 자유는 8개, 막대는 고른 곳을 가리지 않고 화면 안
+            var report = new List<string>();
+            bool winOk = true;
+            foreach (string st in new[] { "start", "free", "16:9", "9:16", "1:1", "3:4" })
+            {
+                var pw = (AreaPicker)RecordUi.PreviewPicker(st);
+                int want = st == "start" ? 0 : (st == "free" ? 8 : 4);
+                Rect bar = pw.BarArea;
+                Rect? chosen = pw.ChosenDip;
+                bool clear = chosen == null || !bar.IntersectsWith(chosen.Value);
+                bool onScreen = bar.X >= 0 && bar.Y >= 0 && bar.Right <= 1280 && bar.Bottom <= 720;
+                if (pw.GripsShown != want || !clear || !onScreen) winOk = false;
+                report.Add(st + " 손잡이 " + pw.GripsShown + " 막대 " + AreaSay(bar));
+                pw.Close();
+            }
+            Check("영역 창: 손잡이 수·막대 자리", winOk, string.Join(" / ", report));
+        }
+
         static void RecordTests()
         {
             Cli.Print("[화면 녹화]");
+            AreaTests();
 
             // 길이·크기·방향·색
             string a = P("rec_fake.mp4");

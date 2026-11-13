@@ -54,6 +54,8 @@ namespace Bakkum
         public string RecordSound { get; set; }
         /// 지난번에 고른 화면 녹화 웹캠: none · cam
         public string RecordCam { get; set; }
+        /// 지난번에 고른 화면 녹화 영역 비율: free · 16:9 · 9:16 · 1:1 · 4:5 · 4:3 · 3:4
+        public string RecordRatio { get; set; }
         /// 화면 스타일(Look.Styles의 Id). 바꾸면 다시 켤 때 보인다.
         public string UiStyle { get; set; }
         /// 색감(Look.Moods의 Id). 빈 값이면 기본 색감
@@ -79,6 +81,7 @@ namespace Bakkum
             RecordArea = "full";
             RecordSound = "none";
             RecordCam = "none";
+            RecordRatio = "free";
             UiStyle = "paper";
             UiMood = "";
             UsageOff = false;

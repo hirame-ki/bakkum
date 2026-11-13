@@ -703,7 +703,8 @@ namespace Bakkum
                     w = RecordUi.PreviewCountdown();
                     break;
                 case "record-area":
-                    w = RecordUi.PreviewPicker();
+                    // state: start(고르기 전) · small(너무 작게 그림) · free · 16:9 · 9:16 · 1:1 · 4:5 · 4:3 · 3:4
+                    w = RecordUi.PreviewPicker(state);
                     break;
                 case "cam-bubble":
                     w = CamBubble.ForPreview(state == "dark");

@@ -82,6 +82,8 @@ namespace Bakkum
         VMarker dragMarker;
         Point downAt;
         double downT, origA, origB, origIn, origOut, origSrcIn, dragDelta;
+        /// 자막을 끌 때 그 자막의 음성도 같은 만큼 옮기는 동작(누를 때 잡아 둔다)
+        Action voiceFollow;
         int insertAt = -1;
         bool begun;
         double snapLine = -1;
@@ -767,8 +769,10 @@ namespace Bakkum
                 if (s.Loop && local > loopLen) local %= loopLen;
                 return s.In + Math.Max(0, local);
             }, Theme.Frozen(Color.FromArgb(120, hue.Deep.R, hue.Deep.G, hue.Deep.B)), s.Volume);
-            string kind = s.Kind == "music" ? "배경 음악" : s.Kind == "record" ? "내 목소리" : s.Kind == "voice" ? "읽어 주기" : s.Kind == "effect" ? "효과음" : "소리";
-            string name = !string.IsNullOrEmpty(s.Name) ? s.Name : Path.GetFileNameWithoutExtension(s.Path ?? "");
+            string kind = s.Kind == "music" ? "배경 음악" : s.Kind == "record" ? "내 목소리" : s.Kind == "voice" ? "음성" : s.Kind == "effect" ? "효과음" : "소리";
+            // 음성은 읽는 글을 보여 준다(어느 자막의 음성인지 알아보게)
+            string name = s.Kind == "voice" && !string.IsNullOrWhiteSpace(s.Text) ? s.Text.Replace("\r", " ").Replace("\n", " ")
+                : !string.IsNullOrEmpty(s.Name) ? s.Name : Path.GetFileNameWithoutExtension(s.Path ?? "");
             Label(dc, r, kind + " · " + name, sel ? Theme.Ink : hue.DeepBrush, TextSize);
             dc.Pop();
             dc.DrawGeometry(null, sel ? MakePen(Theme.Ink, 2) : MakePen(Theme.Frozen(Color.FromArgb(70, hue.Deep.R, hue.Deep.G, hue.Deep.B)), 1), geo);
@@ -896,7 +900,8 @@ namespace Bakkum
             }
             foreach (var x in Project.Sounds)
             {
-                if (x.Id == ignoreId) continue;
+                // 끄는 자막을 따라 움직이는 그 자막의 음성에는 붙지 않는다(제자리에 달라붙어 안 움직인다)
+                if (x.Id == ignoreId || (ignoreId != null && x.ItemId == ignoreId)) continue;
                 consider(x.Start);
             }
             foreach (var m in Project.Markers) if (m.Id != ignoreId) consider(m.T);
@@ -919,6 +924,7 @@ namespace Bakkum
             dragLabel = null;
             dragBlock = null;
             dragMarker = null;
+            voiceFollow = null;
             insertAt = -1;
             CaptureMouse();
             e.Handled = true;
@@ -982,6 +988,7 @@ namespace Bakkum
                 origB = it.End;
                 origSrcIn = it.SrcIn;
                 origOut = it.SrcOut;
+                voiceFollow = Project.KeepVoices(new[] { it.Id });
             }
             if (snd != null)
             {
@@ -1182,6 +1189,8 @@ namespace Bakkum
                     if (it.Kind == "pip") it.SrcOut = it.SrcIn + it.Length;
                     dragLabel = "끝 " + VProject.Clock(it.End, true) + " · " + it.Length.ToString("0.0") + "초";
                 }
+                // 자막을 옮기거나 앞 끝을 끌면 그 자막의 음성도 같은 만큼 옮긴다
+                if (voiceFollow != null) voiceFollow();
             }
             else if (snd != null)
             {
