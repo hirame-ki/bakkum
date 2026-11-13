@@ -96,7 +96,13 @@ namespace Bakkum
             try { Icon = App.WindowIcon; } catch { }
             preview = new VPreview();
             Content = BuildRoot();
-            SizeChanged += delegate { FitTimelineRow(); };
+            SizeChanged += delegate
+            {
+                FitTimelineRow();
+                // 창 크기가 바뀌면 + 위에 띄운 고르기 창 자리가 어긋난다
+                ClosePicker();
+            };
+            Deactivated += delegate { ClosePicker(); };
             AllowDrop = true;
             Drop += OnDrop;
             autosaveTimer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(2) };
@@ -139,6 +145,15 @@ namespace Bakkum
                     SeekTo(demo ? Math.Min(2, project.Duration * 0.3) : 0);
                 }));
                 if (demo) DemoReady();
+                if (PreviewPlus != null || PreviewHover != null)
+                {
+                    // 그림 확인용: 시간 막대가 자리를 잡은 뒤에 고르기 창·+ 올린 모습을 보인다
+                    Dispatcher.BeginInvoke(DispatcherPriority.Background, new Action(delegate
+                    {
+                        if (PreviewHover != null) timeline.ShowPlusHover(PreviewHover);
+                        if (PreviewPlus != null) OpenPicker(PreviewPlus);
+                    }));
+                }
             };
         }
 
@@ -458,7 +473,7 @@ namespace Bakkum
             Grid.SetRow(foot, 3);
             Grid.SetColumnSpan(foot, 2);
             root.Children.Add(foot);
-            return root;
+            return WithPickLayer(root);
         }
 
         RowDefinition timelineRow;
@@ -720,7 +735,8 @@ namespace Bakkum
             DockPanel.SetDock(right, Dock.Right);
             dock.Children.Add(right);
 
-            var left = new StackPanel { Orientation = Orientation.Horizontal, VerticalAlignment = VerticalAlignment.Center };
+            // 왼쪽 빈 곳: 고른 것의 시간·순서 단추(VideoEditorPlus.cs) → 자동 저장 글 → 상태 글 → [멈추기]
+            var left = (StackPanel)BuildFootLeft();
             saveText = Theme.Text("", 13, FontWeights.Normal, Theme.Ink3);
             saveText.VerticalAlignment = VerticalAlignment.Center;
             saveText.Margin = new Thickness(2, 0, 14, 0);
@@ -743,6 +759,8 @@ namespace Bakkum
         void SetStatus(string s)
         {
             statusText.Text = Theme.Keep(s ?? "");
+            // 아래 빈 곳 단추·[멈추기]가 차지한 만큼 상태 글 자리를 다시 잰다(넘치면 … 으로)
+            FitStatus();
         }
 
         // ── 화면 자리 ──
@@ -1198,12 +1216,23 @@ namespace Bakkum
             {
                 if (tab == "edit" || tab == "export") RefreshPanel();
             };
+            timeline.Plus = PlusClicked;
         }
 
         // ── 단축키 ──
 
         void OnKey(object s, KeyEventArgs e)
         {
+            // 고르기 창이 떠 있는 동안: Esc로 닫고, 다른 단축키(Space·T 등)는 쉰다(창 안 단추는 키보드로 그대로 누른다)
+            if (PickerOpen)
+            {
+                if (e.Key == Key.Escape)
+                {
+                    ClosePicker();
+                    e.Handled = true;
+                }
+                return;
+            }
             var focus = Keyboard.FocusedElement;
             if (focus is TextBox)
             {
