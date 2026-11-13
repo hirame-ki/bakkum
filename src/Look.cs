@@ -54,6 +54,8 @@ namespace Bakkum
         }
     }
 
+    /// 주의: Theme의 색 칸은 Look.Current로 초기화된다. 그래서 Make·HueFor·DeskBrush처럼 켤 때 부르는 길에서는
+    /// Theme의 칸(Theme.Ink 등)을 읽지 말고 Theme.Hex·Theme.Frozen 같은 메서드만 쓴다(읽으면 Current가 아직 없다).
     public static class Look
     {
         // 색종이 원래 값(DESIGN.md). 다른 스타일의 회색은 이 값에서 책상과 잉크 사이 어디쯤인지로 옮긴다.

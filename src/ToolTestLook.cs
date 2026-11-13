@@ -195,7 +195,16 @@ namespace Bakkum
                 s.UsageOff = false;
                 s.UsageSent = "";
                 bool ok = Usage.Ping();
-                Check("서버에 닿지 않으면 조용히 넘어가고 다음에 다시 한다", !ok && s.UsageSent == "" && s.InstallId == "", null);
+                string kept = s.InstallId;
+                Check("서버에 닿지 않으면 조용히 넘어가고 번호는 남겨 둔다", !ok && s.UsageSent == "" && kept.Length == 16, kept);
+                using (var again = new FakeServer())
+                {
+                    Usage.Api = again.Url;
+                    Usage.Ping();
+                    var op = again.Bodies.Count == 1 ? OpOf(again.Bodies[0]) : null;
+                    var data = op == null ? null : Json.Obj(op["data"]);
+                    Check("다음에 닿으면 같은 번호로 처음 날까지 보낸다", data != null && Json.S(op, "path") == "bakkum_usage/" + kept && data.ContainsKey("first") && s.UsageSent == today, null);
+                }
             }
             finally
             {

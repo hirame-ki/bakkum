@@ -138,7 +138,7 @@ namespace Bakkum
             Closing += delegate
             {
                 // 창의 X(또는 Alt+F4): 저장하지 않고 닫는다. 이 창에서 바꾼 고르기·스위치·차례를 열 때 값으로 되돌린다.
-                // 로그인·키 저장·새 버전 받기처럼 단추로 바로 한 일은 되돌리지 않는다.
+                // 로그인·키 저장·새 버전 받기처럼 단추로 바로 한 일은 되돌리지 않는다. 이용자 수 알리기도 켜고 끄는 즉시 보내거나 지우므로 되돌리지 않는다.
                 if (keep || Demo || App.Quitting) return;
                 if (opened.Same(Choices.Of(s))) return;
                 opened.ApplyTo(s);
@@ -1371,7 +1371,7 @@ namespace Bakkum
             {
                 TitledCard("켜기와 결과", start),
                 TitledCard("새 버전", UpdateArea()),
-                TitledCard("이용자 수 알리기", Theme.Switch("몇 명이 쓰는지 알리기", "켠 날 하루 한 번, 설치할 때 만든 임의 번호와 버전·날짜만 문수네집 서버에 남겨요. 파일·이름·PC 정보는 보내지 않아요. 끄면 남긴 것도 지워요.", !s.UsageOff, delegate (bool on)
+                TitledCard("이용자 수 알리기", Theme.Switch("몇 명이 쓰는지 알리기", "켠 날 하루 한 번, 처음 보낼 때 만든 임의 번호와 버전·날짜만 문수네집 서버에 남겨요. 파일·이름·PC 정보는 보내지 않아요. 끄면 남긴 것도 지워요.", !s.UsageOff, delegate (bool on)
                 {
                     if (!Demo) Usage.Set(on);
                 })),
@@ -1506,7 +1506,8 @@ namespace Bakkum
             close.Margin = new Thickness(10, 0, 0, 0);
             close.Click += delegate
             {
-                bool again = !Demo && Look.Pending(s)
+                // 녹화 중이면 묻지 않는다(다시 켜면 녹화가 끝난다). 다음에 켤 때 새 스타일이 보인다.
+                bool again = !Demo && Look.Pending(s) && !RecordUi.Active
                     && Dialog.Ask(this, Theme.Purple, "shape", "다시 켜면 새 스타일이 보여요", "바꿈을 지금 다시 켤까요? 메뉴는 다시 켠 뒤부터 새 스타일로 떠요.", null, "나중에", "지금 다시 켜기") == 1
                     && App.AskStopJobs(this);
                 keep = true;

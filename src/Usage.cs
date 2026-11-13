@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-only
 // Bakkum - Copyright (C) 2026 hirame.ki - additional terms under GPL-3.0 section 7 apply, see NOTICE.txt
 // 이용자 수 파악(ㄱ할게 GOE와 같은 방식): 켠 날 하루 한 번, 임의 번호·버전·날짜만 문수네집 서버에 남긴다(설치 하나에 문서 하나).
+// 프로그램을 지워도 서버의 문서는 남는다(마지막 날짜가 멈추므로 최근 7·30일 수에서 저절로 빠진다).
 // 파일·이름·PC 정보는 넣지 않는다. 설정 → 그 밖에서 끄면 보내지 않고, 남긴 문서와 임의 번호도 지운다.
 // 서버에 닿지 않으면(학교망 등) 조용히 넘어가고 다음에 다시 한다. 설치해서 쓸 때만 보낸다(시험·무설치 실행은 세지 않음).
 // 데이터 등급: 영구(backend 일반 문서 저장소 bakkum_usage/<임의 번호> = {version, first, last}).
@@ -42,7 +43,8 @@ namespace Bakkum
             s.UsageOff = !on;
             s.UsageSent = "";
             s.SaveQuietly();
-            new Thread(delegate () { Ping(); }) { IsBackground = true, Name = "이용 신호" }.Start();
+            // 설치하지 않은 채 켠 것(시험·무설치)은 세지 않는다. 지우기는 어디서든 한다.
+            if (AppInfo.RunningInstalled || !on) new Thread(delegate () { Ping(); }) { IsBackground = true, Name = "이용 신호" }.Start();
         }
 
         /// 켜 있으면 오늘 한 번 남기고, 꺼 있으면 전에 남긴 문서를 지운다. 실패하면 다음에 다시 한다.
@@ -63,13 +65,16 @@ namespace Bakkum
                 string today = DateTime.Today.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture);
                 if (s.UsageSent == today) return false;
                 var data = new Dictionary<string, object> { { "version", AppInfo.Version }, { "last", today } };
+                // 아직 한 번도 닿지 않은 번호면 처음 날도 적는다
+                if (string.IsNullOrEmpty(s.UsageSent)) data["first"] = today;
                 if (id.Length == 0)
                 {
+                    // 보내기 전에 저장한다. 서버에는 닿았는데 답이 늦게 와도 다음에 같은 번호를 써서 두 번 세지 않고, 끌 때 지울 수 있다.
                     id = NewId();
-                    data["first"] = today;
+                    s.InstallId = id;
+                    s.SaveQuietly();
                 }
                 if (!Commit(Op("set", id, data))) return false;
-                s.InstallId = id;
                 s.UsageSent = today;
                 s.SaveQuietly();
                 return true;

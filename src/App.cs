@@ -87,6 +87,8 @@ namespace Bakkum
             }
             string first = args.Length > 0 && args[0].StartsWith("/") ? args[0].ToLowerInvariant() : "";
 
+            // 그림 확인의 style:·mood:는 Theme를 읽기 전에 정해야 한다(Theme 칸을 읽는 메서드는 JIT가 먼저 Theme를 초기화한다)
+            if (first == "/render-window" || first == "/render-menu") Cli.PickLook(args);
             try
             {
                 switch (first)
@@ -537,8 +539,8 @@ namespace Bakkum
             return 0;
         }
 
-        /// 그림 확인용: style:카툰풍처럼 스타일·색감을 고른다(테마를 읽기 전에, 저장하지 않음).
-        static void PickLook(string[] args)
+        /// 그림 확인용: style:cartoon처럼 스타일·색감을 고른다(테마를 읽기 전에 App.Start에서, 저장하지 않음).
+        internal static void PickLook(string[] args)
         {
             foreach (var a in args)
             {
@@ -550,7 +552,6 @@ namespace Bakkum
         public static int RenderMenu(string[] args)
         {
             Active = true;
-            PickLook(args);
             if (args.Length < 3)
             {
                 Print("사용: /render-menu index|fan|wave|honeycomb 결과.png [칸번호] [choose:shrink] [at:x,y] [파일...]");
@@ -584,7 +585,6 @@ namespace Bakkum
         public static int RenderWindow(string[] args)
         {
             Active = true;
-            PickLook(args);
             if (args.Length < 3)
             {
                 Print("사용: /render-window settings|consent|install|dialog|toast|toast-done|toast-error|notice|photo|video 결과.png [ai:연결] [state:...] [h:높이] (settings: [page:쪽] [full]) (video: [state:칸] [demo] [panel] 영상 파일)");
