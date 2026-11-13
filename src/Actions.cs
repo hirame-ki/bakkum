@@ -91,7 +91,27 @@ namespace Bakkum
             return Path.GetExtension(path).ToLowerInvariant();
         }
 
-        /// 놓은 것 가운데 폴더는 그 안의 파일(아는 형식만, 탐색기 이름 순)로 바꾼다.
+        /// 폴더 안에서 뺄 파일: 숨긴·시스템 파일(보통 탐색기에 안 보인다. 백신이 숨겨 둔 미끼 파일 등),
+        /// 문서를 연 동안 오피스가 만드는 임시 파일(~$), 맥이 USB에 남기는 정보 파일(._), 바로 가기(.lnk·.url), 임시 파일(.tmp).
+        /// 선생님이 고른 문서가 아니라서 바꾸려 하면 실패만 알린다.
+        public static bool SkipInFolder(FileInfo f)
+        {
+            // 폴더를 훑을 때 받은 속성을 그대로 쓴다(파일마다 다시 묻지 않는다).
+            if ((f.Attributes & (FileAttributes.Hidden | FileAttributes.System)) != 0) return true;
+            string name = f.Name, e = Ext(name);
+            return name.StartsWith("~$", StringComparison.Ordinal) || name.StartsWith("._", StringComparison.Ordinal) || e == ".lnk" || e == ".url" || e == ".tmp";
+        }
+
+        /// 폴더 바로 안의 파일(탐색기 이름 순). SkipInFolder에 걸리는 것은 뺀다. 폴더를 펼칠 때와 'AI로 → 폴더 정리'가 함께 쓴다.
+        public static List<string> FolderFiles(string dir)
+        {
+            var list = new DirectoryInfo(dir).GetFiles().Where(f => !SkipInFolder(f)).Select(f => f.FullName).ToList();
+            list.Sort(Util.NaturalCompare);
+            return list;
+        }
+
+        /// 놓은 것 가운데 폴더는 그 안의 파일(아는 형식만, 탐색기 이름 순)로 바꾼다. 숨긴 파일·임시 파일은 빼고(SkipInFolder),
+        /// 파일을 하나씩 직접 놓으면 숨긴 파일이어도 그대로 둔다.
         public static List<string> Expand(IEnumerable<string> paths)
         {
             var list = new List<string>();
@@ -104,9 +124,7 @@ namespace Bakkum
                         // 폴더째 묶을 수 있게 폴더 자리도 남긴다(끝이 \ 인 항목). 드라이브 전체는 뺀다.
                         string full = Path.GetFullPath(p), trimmed = full.TrimEnd('\\');
                         if (!string.Equals(Path.GetPathRoot(full).TrimEnd('\\'), trimmed, StringComparison.OrdinalIgnoreCase)) list.Add(trimmed + "\\");
-                        var inner = Directory.GetFiles(Path.GetFullPath(p)).Where(f => KindOf(f) != Kind.Unknown).ToList();
-                        inner.Sort(Util.NaturalCompare);
-                        list.AddRange(inner);
+                        list.AddRange(FolderFiles(full).Where(f => KindOf(f) != Kind.Unknown));
                     }
                     else if (File.Exists(p)) list.Add(Path.GetFullPath(p));
                     // 너무 긴 경로는 있어도 없다고 나온다. 말없이 빠지지 않게 남겨 두고, 작업이 알기 쉬운 말로 알린다.
