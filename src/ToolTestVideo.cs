@@ -185,6 +185,7 @@ namespace Bakkum
             SrtFiles();
             SubtitleVoices();
             WhisperBlocked();
+            NaturalVoiceLogic();
 
             // ── 8. 수업 자료(PDF) → 쪽 그림, PPT 발표자 노트 읽기 ──
             Lecture();

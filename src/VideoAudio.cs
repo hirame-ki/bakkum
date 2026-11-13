@@ -1116,24 +1116,46 @@ namespace Bakkum
         }
     }
 
-    /// 자막 음성: 윈도우에 들어 있는 목소리(인터넷으로 보내지 않는다)
+    /// 자막 음성: 윈도우에 들어 있는 목소리, 또는 받아 둔 자연스러운 목소리(Supertonic, NaturalVoice.cs).
+    /// 둘 다 이 PC 안에서 만들고, 글을 인터넷으로 보내지 않는다.
     static class VTts
     {
         public sealed class Voice
         {
             public string Id, Name, Lang;
             public bool Korean;
+            /// 받아 둔 자연스러운 목소리(AI). 한 목소리로 한국어·영어를 다 읽는다.
+            public bool Natural;
         }
 
+        /// 윈도우 목소리(한국어 먼저) 뒤에, 받아 둔 자연스러운 목소리 10개
         public static List<Voice> Voices()
         {
-            return WinRtCall.Mta(() =>
+            List<Voice> list;
+            try
             {
-                var list = new List<Voice>();
-                foreach (var v in WinSpeech.SpeechSynthesizer.AllVoices)
-                    list.Add(new Voice { Id = v.Id, Name = v.DisplayName, Lang = v.Language ?? "", Korean = (v.Language ?? "").StartsWith("ko", StringComparison.OrdinalIgnoreCase) });
-                return list.OrderByDescending(v => v.Korean).ThenBy(v => v.Name).ToList();
-            });
+                list = WinRtCall.Mta(() =>
+                {
+                    var l = new List<Voice>();
+                    foreach (var v in WinSpeech.SpeechSynthesizer.AllVoices)
+                        l.Add(new Voice { Id = v.Id, Name = v.DisplayName, Lang = v.Language ?? "", Korean = (v.Language ?? "").StartsWith("ko", StringComparison.OrdinalIgnoreCase) });
+                    return l.OrderByDescending(v => v.Korean).ThenBy(v => v.Name).ToList();
+                });
+            }
+            catch (Exception ex)
+            {
+                // 윈도우 음성 부품이 없거나 고장 나도 받아 둔 자연스러운 목소리는 쓸 수 있게
+                if (!NaturalVoices.Ready()) throw;
+                Log.Write("윈도우 목소리 목록 실패: " + ex.GetType().Name);
+                list = new List<Voice>();
+            }
+            if (NaturalVoices.Ready())
+                foreach (var s in NaturalVoices.Styles)
+                {
+                    string id = NaturalVoices.Prefix + s;
+                    list.Add(new Voice { Id = id, Name = NaturalVoices.NameOf(id), Lang = "ko-KR", Korean = true, Natural = true });
+                }
+            return list;
         }
 
         /// 다시 만들 수 있어서 캐시 폴더에 둔다. 자동 저장한 편집이 쓰는 것은 정리에서 남긴다(VAutoSave.Tidy).
@@ -1151,12 +1173,23 @@ namespace Bakkum
         public static string Speak(string text, string voiceId, double rate)
         {
             if (string.IsNullOrWhiteSpace(text)) throw new UserFacingException("읽을 글이 없어요.");
+            bool natural = NaturalVoices.IsNatural(voiceId);
+            // 자연스러운 목소리는 만드는 방법이 바뀌면(엔진 판) 새로 만든다
+            string seed = text + "|" + voiceId + "|" + rate.ToString("F2") + (natural ? "|v" + NaturalVoiceEngine.Version : "");
             string key;
-            using (var sha = SHA1.Create()) key = BitConverter.ToString(sha.ComputeHash(Encoding.UTF8.GetBytes(text + "|" + voiceId + "|" + rate.ToString("F2"))), 0, 10).Replace("-", "").ToLowerInvariant();
+            using (var sha = SHA1.Create()) key = BitConverter.ToString(sha.ComputeHash(Encoding.UTF8.GetBytes(seed)), 0, 10).Replace("-", "").ToLowerInvariant();
             string path = Path.Combine(Folder, key + ".wav");
             if (File.Exists(path))
             {
                 try { File.SetLastWriteTime(path, DateTime.Now); } catch { }
+                return path;
+            }
+            if (natural)
+            {
+                var f = NaturalVoiceEngine.Speak(text, voiceId, rate);
+                var mono = new short[f.Length];
+                for (int i = 0; i < f.Length; i++) mono[i] = (short)Math.Round(Math.Max(-1f, Math.Min(1f, f[i])) * 32767);
+                VWav.Write(path, Trim(To48Stereo(mono, 1, NaturalVoiceEngine.SampleRate)), 2, AudioTrack.Rate);
                 return path;
             }
             byte[] wav = WinRtCall.Mta(() =>
@@ -1188,19 +1221,94 @@ namespace Bakkum
             return path;
         }
 
+        /// 여러 줄을 잇달아 만들 때(자막을 음성으로·발표자 노트). 자연스러운 목소리가 안 되면(메모리가 모자람·열리지 않음)
+        /// 그 줄부터 윈도우 목소리로 만들고 까닭을 적어 둔다. 한 번 안 되면 남은 줄은 바로 윈도우 목소리로 만든다
+        /// (줄마다 몇 초씩 다시 열어 보지 않게). 윈도우 한국어 목소리가 없으면 그대로 실패한다.
+        /// 자연스러운 목소리가 읽을 글자가 없는 줄(이모지·한자·기호만)은 만들지 않는다.
+        internal sealed class Batch
+        {
+            readonly List<Voice> voices;
+            readonly string windows;
+            /// 자연스러운 목소리를 쓰지 못한 까닭('…해서'). 다 됐으면 null.
+            public string Because;
+            /// 윈도우 목소리로 대신 만든 줄 수
+            public int Switched;
+            /// 읽을 글자가 없어 건너뛴 줄 수
+            public int Unreadable;
+
+            /// preferWindows: 대신 쓸 윈도우 목소리(사용자가 고른 것). 없거나 이 PC에 없으면 첫 한국어 목소리.
+            public Batch(List<Voice> voices, string preferWindows)
+            {
+                this.voices = voices ?? new List<Voice>();
+                var ko = this.voices.Where(v => v.Korean && !v.Natural).ToList();
+                windows = ko.Any(v => v.Id == preferWindows) ? preferWindows : ko.Select(v => v.Id).FirstOrDefault();
+            }
+
+            /// text를 voice로 읽은 WAV. 윈도우 목소리로 바꿔 만들었으면 voice도 그 목소리로 바꾼다. 건너뛴 줄은 null.
+            public string Speak(string text, ref string voice, double rate)
+            {
+                if (NaturalVoices.IsNatural(voice) && Because != null && windows != null)
+                {
+                    voice = VLecture.VoiceFor(text, windows, voices);
+                    Switched++;
+                }
+                if (!NaturalVoices.IsNatural(voice)) return VTts.Speak(text, voice, rate);
+                try
+                {
+                    return VTts.Speak(text, voice, rate);
+                }
+                catch (NothingToReadException)
+                {
+                    Unreadable++;
+                    return null;
+                }
+                catch (NaturalVoiceException ex)
+                {
+                    if (windows == null) throw;
+                    Log.Write("자연스러운 목소리가 안 돼 윈도우 목소리로: " + ex.Because);
+                    Because = ex.Because;
+                    voice = VLecture.VoiceFor(text, windows, voices);
+                    Switched++;
+                    return VTts.Speak(text, voice, rate);
+                }
+            }
+        }
+
+        /// 자연스러운 목소리를 다시 만드는 데 쓸 시간(초). 한 줄에 1~3초 걸려서, 편집을 여는 창을 오래 붙잡지 않게 한다.
+        internal static double NaturalRemakeBudget = 15;
+
         /// 소리 파일이 없는 자막 음성을 저장된 글·목소리·빠르기로 다시 만든다(로밍 프로필로 다른 PC에서 열 때 등). 다시 만든 수.
-        /// 그 목소리가 이 PC에 없으면 한국어 목소리로 읽는다.
+        /// 그 목소리가 이 PC에 없으면(자연스러운 목소리를 받지 않은 PC 포함) 한국어 목소리로 읽는다.
+        /// 자연스러운 목소리는 NaturalRemakeBudget 안에서만 만들고, 남은 것은 파일이 없는 채로 둔다(여는 쪽이 한 번에 알린다).
         public static int Remake(VProject p)
         {
             var missing = p.Sounds.Where(s => s.Kind == "voice" && !string.IsNullOrWhiteSpace(s.Text) && !string.IsNullOrEmpty(s.Path) && !File.Exists(s.Path)).ToList();
             if (missing.Count == 0) return 0;
             int n = 0;
+            var watch = System.Diagnostics.Stopwatch.StartNew();
             try
             {
                 var here = new HashSet<string>(Voices().Select(v => v.Id));
+                bool naturalBroken = false;
                 foreach (var s in missing)
                 {
-                    string path = Speak(s.Text.Replace("\r", " ").Replace("\n", " "), s.Voice != null && here.Contains(s.Voice) ? s.Voice : null, s.Rate > 0 ? s.Rate : 1);
+                    string voice = s.Voice != null && here.Contains(s.Voice) ? s.Voice : null;
+                    if (NaturalVoices.IsNatural(voice) && naturalBroken) voice = null;
+                    if (NaturalVoices.IsNatural(voice) && watch.Elapsed.TotalSeconds > NaturalRemakeBudget) continue;
+                    string text = s.Text.Replace("\r", " ").Replace("\n", " ");
+                    string path;
+                    try
+                    {
+                        path = Speak(text, voice, s.Rate > 0 ? s.Rate : 1);
+                    }
+                    catch (Exception ex)
+                    {
+                        if (!NaturalVoices.IsNatural(voice)) throw;
+                        // 자연스러운 목소리를 열지 못하면(메모리 등) 나머지는 윈도우 한국어 목소리로
+                        Log.Write("자연스러운 목소리로 다시 만들기 실패, 윈도우 목소리로: " + ex.GetType().Name);
+                        naturalBroken = true;
+                        path = Speak(text, null, s.Rate > 0 ? s.Rate : 1);
+                    }
                     s.Path = path;
                     s.Out = Math.Min(s.Out, Math.Max(0.1, (new FileInfo(path).Length - 44) / (4.0 * AudioTrack.Rate)));
                     n++;

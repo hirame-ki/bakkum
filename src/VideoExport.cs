@@ -62,7 +62,7 @@ namespace Bakkum
         public string Text;
         /// 그 자리로 가기(초), 없으면 -1
         public double T = -1;
-        /// 고치기 버튼: relink · level · aspect916 · subtitle_slow · voice_stale
+        /// 고치기 버튼: relink · level · aspect916 · subtitle_slow · voice_stale · ai_label
         public string Fix;
     }
 
@@ -292,9 +292,22 @@ namespace Bakkum
                 // 소리만 내보낼 때도 음성은 들어간다
                 var stale = StaleVoices(p);
                 if (stale != null) list.Add(stale);
+                var ai = AiVoice(p, plan.Kind == "audio");
+                if (ai != null) list.Add(ai);
                 list.Add(new VCheck { Level = "info", Text = "찍은 장소·기기 같은 원본 파일 정보는 새 파일에 담지 않아요." });
             }
             return list;
+        }
+
+        /// 자연스러운 목소리(AI)로 만든 음성이 있으면, 듣는 사람이 AI 목소리인 줄 알게 밝혔는지 본다.
+        /// 목소리 모델의 사용 조건(Open RAIL-M: 기계가 만든 것을 알리지 않고 퍼뜨리지 않기)이다. 자막 칸과 내보내기 점검이 같이 쓴다.
+        /// 영상 설명에 밝힐 수도 있어서 막지는 않는다.
+        public static VCheck AiVoice(VProject p, bool audioOnly)
+        {
+            if (!VAiLabel.Uses(p)) return null;
+            if (audioOnly) return new VCheck { Level = "info", Text = "AI 목소리가 들어 있어요. 소리 파일을 나눌 때 'AI 목소리로 만들었다'고 함께 밝혀 주세요(목소리 모델의 사용 조건)." };
+            if (VAiLabel.Has(p)) return null;
+            return new VCheck { Level = "warn", Text = "AI 목소리를 썼는데 화면에 'AI 목소리' 표시가 없어요. 목소리 모델의 사용 조건이라, 화면이나 영상 설명에 꼭 밝혀 주세요.", Fix = "ai_label" };
         }
 
         /// 음성으로 바꾼 뒤 글을 고친 자막이 있으면 알린다(그 음성은 고치기 전 글을 읽는다). 자막 칸과 내보내기 점검이 같이 쓴다.

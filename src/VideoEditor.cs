@@ -123,6 +123,8 @@ namespace Bakkum
                 pollTimer.Stop();
                 autosaveTimer.Stop();
                 preview.Dispose();
+                // 자연스러운 목소리 엔진이 쥔 메모리(약 1GB)를 돌려준다(읽는 중이면 다 읽은 뒤에)
+                NaturalVoiceEngine.Release();
             };
             Loaded += delegate
             {
@@ -358,13 +360,20 @@ namespace Bakkum
         {
             // 자막 음성 파일은 캐시 폴더에 있어서 다른 PC(로밍 프로필)에는 없다. 묻지 않고 저장된 글로 다시 만든다.
             VTts.Remake(p);
+            // 그래도 없는 음성은 하나씩 묻지 않고 한 번에 알리고 뺀다(자연스러운 목소리 수십 개가 남으면 창이 수십 번 뜨지 않게)
+            var lost = p.Sounds.Where(s => s.Kind == "voice" && !string.IsNullOrEmpty(s.Path) && !File.Exists(s.Path)).ToList();
+            if (lost.Count > 0)
+            {
+                bool natural = lost.Any(s => NaturalVoices.IsNatural(s.Voice));
+                Dialog.Ask(null, H, "media", "자막 음성을 다시 만들어야 해요", "이 PC에서 자막 음성 " + lost.Count + "개를 다시 만들지 못했어요("
+                    + (natural ? "자연스러운 목소리는 만드는 데 시간이 걸려서 여는 동안에는 일부만 만들어요" : "그 목소리가 이 PC에 없을 수 있어요")
+                    + "). 그 음성만 빼고 열어요. 자막은 그대로 남고, 자막 칸의 [모든 자막을 음성으로]로 다시 넣을 수 있어요.", null, "빼고 열기");
+                p.Sounds.RemoveAll(s => lost.Contains(s));
+            }
             foreach (var f in p.Files().Distinct(StringComparer.OrdinalIgnoreCase).ToList())
             {
                 if (File.Exists(f)) continue;
-                bool voice = p.Sounds.Any(s => s.Kind == "voice" && string.Equals(s.Path, f, StringComparison.OrdinalIgnoreCase));
-                int n = voice
-                    ? Dialog.Ask(null, H, "media", "자막 음성을 다시 만들어야 해요", "이 PC에서 자막 음성을 다시 만들지 못했어요(그 목소리가 이 PC에 없을 수 있어요). 그 음성만 빼고 열어요. 자막은 그대로 남고, 자막 칸의 [모든 자막을 음성으로]로 다시 넣을 수 있어요.", null, "빼고 열기")
-                    : Dialog.Ask(null, H, "media", "원본 파일을 찾지 못했어요", "'" + Path.GetFileName(f) + "' 파일이 옮겨졌거나 이름이 바뀌었어요. 새 자리를 알려 주면 이어서 편집할 수 있어요.", null, "빼고 열기", "찾아보기");
+                int n = Dialog.Ask(null, H, "media", "원본 파일을 찾지 못했어요", "'" + Path.GetFileName(f) + "' 파일이 옮겨졌거나 이름이 바뀌었어요. 새 자리를 알려 주면 이어서 편집할 수 있어요.", null, "빼고 열기", "찾아보기");
                 string found = null;
                 if (n == 1)
                 {

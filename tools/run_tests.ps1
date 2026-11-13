@@ -15,7 +15,8 @@
 #   Nothing goes to the internet. Needs Python 3 with the cryptography package (pip install cryptography).
 # - These read sample files that must be put in -Dir first (the owner hands them over as a test-materials
 #   folder): photo, pdf, doc, format, media, ai (clear.png, scan.pdf, tbl.pdf), whisper / whisperturbo
-#   (whisper_onnx\ model files and whisper_test\ recording).
+#   (whisper_onnx\ model files and whisper_test\ recording), voice (supertonic\ = the Supertonic 3 files,
+#   about 383 MB; with whisper_onnx\base\ it also checks that Whisper understands the voice; about 1.5 GB of memory).
 # - Need more than files: hancom and lecturehancom (Hancom Office), camreal (turns the real webcam on),
 #   ai (Python 3; it talks to tools\mock_claude.py, a fake Claude Code), whisperturbo (about 3 GB of
 #   memory), proxy (slow: makes a 2-minute 1080p video), office (MS Office or Hancom Office: makes its own

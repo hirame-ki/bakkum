@@ -19,6 +19,15 @@ using WinML = Windows.AI.MachineLearning;
 
 namespace Bakkum
 {
+    /// 모델 받기 안내에 들어가는 말. 자동 자막과 자연스러운 목소리(NaturalVoice.cs)가 같은 받기 코드를 쓴다.
+    sealed class ModelWords
+    {
+        /// "자동 자막 모델"(… 받기가 막힌 것 같아요), 목적어 꼴("자동 자막 모델을"), 다시 누를 단추("[자동 자막 만들기]를")
+        public string Name, Object, Again;
+
+        public static readonly ModelWords AutoSub = new ModelWords { Name = "자동 자막 모델", Object = "자동 자막 모델을", Again = "[자동 자막 만들기]를" };
+    }
+
     /// 받아 쓰는 Whisper 모델 하나(받는 곳은 커밋으로 고정하고, 파일마다 SHA-256으로 확인한다)
     sealed class WhisperModel
     {
@@ -219,7 +228,7 @@ namespace Bakkum
                     if (File.Exists(dst) && new FileInfo(dst).Length >= p.Size) File.Delete(dst);
                     string local = LocalSource != null ? LocalSource(p) : null;
                     if (local != null) File.Copy(local, dst, true);
-                    else Fetch(UrlOf(m, p), dst, p.Size, got, stop);
+                    else Fetch(UrlOf(m, p), dst, p.Size, got, stop, ModelWords.AutoSub);
                     report("받은 파일을 확인하는 중", 0.9 * (before + p.Size) / total);
                     if (Sha256Of(dst) != p.Sha256)
                     {
@@ -252,25 +261,37 @@ namespace Bakkum
 
         // 받기가 막혔을 때 할 일. 모델 파일은 huggingface.co에서 hf.co(CDN)로 넘겨 받는다(11-12 확인: us.aws.cdn.hf.co).
         const string AskAllow = "정보 담당 선생님께 huggingface.co와 hf.co 주소를 열어 달라고 부탁해 주세요.";
-        internal const string Blocked = "학교 인터넷에서 자동 자막 모델 받기가 막힌 것 같아요. " + AskAllow;
+        internal static readonly string Blocked = BlockedFor(ModelWords.AutoSub);
+
+        internal static string BlockedFor(ModelWords w)
+        {
+            return "학교 인터넷에서 " + w.Name + " 받기가 막힌 것 같아요. " + AskAllow;
+        }
 
         /// 받기 실패를 쉬운 말로(학교 인터넷에서 막혔으면 누구에게 무엇을 부탁할지까지)
         internal static string Explain(WebException ex)
         {
+            return Explain(ex, ModelWords.AutoSub);
+        }
+
+        internal static string Explain(WebException ex, ModelWords w)
+        {
             var hr = ex.Response as HttpWebResponse;
             int code = hr != null ? (int)hr.StatusCode : 0;
-            if (code == 403) return Blocked;
+            if (code == 403) return BlockedFor(w);
             if (code == 407) return "학교 인터넷이 따로 로그인(프록시 인증)을 요구해서 받지 못했어요. 정보 담당 선생님께 huggingface.co와 hf.co 주소를 로그인 없이 쓸 수 있게 해 달라고 부탁해 주세요.";
             // 보안 장비가 연결을 가로채면 인증서를 못 믿거나(TrustFailure) 보안 연결 자체가 끊긴다(SecureChannelFailure)
             if (ex.Status == WebExceptionStatus.TrustFailure || ex.Status == WebExceptionStatus.SecureChannelFailure)
                 return "보안 연결을 확인하지 못했어요(인증서 문제). 먼저 이 PC의 날짜·시간이 맞는지 확인해 주세요. 맞는데도 안 되면 학교 인터넷의 보안 장비가 연결을 검사하는 것 같아요. 정보 담당 선생님께 huggingface.co와 hf.co 주소를 검사에서 빼 달라고 부탁해 주세요.";
             if (ex.Status == WebExceptionStatus.NameResolutionFailure) return "huggingface.co 주소를 찾지 못했어요. 인터넷이 연결되어 있는지 확인해 주세요. 다른 사이트는 열린다면 학교 인터넷에서 막은 것이니, " + AskAllow;
-            return "자동 자막 모델을 받지 못했어요. 인터넷 연결을 확인하고 다시 눌러 주세요(받던 것은 이어서 받아요). 계속 안 되면 " + AskAllow;
+            return w.Object + " 받지 못했어요. 인터넷 연결을 확인하고 다시 눌러 주세요(받던 것은 이어서 받아요). 계속 안 되면 " + AskAllow;
         }
 
         /// 파일 하나 받기. 받다 만 파일이 있으면 이어서 받는다(서버가 이어 주지 않으면 처음부터).
-        static void Fetch(string url, string dst, long size, Action<long> got, Func<bool> stop)
+        internal static void Fetch(string url, string dst, long size, Action<long> got, Func<bool> stop, ModelWords w)
         {
+            string blocked = BlockedFor(w);
+            string cut = "받기가 중간에 끊겼어요. " + w.Again + " 다시 누르면 이어서 받아요.";
             Web.EnsureTls();
             long have = File.Exists(dst) ? new FileInfo(dst).Length : 0;
             var req = (HttpWebRequest)WebRequest.Create(url);
@@ -289,8 +310,8 @@ namespace Bakkum
                     // 차단 안내 페이지(200 HTML)나 길이가 다른 답이면 받지 않는다(받던 파일도 그대로 둔다)
                     if ((r.ContentType ?? "").StartsWith("text/html", StringComparison.OrdinalIgnoreCase) || r.ContentLength >= 0 && r.ContentLength != size - done)
                     {
-                        Log.Write("자동 자막 모델 받기: 다른 답 " + r.ContentType + " " + r.ContentLength + "/" + (size - done));
-                        throw new UserFacingException(Blocked);
+                        Log.Write(w.Name + " 받기: 다른 답 " + r.ContentType + " " + r.ContentLength + "/" + (size - done));
+                        throw new UserFacingException(blocked);
                     }
                     using (var s = r.GetResponseStream())
                     using (var f = new FileStream(dst, append ? FileMode.Append : FileMode.Create, FileAccess.Write))
@@ -307,7 +328,7 @@ namespace Bakkum
                                 throw new OperationCanceledException();
                             }
                             done += n;
-                            if (done > size) throw new UserFacingException(Blocked);
+                            if (done > size) throw new UserFacingException(blocked);
                             f.Write(buf, 0, n);
                             if (Environment.TickCount - tick > 250)
                             {
@@ -317,7 +338,7 @@ namespace Bakkum
                         }
                     }
                     got(done);
-                    if (done != size) throw new UserFacingException("받기가 중간에 끊겼어요. [자동 자막 만들기]를 다시 누르면 이어서 받아요.");
+                    if (done != size) throw new UserFacingException(cut);
                 }
             }
             catch (OperationCanceledException)
@@ -332,13 +353,13 @@ namespace Bakkum
             {
                 if (ex.Status == WebExceptionStatus.RequestCanceled && stop()) throw new OperationCanceledException();
                 var hr = ex.Response as HttpWebResponse;
-                Log.Write("자동 자막 모델 받기 실패: " + ex.Status + (hr != null ? " " + (int)hr.StatusCode : ""));
-                throw new UserFacingException(Explain(ex));
+                Log.Write(w.Name + " 받기 실패: " + ex.Status + (hr != null ? " " + (int)hr.StatusCode : ""));
+                throw new UserFacingException(Explain(ex, w));
             }
             catch (IOException ex)
             {
-                Log.Write("자동 자막 모델 받기 끊김: " + ex.GetType().Name);
-                throw new UserFacingException("받기가 중간에 끊겼어요. [자동 자막 만들기]를 다시 누르면 이어서 받아요.");
+                Log.Write(w.Name + " 받기 끊김: " + ex.GetType().Name);
+                throw new UserFacingException(cut);
             }
         }
 

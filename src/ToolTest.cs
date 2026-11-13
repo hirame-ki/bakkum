@@ -30,7 +30,7 @@ namespace Bakkum
             // 시험 실행기(tools\run_tests.ps1)가 이미 임시 폴더를 정해 두었으면 그것을 쓰고(실행기가 지운다),
             // 여기서 만든 폴더는 시험이 끝나면 지운다(사본·녹화 같은 큰 파일이 임시 폴더에 쌓이지 않게).
             string madeData = null;
-            if (AppInfo.DataDirOverride == null && (what == "ai" || what == "aihwp" || what == "update" || what == "record" || what == "camreal" || what == "video" || what == "proxy" || what == "proxyquick" || what == "whisper" || what == "whisperturbo" || what == "phone" || what == "lecturehancom"))
+            if (AppInfo.DataDirOverride == null && (what == "ai" || what == "aihwp" || what == "update" || what == "record" || what == "camreal" || what == "video" || what == "proxy" || what == "proxyquick" || what == "whisper" || what == "whisperturbo" || what == "phone" || what == "lecturehancom" || what == "voice"))
             {
                 madeData = Path.Combine(Path.GetTempPath(), "bakkum-aitest-" + Guid.NewGuid().ToString("N").Substring(0, 8));
                 AppInfo.DataDirOverride = madeData;
@@ -60,6 +60,8 @@ namespace Bakkum
                 // 자동 자막: 시험 폴더의 Whisper 파일을 이 PC 안 작은 서버로 내주어 받기부터 본다(인터넷 안 씀). turbo는 1.1GB라 따로.
                 if (what == "whisper") WhisperTests(false);
                 if (what == "whisperturbo") WhisperTests(true);
+                // 자연스러운 목소리: 시험 폴더의 Supertonic 3 파일(supertonic)로 받기·만들기·놓기, whisper_onnx\base가 있으면 받아쓰기까지(인터넷 안 씀)
+                if (what == "voice") VoiceTests();
                 if (what == "hancom") HancomTests();
                 // 옛 엑셀·한셀·옛 PPT → 새 형식: 재료 없이, MS 오피스나 한컴오피스로 시험 파일을 그 자리에서 만든다
                 if (what == "office") OfficeLegacyTests();
