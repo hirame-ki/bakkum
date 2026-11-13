@@ -356,14 +356,14 @@ namespace Bakkum
         /// 이어서 할 때 원본이 옮겨졌으면 새 자리를 묻는다
         static VProject Relink(VProject p)
         {
-            // 읽어 주기 소리는 캐시 폴더에 있어서 다른 PC(로밍 프로필)에는 없다. 묻지 않고 저장된 글로 다시 만든다.
+            // 자막 음성 파일은 캐시 폴더에 있어서 다른 PC(로밍 프로필)에는 없다. 묻지 않고 저장된 글로 다시 만든다.
             VTts.Remake(p);
             foreach (var f in p.Files().Distinct(StringComparer.OrdinalIgnoreCase).ToList())
             {
                 if (File.Exists(f)) continue;
                 bool voice = p.Sounds.Any(s => s.Kind == "voice" && string.Equals(s.Path, f, StringComparison.OrdinalIgnoreCase));
                 int n = voice
-                    ? Dialog.Ask(null, H, "media", "읽어 주기 소리를 다시 만들어야 해요", "이 PC에서 읽어 주기 소리를 다시 만들지 못했어요(윈도우 목소리가 없을 수 있어요). 그 소리만 빼고 열어요. 자막은 그대로 남고, 자막 칸의 '모든 자막 읽기'로 다시 넣을 수 있어요.", null, "빼고 열기")
+                    ? Dialog.Ask(null, H, "media", "자막 음성을 다시 만들어야 해요", "이 PC에서 자막 음성을 다시 만들지 못했어요(그 목소리가 이 PC에 없을 수 있어요). 그 음성만 빼고 열어요. 자막은 그대로 남고, 자막 칸의 [모든 자막을 음성으로]로 다시 넣을 수 있어요.", null, "빼고 열기")
                     : Dialog.Ask(null, H, "media", "원본 파일을 찾지 못했어요", "'" + Path.GetFileName(f) + "' 파일이 옮겨졌거나 이름이 바뀌었어요. 새 자리를 알려 주면 이어서 편집할 수 있어요.", null, "빼고 열기", "찾아보기");
                 string found = null;
                 if (n == 1)

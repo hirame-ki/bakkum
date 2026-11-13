@@ -183,6 +183,7 @@ namespace Bakkum
             Chapters();
             Styles();
             SrtFiles();
+            SubtitleVoices();
             WhisperBlocked();
 
             // ── 8. 수업 자료(PDF) → 쪽 그림, PPT 발표자 노트 읽기 ──
@@ -703,6 +704,100 @@ namespace Bakkum
             Check("자막 파일 읽기: 꾸밈 표시 빼고, 깨진 덩어리는 건너뜀", ok, string.Join(" | ", subs.Select(s => s.Start + "~" + s.End + " " + s.Text.Replace("\n", "/"))));
             Check("자막 파일 읽기: 옛 한글(CP949) 파일도", ansi.Count == 1 && ansi[0].Text == "한글 자막", ansi.Count == 1 ? ansi[0].Text : "");
             Check("자막 파일 시간 적기", VideoEditor.SrtClock(3725.5) == "01:02:05,500" && VideoEditor.SrtClock(0.0004) == "00:00:00,000", VideoEditor.SrtClock(3725.5));
+
+            // 유튜브에서 받은 VTT: 머리말·메모 덩어리, 시가 없는 시간, 말한 사람 표시, &amp;
+            string vtt = "WEBVTT\n\n00:01.000 --> 00:02.500 align:start position:0%\n<v 선생님>안녕 &amp; 반가워</v>\n\nNOTE 메모 덩어리\n\n2\n01:02.000 --> 01:03.000\n둘째\n";
+            var v = VideoEditor.ParseSrt(Encoding.UTF8.GetBytes(vtt));
+            Check("자막 파일 읽기: 유튜브 VTT도(시가 없는 시간·말한 사람 표시)", v.Count == 2 && Near(v[0].Start, 1, 1e-9) && Near(v[0].End, 2.5, 1e-9) && v[0].Text == "안녕 & 반가워" && Near(v[1].Start, 62, 1e-9) && v[1].Text == "둘째",
+                string.Join(" | ", v.Select(s => s.Start + "~" + s.End + " " + s.Text)));
+        }
+
+        /// 자막을 음성으로: 자막을 옮기면 음성도 따라가고, 글을 고치면 알리고, 영어 자막은 영어 목소리로
+        static void SubtitleVoices()
+        {
+            var p = new VProject { Aspect = "16:9" };
+            p.Clips.Add(new VClip { Kind = "photo", Path = V("음성시험.png"), Dur = 10 });
+            var a = new VItem { Kind = "text", Subtitle = true, Text = "하나", Start = 2, End = 4 };
+            var b = new VItem { Kind = "text", Subtitle = true, Text = "둘", Start = 8, End = 9 };
+            p.Items.Add(a);
+            p.Items.Add(b);
+            var va = new VSound { Kind = "voice", Path = "a.wav", Start = 2.3, Out = 1, Text = "하나", ItemId = a.Id };
+            var music = new VSound { Kind = "music", Path = "m.mp3", Start = 2, Out = 5 };
+            p.Sounds.Add(va);
+            p.Sounds.Add(music);
+
+            // 1. 끌어 옮기기(끄는 동안 여러 번 불러도 같다)·[여기서 시작]·모든 자막 옮기기가 같은 길을 쓴다
+            var keep = p.KeepVoices(new[] { a.Id });
+            a.Start = 5;
+            a.End = 7;
+            keep();
+            bool moved = Near(va.Start, 5.3, 1e-9);
+            a.Start = 6;
+            keep();
+            keep();
+            moved = moved && Near(va.Start, 6.3, 1e-9) && Near(music.Start, 2, 1e-9);
+            var keep2 = p.KeepVoices(new[] { a.Id });
+            a.Start = 0;
+            keep2();
+            moved = moved && Near(va.Start, 0.3, 1e-9);
+            // 자막보다 앞에 둔 음성을 영상 맨 앞으로 끌면 0에서 멈춘다
+            a.Start = 1;
+            va.Start = 0.5;
+            var keep3 = p.KeepVoices(new[] { a.Id });
+            a.Start = 0.2;
+            keep3();
+            Check("자막 음성: 자막을 옮기면 같은 만큼 따라가고, 따로 둔 간격(0.3초)은 그대로", moved && Near(va.Start, 0, 1e-9), "음성 " + va.Start.ToString("0.00") + " · 배경 음악 " + music.Start);
+
+            // 2. 글을 고치면 '바뀐 자막'(줄바꿈·앞뒤 빈칸만 다르면 아님)
+            a.Start = 2;
+            a.End = 4;
+            va.Start = 2;
+            bool none = p.StaleVoiceItems().Count == 0 && VideoExport.StaleVoices(p) == null;
+            a.Text = "하나 고침";
+            var stale = p.StaleVoiceItems();
+            var ck = VideoExport.StaleVoices(p);
+            bool found = stale.Count == 1 && stale[0] == a && ck != null && ck.Level == "warn" && ck.Fix == "voice_stale" && Near(ck.T, 2, 1e-9);
+            a.Text = "하나\r\n둘 ";
+            va.Text = "하나\n둘";
+            Check("자막 음성: 음성을 만든 뒤 글을 고친 자막을 찾아 알린다(줄바꿈·빈칸 차이는 빼고)", none && found && p.StaleVoiceItems().Count == 0, ck == null ? "알림 없음" : ck.Text);
+
+            // 3. 음성 넣기: 길면 자막을 늘리고, 다시 만들 때 크기·서서히·간격은 그대로, 멀리 떨어진 옛 음성은 자막 시작으로
+            bool over = p.PutVoice(b, "둘", "b.wav", 1.5, "ko1", 1.0);
+            var vb = p.Sounds.Single(s => s.ItemId == b.Id);
+            bool first = !over && Near(vb.Start, 8, 1e-9) && Near(b.End, 9.5, 1e-9) && vb.Text == "둘" && vb.Voice == "ko1" && vb.Kind == "voice";
+            vb.Start = 8.2;
+            vb.Volume = 0.6;
+            vb.FadeIn = 0.3;
+            p.PutVoice(b, "둘", "b2.wav", 1.0, "ko1", 1.2);
+            var vb2 = p.Sounds.Where(s => s.ItemId == b.Id).ToList();
+            bool again = vb2.Count == 1 && vb2[0].Path == "b2.wav" && Near(vb2[0].Start, 8.2, 1e-9) && Near(vb2[0].Volume, 0.6, 1e-9) && Near(vb2[0].FadeIn, 0.3, 1e-9) && Near(vb2[0].Rate, 1.2, 1e-9);
+            vb2[0].Start = 1;
+            p.PutVoice(b, "둘", "b3.wav", 1.0, "ko1", 1.0);
+            bool reset = Near(p.Sounds.Single(s => s.ItemId == b.Id).Start, 8, 1e-9);
+            var c = new VItem { Kind = "text", Subtitle = true, Text = "셋", Start = 3, End = 3.5 };
+            var d = new VItem { Kind = "text", Subtitle = true, Text = "넷", Start = 4, End = 5 };
+            p.Items.Add(c);
+            p.Items.Add(d);
+            bool longer = p.PutVoice(c, "셋", "c.wav", 2.0, "ko1", 1.0);
+            Check("자막 음성: 넣기·다시 만들기(크기·서서히·간격 그대로)·다음 자막에서 멈춤", first && again && reset && longer && Near(c.End, 4, 1e-9),
+                "처음 " + first + " · 다시 " + again + " · 옛 자리 " + reset + " · 겹침 " + longer + " · 셋 끝 " + c.End);
+
+            // 4. 영어 자막은 영어 목소리로(한글이 섞이면 한국어 목소리)
+            var fake = new List<VTts.Voice> { new VTts.Voice { Id = "ko1", Lang = "ko-KR", Korean = true }, new VTts.Voice { Id = "en1", Lang = "en-US" } };
+            Check("자막 음성: 영어 자막은 영어 목소리로", VLecture.LooksEnglish("Good morning, class!") && !VLecture.LooksEnglish("좋은 아침 Good") && !VLecture.LooksEnglish("123 456")
+                && VLecture.VoiceFor("See you tomorrow.", "ko1", fake) == "en1" && VLecture.VoiceFor("내일 봐요", "ko1", fake) == "ko1", null);
+
+            // 5. 자동 자막 '모두 바꾸기'는 뺀 자막의 음성도 뺀다(다른 소리는 그대로)
+            var q = new VProject();
+            var old = new VItem { Kind = "text", Subtitle = true, Text = "옛 자막", Start = 1, End = 2 };
+            q.Items.Add(old);
+            q.Sounds.Add(new VSound { Kind = "voice", Text = "옛 자막", ItemId = old.Id });
+            q.Sounds.Add(new VSound { Kind = "voice", Text = "노트 문장" });
+            q.Sounds.Add(new VSound { Kind = "music" });
+            int unvoiced;
+            int removed = VideoEditor.PutAutoSubs(q, new List<VItem> { new VItem { Kind = "text", Subtitle = true, Text = "새 자막", Start = 1, End = 2 } }, 1, out unvoiced);
+            Check("자동 자막 모두 바꾸기: 뺀 자막의 음성도 빼고 다른 소리는 그대로", removed == 1 && unvoiced == 1 && q.Sounds.Count == 2 && q.Items.Count == 1 && q.Items[0].Text == "새 자막",
+                "뺀 자막 " + removed + " · 뺀 음성 " + unvoiced + " · 남은 소리 " + q.Sounds.Count);
         }
 
         static void Lecture()
@@ -990,8 +1085,8 @@ namespace Bakkum
             Check("자동 저장 정리가 내 꾸밈(styles.json)은 오래돼도 지우지 않는다", File.Exists(styles), "");
             File.Delete(newLog);
 
-            // 푼 소리·읽어 주기는 캐시 폴더에. 오래된 것은 지우되, 지금 쓰는 소리와 자동 저장이 쓰는 읽어 주기·녹음은 남긴다.
-            Check("푼 소리·읽어 주기는 캐시 폴더에, 녹음은 자동 저장 곳에", AudioCache.Folder.StartsWith(AppInfo.CacheDir, StringComparison.OrdinalIgnoreCase) && VTts.Folder.StartsWith(AppInfo.CacheDir, StringComparison.OrdinalIgnoreCase) && VMicRecorder.Folder.StartsWith(VAutoSave.Folder, StringComparison.OrdinalIgnoreCase), AudioCache.Folder + " · " + VTts.Folder);
+            // 푼 소리·자막 음성은 캐시 폴더에. 오래된 것은 지우되, 지금 쓰는 소리와 자동 저장이 쓰는 자막 음성·녹음은 남긴다.
+            Check("푼 소리·자막 음성은 캐시 폴더에, 녹음은 자동 저장 곳에", AudioCache.Folder.StartsWith(AppInfo.CacheDir, StringComparison.OrdinalIgnoreCase) && VTts.Folder.StartsWith(AppInfo.CacheDir, StringComparison.OrdinalIgnoreCase) && VMicRecorder.Folder.StartsWith(VAutoSave.Folder, StringComparison.OrdinalIgnoreCase), AudioCache.Folder + " · " + VTts.Folder);
             string legacyVoice = Path.Combine(VAutoSave.Folder, "voice");
             Directory.CreateDirectory(legacyVoice);
             string pcmOld = Path.Combine(AudioCache.Folder, "오래됨.pcm"), pcmNew = Path.Combine(AudioCache.Folder, "최근.pcm"), procOld = Path.Combine(AudioCache.Folder, "proc", "오래됨.pcm");
@@ -1010,10 +1105,10 @@ namespace Bakkum
             var up = new VProject();
             up.Clips.Add(new VClip { Path = moving, In = 0, Out = 1 });
             up.Opened.Add(V("자동저장시험.mp4"));
-            foreach (var f in new[] { voiceUsed, legacyUsed }) up.Sounds.Add(new VSound { Kind = "voice", Path = f, Text = "읽어 주기" });
+            foreach (var f in new[] { voiceUsed, legacyUsed }) up.Sounds.Add(new VSound { Kind = "voice", Path = f, Text = "자막 음성" });
             up.Sounds.Add(new VSound { Kind = "record", Path = recUsed });
             VAutoSave.Save(up);
-            // 자동 저장을 하나라도 못 읽으면 읽어 주기·녹음은 이번에 지우지 않는다(푼 소리는 지운다)
+            // 자동 저장을 하나라도 못 읽으면 자막 음성·녹음은 이번에 지우지 않는다(푼 소리는 지운다)
             string broken = Path.Combine(VAutoSave.Folder, "망가짐.json");
             File.WriteAllText(broken, "{\"Clips\":[");
             VAutoSave.TidyNow(true);
@@ -1022,12 +1117,12 @@ namespace Bakkum
             VAutoSave.TidyNow(true);
             bool gone = !File.Exists(pcmOld) && !File.Exists(procOld) && !File.Exists(voiceOld) && !File.Exists(legacyOld) && !File.Exists(recOld);
             bool kept = File.Exists(pcmNew) && File.Exists(voiceUsed) && File.Exists(legacyUsed) && File.Exists(recUsed) && File.Exists(recNew) && track.File != null && File.Exists(track.File);
-            Check("오래된 푼 소리(7일)·읽어 주기(30일)·안 쓰는 녹음(60일) 정리, 쓰는 것은 남김", gone && kept, string.Join(", ", made.Where(File.Exists).Select(Path.GetFileName)));
-            Check("자동 저장 하나를 못 읽으면 읽어 주기·녹음은 그때 지우지 않는다", wait, "");
+            Check("오래된 푼 소리(7일)·자막 음성(30일)·안 쓰는 녹음(60일) 정리, 쓰는 것은 남김", gone && kept, string.Join(", ", made.Where(File.Exists).Select(Path.GetFileName)));
+            Check("자동 저장 하나를 못 읽으면 자막 음성·녹음은 그때 지우지 않는다", wait, "");
             VAutoSave.Forget(up.Opened);
             foreach (var f in made) if (File.Exists(f)) File.Delete(f);
 
-            // 다른 PC(로밍 프로필)처럼 읽어 주기 소리 파일이 없으면 저장된 글·목소리·빠르기로 다시 만든다
+            // 다른 PC(로밍 프로필)처럼 자막 음성 파일이 없으면 저장된 글·목소리·빠르기로 다시 만든다
             var rp = new VProject();
             var lost = new VSound { Kind = "voice", Path = Path.Combine(VTts.Folder, "다른피시.wav"), Text = "오늘은 물의 순환을\n배워요.", Voice = "이 PC에 없는 목소리", Rate = 1.2, Out = 99 };
             rp.Sounds.Add(lost);
@@ -1041,7 +1136,7 @@ namespace Bakkum
             {
                 remakeErr = ex.GetType().Name;
             }
-            Check("읽어 주기 소리가 없으면 저장된 글로 다시 만든다(없는 목소리는 한국어 목소리로)", remakeErr == null && remade == 1 && File.Exists(lost.Path) && lost.Out > 0.5 && lost.Out < 10, remakeErr ?? (Path.GetFileName(lost.Path) + " · " + lost.Out.ToString("0.00") + "초"));
+            Check("자막 음성 파일이 없으면 저장된 글로 다시 만든다(없는 목소리는 한국어 목소리로)", remakeErr == null && remade == 1 && File.Exists(lost.Path) && lost.Out > 0.5 && lost.Out < 10, remakeErr ?? (Path.GetFileName(lost.Path) + " · " + lost.Out.ToString("0.00") + "초"));
         }
 
         static void ExportChecks(string moving)
@@ -1049,7 +1144,12 @@ namespace Bakkum
             var cp = new VProject { Aspect = "16:9", SourceW = 640, SourceH = 360 };
             cp.Clips.Add(new VClip { Path = moving, In = 0, Out = 5 });
             cp.Clips.Add(new VClip { Path = V("없는 영상.mp4"), In = 0, Out = 3 });
-            cp.Items.Add(new VItem { Kind = "text", Subtitle = true, Text = "아주 빠르게 지나가는 아주 긴 자막 한 줄입니다", Start = 1, End = 1.5 });
+            var fast = new VItem { Kind = "text", Subtitle = true, Text = "아주 빠르게 지나가는 아주 긴 자막 한 줄입니다", Start = 1, End = 1.5 };
+            cp.Items.Add(fast);
+            // 음성으로 바꾼 뒤 글을 고친 자막
+            string oldVoice = V("옛 글 음성.wav");
+            WriteWav(oldVoice, 0.5, x => 0.2 * Math.Sin(2 * Math.PI * 440 * x));
+            cp.Sounds.Add(new VSound { Kind = "voice", Path = oldVoice, Start = 1, Out = 0.5, Text = "고치기 전 글", ItemId = fast.Id });
             cp.Items.Add(new VItem { Kind = "text", Text = "  ", Start = 2, End = 3 });
             cp.Items.Add(new VItem { Kind = "text", Text = "화면 밖", X = 3.0, Y = 0.5, Start = 3, End = 4 });
             cp.Export.Preset = "reels";
@@ -1061,6 +1161,7 @@ namespace Bakkum
             Check("점검: 릴스인데 가로면 9:16 고치기", has(c => c.Level == "warn" && c.Fix == "aspect916"), "");
             Check("점검: 빨리 지나가는 자막·빈 글자·화면 밖 글자", has(c => c.Fix == "subtitle_slow" && Near(c.T, 1, 1e-9)) && has(c => c.Level == "info" && c.Text.Contains("비어")) && has(c => c.Text.Contains("화면 밖")), "");
             Check("점검: 크기·예상 용량과 원본 파일 정보 안내", has(c => c.Level == "info" && c.Text.StartsWith(plan.W + "×" + plan.H)) && has(c => c.Text.Contains("찍은 장소")), plan.W + "×" + plan.H);
+            Check("점검: 음성으로 바꾼 뒤 글을 고친 자막은 [바뀐 자막만 다시 만들기]", has(c => c.Level == "warn" && c.Fix == "voice_stale" && Near(c.T, 1, 1e-9)), "");
             int n = cp.Relink(V("없는 영상.mp4"), moving);
             var after = VideoExport.Checks(cp, plan);
             Check("점검: 원본을 다시 이어 주면 멈춤이 사라진다", n == 1 && !after.Any(c => c.Level == "stop"), n + "개 바꿈");

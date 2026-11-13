@@ -280,7 +280,7 @@ namespace Bakkum
         }
     }
 
-    /// 따로 넣는 소리: 배경 음악 · 내 목소리(녹음) · 읽어 주기(AI 목소리) · 효과음
+    /// 따로 넣는 소리: 배경 음악 · 내 목소리(녹음) · 자막 음성(자막·노트 글을 읽은 목소리) · 효과음
     public sealed class VSound
     {
         public string Id = VProject.NewId();
@@ -293,9 +293,9 @@ namespace Bakkum
         public double FadeIn, FadeOut;
         /// 배경 음악을 영상 끝까지 되풀이
         public bool Loop;
-        /// 읽어 주기: 읽은 글과 그 자막
+        /// 자막 음성: 읽은 글과 그 자막
         public string Text;
-        /// 읽어 주기: 목소리와 빠르기(소리 파일이 없으면 이것으로 다시 만든다. 로밍 프로필로 다른 PC에서 열 때)
+        /// 자막 음성: 목소리와 빠르기(소리 파일이 없으면 이것으로 다시 만든다. 로밍 프로필로 다른 PC에서 열 때)
         public string Voice;
         public double Rate = 1;
         public string ItemId;
@@ -489,6 +489,92 @@ namespace Bakkum
         public VItem FindItem(string id)
         {
             return Items.FirstOrDefault(i => i.Id == id);
+        }
+
+        // ── 자막 음성: 자막을 음성으로 바꾼 소리(ItemId로 그 자막에 이어져 있다) ──
+
+        sealed class VoicePin
+        {
+            public VSound S;
+            public VItem I;
+            public double S0, I0;
+        }
+
+        /// 자막을 옮기기 전에 부르고, 옮긴 뒤 돌려받은 동작을 부르면 이어진 음성도 같은 만큼 옮겨진다.
+        /// 음성을 따로 옮겨 둔 간격(자막 시작과 음성 시작의 차이)은 그대로 둔다. 끄는 동안 여러 번 불러도 된다.
+        public Action KeepVoices(IEnumerable<string> itemIds)
+        {
+            var ids = new HashSet<string>(itemIds.Where(x => x != null));
+            var pins = new List<VoicePin>();
+            foreach (var s in Sounds)
+            {
+                if (s.ItemId == null || !ids.Contains(s.ItemId)) continue;
+                var it = FindItem(s.ItemId);
+                if (it != null) pins.Add(new VoicePin { S = s, I = it, S0 = s.Start, I0 = it.Start });
+            }
+            return delegate
+            {
+                foreach (var x in pins) x.S.Start = Math.Max(0, x.S0 + (x.I.Start - x.I0));
+            };
+        }
+
+        /// 줄바꿈·앞뒤 빈칸만 다른 글은 같은 글로 본다
+        public static bool SameText(string a, string b)
+        {
+            return NormText(a) == NormText(b);
+        }
+
+        static string NormText(string s)
+        {
+            return (s ?? "").Replace("\r\n", "\n").Replace("\r", "\n").Trim();
+        }
+
+        /// 음성으로 바꾼 뒤 글이 바뀐 자막(음성은 고치기 전 글을 읽는다). 시간 차례.
+        public List<VItem> StaleVoiceItems()
+        {
+            var voiced = new Dictionary<string, List<VSound>>();
+            foreach (var s in Sounds)
+            {
+                if (s.Kind != "voice" || s.ItemId == null) continue;
+                List<VSound> l;
+                if (!voiced.TryGetValue(s.ItemId, out l)) voiced[s.ItemId] = l = new List<VSound>();
+                l.Add(s);
+            }
+            var list = new List<VItem>();
+            foreach (var it in Items.Where(i => i.Subtitle).OrderBy(i => i.Start))
+            {
+                List<VSound> l;
+                if (voiced.TryGetValue(it.Id, out l) && l.Any(s => !SameText(s.Text, it.Text))) list.Add(it);
+            }
+            return list;
+        }
+
+        /// 자막에 음성을 넣는다(있던 음성은 바꾼다). spoken은 읽은 글(만드는 동안 자막 글이 바뀌었으면 바뀐 것으로 잡힌다).
+        /// 있던 음성의 크기·서서히·자막과의 간격은 그대로 두되, 자막에서 멀리 떨어져 있었으면 자막 시작에 놓는다.
+        /// 음성이 자막보다 길면 자막을 다음 자막 앞까지 늘린다. 음성이 다음 자막(또는 영상 끝)을 넘으면 true.
+        public bool PutVoice(VItem it, string spoken, string path, double len, string voice, double rate)
+        {
+            var old = Sounds.FirstOrDefault(s => s.Kind == "voice" && s.ItemId == it.Id);
+            var v = new VSound { Kind = "voice", Path = path, Start = it.Start, In = 0, Out = len, Text = spoken, Voice = voice, Rate = rate, ItemId = it.Id, Name = "자막 음성" };
+            if (old != null)
+            {
+                if (old.Start >= it.Start - 1 && old.Start <= it.End) v.Start = old.Start;
+                v.Volume = old.Volume;
+                v.FadeIn = old.FadeIn;
+                v.FadeOut = old.FadeOut;
+                if (!string.IsNullOrEmpty(old.Name)) v.Name = old.Name;
+            }
+            Sounds.RemoveAll(s => s.ItemId == it.Id);
+            Sounds.Add(v);
+            double need = v.Start + len;
+            var next = Items.Where(i => i.Subtitle && i.Start > it.Start + 0.01).OrderBy(i => i.Start).FirstOrDefault();
+            double limit = next != null ? next.Start : Duration;
+            if (need > it.End + 0.05)
+            {
+                double end = Math.Min(limit, need);
+                if (end > it.End) it.End = end;
+            }
+            return need > limit + 0.05;
         }
 
         // ── 얹은 것이 본 영상을 따라 움직이기 ──
@@ -889,9 +975,9 @@ namespace Bakkum
             return Directory.GetFiles(Folder, "*.json").Where(f => !string.Equals(Path.GetFileName(f), "styles.json", StringComparison.OrdinalIgnoreCase));
         }
 
-        /// 오래된 자동 저장(60일)과 다시 만들 수 있는 파일(사본·푼 소리·읽어 주기) 정리. 바꿈을 켤 때마다 한 번만(첫 영상 편집 때).
+        /// 오래된 자동 저장(60일)과 다시 만들 수 있는 파일(사본·푼 소리·자막 음성) 정리. 바꿈을 켤 때마다 한 번만(첫 영상 편집 때).
         /// 파일 날짜만 보는 것은 바로 하고(편집 창이 열리기 전에 끝나야 열면서 쓰는 파일과 엇갈리지 않는다),
-        /// 자동 저장을 모두 읽어야 하는 읽어 주기·녹음 정리는 뒤 스레드에서 한다.
+        /// 자동 저장을 모두 읽어야 하는 자막 음성·녹음 정리는 뒤 스레드에서 한다.
         public static void Tidy()
         {
             if (Interlocked.Exchange(ref tidied, 1) == 1) return;
@@ -938,7 +1024,7 @@ namespace Bakkum
             if (wait) th.Join();
         }
 
-        /// 읽어 주기·내 목소리 녹음은 남아 있는 자동 저장이 쓰면 남긴다. 안 쓰는 읽어 주기는 30일, 녹음은 사용자 자료라 60일 뒤에 지운다.
+        /// 자막 음성·내 목소리 녹음은 남아 있는 자동 저장이 쓰면 남긴다. 안 쓰는 자막 음성은 30일, 녹음은 사용자 자료라 60일 뒤에 지운다.
         /// 자동 저장을 하나라도 못 읽으면(망가졌거나 막 저장하는 중) 그 편집이 쓰는 것을 모르니 이번에는 지우지 않는다.
         static void TidySounds()
         {

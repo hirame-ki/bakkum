@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-only
 // Bakkum - Copyright (C) 2026 hirame.ki - additional terms under GPL-3.0 section 7 apply, see NOTICE.txt
 // 영상 편집의 소리: 원본 소리 다듬기(빠르기·높낮이·거꾸로·잡음 줄이기), 여러 소리 섞기(배경 음악 줄이기·크기 맞추기),
-// 미리 듣기(waveOut), 읽어 주기(윈도우 목소리), 녹음(마이크), 조용한 곳 찾기, 효과음 만들기.
+// 미리 듣기(waveOut), 자막 음성(윈도우 목소리), 녹음(마이크), 조용한 곳 찾기, 효과음 만들기.
 // 효과음은 이 파일에서 소리 물결을 직접 계산해 만든다(따로 받은 소리 파일이 없다).
 using System;
 using System.Collections.Generic;
@@ -1116,7 +1116,7 @@ namespace Bakkum
         }
     }
 
-    /// 읽어 주기: 윈도우에 들어 있는 목소리(인터넷으로 보내지 않는다)
+    /// 자막 음성: 윈도우에 들어 있는 목소리(인터넷으로 보내지 않는다)
     static class VTts
     {
         public sealed class Voice
@@ -1188,7 +1188,7 @@ namespace Bakkum
             return path;
         }
 
-        /// 소리 파일이 없는 읽어 주기를 저장된 글·목소리·빠르기로 다시 만든다(로밍 프로필로 다른 PC에서 열 때 등). 다시 만든 수.
+        /// 소리 파일이 없는 자막 음성을 저장된 글·목소리·빠르기로 다시 만든다(로밍 프로필로 다른 PC에서 열 때 등). 다시 만든 수.
         /// 그 목소리가 이 PC에 없으면 한국어 목소리로 읽는다.
         public static int Remake(VProject p)
         {
@@ -1208,7 +1208,7 @@ namespace Bakkum
             }
             catch (Exception ex)
             {
-                Log.Write("읽어 주기 다시 만들기 실패: " + ex.GetType().Name);
+                Log.Write("자막 음성 다시 만들기 실패: " + ex.GetType().Name);
             }
             return n;
         }

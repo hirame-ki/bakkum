@@ -208,8 +208,8 @@ namespace Bakkum
 
             // 수업 자료
             Label("수업 자료로 영상 만들기");
-            Hint("PDF·PPT·한글 파일의 쪽을 그림으로 바꿔 재생 위치에 차례로 넣어요. PPT(.pptx)에 발표자 노트가 있으면 윈도우 목소리로 읽어 주고, 그 쪽은 읽는 길이만큼 보여 줘요.");
-            Toggle("발표자 노트 읽어 주기", "노트가 없는 쪽은 아래에서 고른 초만큼 보여 줘요", lectureNotes, v =>
+            Hint("PDF·PPT·한글 파일의 쪽을 그림으로 바꿔 재생 위치에 차례로 넣어요. PPT(.pptx)에 발표자 노트가 있으면 노트를 음성으로 바꿔 넣고, 그 쪽은 음성 길이만큼 보여 줘요.");
+            Toggle("발표자 노트를 음성으로", "노트가 없는 쪽은 아래에서 고른 초만큼 보여 줘요", lectureNotes, v =>
             {
                 lectureNotes = v;
                 RefreshPanel();
@@ -713,7 +713,7 @@ namespace Bakkum
                     foreach (var s in l)
                     {
                         if (busyCancel) throw new OperationCanceledException();
-                        report("노트를 읽는 소리를 만드는 중 (" + (made + 1) + "/" + all + ")", made / (double)all);
+                        report("노트를 음성으로 바꾸는 중 (" + (made + 1) + "/" + all + ")", made / (double)all);
                         string who = VLecture.VoiceFor(s, voice, voices);
                         string wav = VTts.Speak(s, who, rate);
                         parts.Add(new VLecture.Spoken { Text = s, Wav = wav, Len = SoundSeconds(wav), Voice = who, Rate = rate });
@@ -740,7 +740,7 @@ namespace Bakkum
                 });
                 string head = "'" + Path.GetFileName(file) + "'의 " + pages.Count + "쪽을 넣었어요." + (total > pages.Count ? " (앞 " + pages.Count + "쪽만 넣었어요)" : "");
                 if (read > 0)
-                    SetStatus(head + " 노트가 있는 " + noted + "쪽은 노트 " + read + "문장을 읽어 주고" + (subs ? " 자막으로도 보여 주며" : "") + ", 노트가 없는 쪽은 " + Sec(secs) + "씩 보여 줘요. 읽는 소리는 [소리] 칸에서 바꾸거나 지울 수 있어요.");
+                    SetStatus(head + " 노트가 있는 " + noted + "쪽은 노트 " + read + "문장을 음성으로 넣고" + (subs ? " 자막으로도 보여 주며" : "") + ", 노트가 없는 쪽은 " + Sec(secs) + "씩 보여 줘요. 음성은 [소리] 칸에서 바꾸거나 지울 수 있어요.");
                 else
                     SetStatus(head + " 쪽마다 " + Sec(secs) + "씩 보여 줘요." + (notesWhy != null ? " " + notesWhy + "." : "") + " [소리] 칸의 녹음으로 설명을 입혀 보세요.");
                 fileText.Text = Theme.Keep(FilesLine());
@@ -1772,16 +1772,22 @@ namespace Bakkum
         /// 이 글을 읽을 목소리: 한글이 없고 영어 글자가 대부분이면 영어 목소리(있을 때), 아니면 고른 목소리
         internal static string VoiceFor(string text, string chosen, List<VTts.Voice> voices)
         {
+            if (!LooksEnglish(text) || voices == null) return chosen;
+            var en = voices.FirstOrDefault(v => (v.Lang ?? "").StartsWith("en", StringComparison.OrdinalIgnoreCase));
+            return en != null ? en.Id : chosen;
+        }
+
+        /// 한글이 하나도 없고 글자의 80% 넘게가 로마자인 문장(자막 음성·발표자 노트가 같이 쓴다)
+        internal static bool LooksEnglish(string text)
+        {
             int hangul = 0, latin = 0, letters = 0;
-            foreach (char c in text)
+            foreach (char c in text ?? "")
             {
                 if (c >= '가' && c <= '힣') hangul++;
                 else if ((c >= 'A' && c <= 'Z') || (c >= 'a' && c <= 'z')) latin++;
                 if (char.IsLetter(c)) letters++;
             }
-            if (hangul > 0 || letters == 0 || latin < letters * 0.8 || voices == null) return chosen;
-            var en = voices.FirstOrDefault(v => (v.Lang ?? "").StartsWith("en", StringComparison.OrdinalIgnoreCase));
-            return en != null ? en.Id : chosen;
+            return hangul == 0 && letters > 0 && latin >= letters * 0.8;
         }
 
         /// 쪽 하나의 길이: 노트를 읽으면 읽는 길이에 맞추고, 없으면 정한 초

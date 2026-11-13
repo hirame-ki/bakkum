@@ -84,7 +84,8 @@ namespace Bakkum
             int mode = 0;
             if (existing > 0)
             {
-                int a = Dialog.Ask(this, H, "subtitle", "이미 자막이 " + existing + "개 있어요", "새로 만든 자막으로 모두 바꾸거나, 자막이 없는 곳에만 넣을 수 있어요. 어느 쪽이든 되돌리기(Ctrl+Z)로 넣기 전으로 돌아갈 수 있어요.", null, "그만두기", "모두 바꾸기", "빈 곳에만 넣기");
+                bool voiced = project.Sounds.Any(s => s.ItemId != null && s.Kind == "voice");
+                int a = Dialog.Ask(this, H, "subtitle", "이미 자막이 " + existing + "개 있어요", "새로 만든 자막으로 모두 바꾸거나, 자막이 없는 곳에만 넣을 수 있어요." + (voiced ? " 모두 바꾸면 있던 자막의 음성도 빠져요." : "") + " 어느 쪽이든 되돌리기(Ctrl+Z)로 넣기 전으로 돌아갈 수 있어요.", null, "그만두기", "모두 바꾸기", "빈 곳에만 넣기");
                 if (a <= 0) return;
                 mode = a;
             }
@@ -173,16 +174,27 @@ namespace Bakkum
                 SetStatus(mode == 2 ? "자막이 없는 곳에서 새로 넣을 말을 찾지 못했어요." : "영상 안에서 넣을 자막을 찾지 못했어요.");
                 return;
             }
-            int removed = 0;
-            Change(null, delegate
-            {
-                if (mode == 1) removed = project.Items.RemoveAll(i => i.Subtitle);
-                project.Items.AddRange(items);
-            });
+            int removed = 0, unvoiced = 0;
+            Change(null, delegate { removed = PutAutoSubs(project, items, mode, out unvoiced); });
             SetTab("subtitle");
             timeline.InvalidateVisual();
             RefreshPanel();
-            SetStatus("자동 자막 " + items.Count + "개를 넣었어요" + (removed > 0 ? "(있던 자막 " + removed + "개는 뺐어요)" : "") + ". 틀린 글자가 있을 수 있으니 재생하며 훑어보세요. 자주 틀린 말은 '찾아 바꾸기'로 한 번에 고칠 수 있고, 되돌리기(Ctrl+Z)로 넣기 전으로 돌아갈 수 있어요.");
+            SetStatus("자동 자막 " + items.Count + "개를 넣었어요" + (removed > 0 ? "(있던 자막 " + removed + "개" + (unvoiced > 0 ? "와 그 음성 " + unvoiced + "개" : "") + "는 뺐어요)" : "") + ". 틀린 글자가 있을 수 있으니 재생하며 훑어보세요. 자주 틀린 말은 '찾아 바꾸기'로 한 번에 고칠 수 있고, 되돌리기(Ctrl+Z)로 넣기 전으로 돌아갈 수 있어요.");
+        }
+
+        /// 자동 자막을 넣는다. mode 1(모두 바꾸기)이면 있던 자막을 빼고, 그 자막의 음성도 뺀다(자막을 지울 때처럼.
+        /// 남기면 없는 자막의 옛 글을 읽는다). 뺀 자막 수, unvoiced는 뺀 음성 수.
+        internal static int PutAutoSubs(VProject p, List<VItem> items, int mode, out int unvoiced)
+        {
+            int removed = 0;
+            unvoiced = 0;
+            if (mode == 1)
+            {
+                removed = p.Items.RemoveAll(i => i.Subtitle);
+                unvoiced = p.Sounds.RemoveAll(s => s.ItemId != null && p.FindItem(s.ItemId) == null);
+            }
+            p.Items.AddRange(items);
+            return removed;
         }
 
         void DeleteAutoSubModels()

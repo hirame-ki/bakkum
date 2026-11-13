@@ -62,7 +62,7 @@ namespace Bakkum
         public string Text;
         /// 그 자리로 가기(초), 없으면 -1
         public double T = -1;
-        /// 고치기 버튼: relink · level · aspect916 · subtitle_slow
+        /// 고치기 버튼: relink · level · aspect916 · subtitle_slow · voice_stale
         public string Fix;
     }
 
@@ -287,8 +287,22 @@ namespace Bakkum
                         list.Add(new VCheck { Level = "warn", Text = "목표 용량에 비해 영상이 길어서 화면이 많이 뭉개질 수 있어요. 용량을 늘리거나 구간만 내보내 보세요." });
                 }
             }
-            if (plan.Kind != "cover") list.Add(new VCheck { Level = "info", Text = "찍은 장소·기기 같은 원본 파일 정보는 새 파일에 담지 않아요." });
+            if (plan.Kind != "cover")
+            {
+                // 소리만 내보낼 때도 음성은 들어간다
+                var stale = StaleVoices(p);
+                if (stale != null) list.Add(stale);
+                list.Add(new VCheck { Level = "info", Text = "찍은 장소·기기 같은 원본 파일 정보는 새 파일에 담지 않아요." });
+            }
             return list;
+        }
+
+        /// 음성으로 바꾼 뒤 글을 고친 자막이 있으면 알린다(그 음성은 고치기 전 글을 읽는다). 자막 칸과 내보내기 점검이 같이 쓴다.
+        public static VCheck StaleVoices(VProject p)
+        {
+            var stale = p.StaleVoiceItems();
+            if (stale.Count == 0) return null;
+            return new VCheck { Level = "warn", Text = "음성으로 바꾼 뒤 글을 고친 자막이 " + stale.Count + "개 있어요. 그 음성은 고치기 전 글을 읽어요.", T = stale[0].Start, Fix = "voice_stale" };
         }
 
         /// 용량 맞추기: 영상·소리를 가장 낮게(바닥) 해도 목표 용량을 넘는지(만들어 봐야 소용없다)
