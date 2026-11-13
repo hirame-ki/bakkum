@@ -37,8 +37,8 @@ namespace Bakkum
                 if (!NaturalVoices.Ready())
                 {
                     long part = NaturalVoices.UsedBytes();
-                    Hint("Supertone이 공개한 AI 목소리예요. 여자·남자 목소리가 5개씩이고, 영어 문장도 영어로 읽어요. 학생 이름 같은 개인정보가 인터넷으로 나가지 않게, 목소리 파일을 처음 한 번 받아(약 "
-                        + WhisperModels.Words(NaturalVoices.DownloadBytes) + ") 이 PC 안에서만 만들어요.");
+                    Hint("Supertone의 AI 목소리예요. 여자·남자 5개씩이고, 영어 문장도 영어로 읽어요. 개인정보가 나가지 않게 처음 한 번 받아(약 "
+                        + WhisperModels.Words(NaturalVoices.DownloadBytes) + ") 이 PC에서만 만들어요.");
                     Act(part > 0 ? "자연스러운 목소리 이어 받기" : "자연스러운 목소리 받기", "Line", delegate { DownloadNaturalVoice(null); });
                     if (part > 0) Act("받다 만 파일 지우기 (" + WhisperModels.Words(part) + ")", "Quiet", DeleteNaturalVoice);
                     return;
@@ -117,9 +117,7 @@ namespace Bakkum
         /// 처음 받기 전에 묻는 글: 받는 까닭(개인정보)·받는 곳·만든 곳·크기·메모리·이어 받기·사용 조건(요약)
         internal static string NaturalDownloadBody()
         {
-            return "목소리 파일을 받는 까닭은 개인정보 때문이에요. 인터넷으로 목소리를 만드는 서비스는 자막 글을 그 회사 서버로 보내야 해요. "
-                + "바꿈은 목소리 파일을 이 PC에 받아 두고 PC 안에서만 만들어서, 학생 이름 같은 자막 글이 밖으로 나가지 않아요. "
-                + "처음 한 번만 받고, 받은 뒤에는 인터넷 없이 써요.\n\n"
+            return "개인정보가 인터넷으로 나가지 않도록, 목소리 파일을 한 번 받아 이 PC 안에서만 만들어요.\n\n"
                 + "• 받는 곳: Hugging Face의 " + NaturalVoices.Repo + "\n"
                 + "• 만든 곳: Supertone (Supertonic 3, " + NaturalVoices.License + " 라이선스)\n"
                 + "• 크기: 약 " + WhisperModels.Words(NaturalVoices.DownloadBytes) + " · 쓸 때 메모리 약 " + WhisperModels.Words(NaturalVoices.Memory) + "\n"
