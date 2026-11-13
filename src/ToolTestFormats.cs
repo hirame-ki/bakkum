@@ -281,6 +281,9 @@ namespace Bakkum
             string vttText = ReadU(Out1(RunJob("format", "txt", new[] { vtt }, null)));
             Check("VTT→글자: 표시 태그는 뺀다", vttText.Contains("첫 자막") && vttText.Contains("둘째 자막") && !vttText.Contains("<"), vttText.Replace("\r\n", " / "));
 
+            // ── 폴더째 놓기: 숨긴 파일·임시 파일 빼기 ──
+            FolderDropChecks();
+
             // ── 묶기·풀기 ──
             string folder = Path.Combine(w, "묶음폴더");
             Directory.CreateDirectory(Path.Combine(folder, "안쪽 폴더"));
@@ -497,6 +500,47 @@ namespace Bakkum
                 return string.Join(",", ActionOf("archive").OptionsFor(names.Select(F2).ToList()).Select(o => o.Id));
             };
             Check("압축 칸 고를 거리", packs(new[] { "a.txt" }) == "zip,tar,gz" && packs(new[] { "a.zip" }) == "unpack,zip,tar" && packs(new[] { "a.txt", "b.txt" }) == "zip,tar", packs(new[] { "a.zip" }));
+        }
+
+        /// 폴더째 놓을 때: 숨긴·시스템 파일, 열린 문서의 임시 파일(~$), 맥 정보 파일(._), 바로 가기·임시 파일은 빼고,
+        /// 파일을 하나씩 직접 놓으면 그대로 둔다. 지어낸 작은 파일만 쓴다(열어 보지 않는 시험).
+        static void FolderDropChecks()
+        {
+            string w = P("folderjob");
+            if (Directory.Exists(w)) Directory.Delete(w, true);
+            string folder = Path.Combine(w, "펼칠 폴더");
+            Directory.CreateDirectory(Path.Combine(folder, "안쪽"));
+            Func<string, string> put = delegate (string name)
+            {
+                string p = Path.Combine(folder, name);
+                File.WriteAllText(p, "지어낸 내용", new UTF8Encoding(false));
+                return p;
+            };
+            string a = put("a.docx"), two = put("2.txt"), ten = put("10.txt"), memo = put("메모.xyz");
+            string hidden = put("b.docx"), system = put("c.hwp"), owner = put("~$a.docx"), mac = put("._a.docx");
+            put("바로 가기.lnk");
+            put("주소.url");
+            put("임시.tmp");
+            put(@"안쪽\d.docx");
+            File.SetAttributes(hidden, FileAttributes.Hidden);
+            File.SetAttributes(system, FileAttributes.System);
+
+            var expanded = Formats.Expand(new[] { folder });
+            Check("폴더째 놓으면 숨긴·시스템 파일, 열린 문서의 임시 파일(~$), 맥 정보 파일(._)은 뺀다", expanded.SequenceEqual(new[] { folder + "\\", two, ten, a }), string.Join(" | ", expanded.Select(Util.ShortName)));
+            var listed = Formats.FolderFiles(folder);
+            Check("폴더 정리와 같은 기준: 모르는 형식은 두고 바로 가기·임시 파일은 뺀다", listed.Count == 4 && listed.Contains(memo) && listed.Contains(a) && listed.Contains(two) && listed.Contains(ten), string.Join(" | ", listed.Select(Util.ShortName)));
+            var direct = Formats.Expand(new[] { hidden, owner, mac });
+            Check("파일을 직접 놓으면 숨긴 파일·임시 파일도 그대로 넣는다", direct.SequenceEqual(new[] { hidden, owner, mac }), string.Join(" | ", direct.Select(Util.ShortName)));
+            var both = Formats.Expand(new[] { folder, hidden });
+            Check("폴더와 그 안의 숨긴 파일을 같이 놓으면 직접 놓은 그 파일은 남는다", both.Count == 5 && both.Contains(hidden) && !both.Contains(owner), string.Join(" | ", both.Select(Util.ShortName)));
+
+            string onlyTemp = Path.Combine(w, "임시 파일만");
+            Directory.CreateDirectory(onlyTemp);
+            string lone = Path.Combine(onlyTemp, "~$보고서.docx");
+            File.WriteAllText(lone, "x");
+            File.SetAttributes(lone, FileAttributes.Hidden);
+            var bare = Formats.Expand(new[] { onlyTemp });
+            Check("임시 파일만 있는 폴더는 폴더 자리만 남는다", bare.Count == 1 && bare[0] == onlyTemp + "\\", string.Join(" | ", bare.Select(Util.ShortName)));
         }
 
         static ZipArchive ZipFile2(string path)

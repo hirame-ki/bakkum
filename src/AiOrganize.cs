@@ -29,26 +29,6 @@ namespace Bakkum
             return task == "orgsort" || task == "orgname" || task == "orgboth";
         }
 
-        /// 정리할 파일: 폴더 바로 안의 파일. 숨긴·시스템 파일, 바로 가기, 열린 문서의 임시 파일(~$)은 뺀다.
-        static List<string> OrganizeFiles(string dir)
-        {
-            var list = new List<string>();
-            foreach (var f in Directory.GetFiles(dir))
-            {
-                string e = Formats.Ext(f);
-                if (Path.GetFileName(f).StartsWith("~$", StringComparison.Ordinal) || e == ".lnk" || e == ".url" || e == ".tmp") continue;
-                try
-                {
-                    if ((File.GetAttributes(f) & (FileAttributes.Hidden | FileAttributes.System)) != 0) continue;
-                }
-                catch (IOException) { continue; }
-                catch (UnauthorizedAccessException) { continue; }
-                list.Add(f);
-            }
-            list.Sort(Util.NaturalCompare);
-            return list;
-        }
-
         static string OrganizePrompt(bool sort, bool rename, bool hasFolders)
         {
             var sb = new StringBuilder("The document lists the files in one folder on a Korean teacher's PC, one per line: a number, the file name and the date it was last changed.");
@@ -69,7 +49,8 @@ namespace Bakkum
             var subs = new List<string>();
             try
             {
-                files = OrganizeFiles(dir);
+                // 정리할 파일: 폴더 바로 안의 파일. 숨긴 파일·열린 문서의 임시 파일(~$)·바로 가기 등은 뺀다(폴더를 펼칠 때와 같은 기준).
+                files = Formats.FolderFiles(dir);
                 if (sort)
                 {
                     foreach (var d in Directory.GetDirectories(dir))
