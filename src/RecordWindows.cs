@@ -106,17 +106,19 @@ namespace Bakkum
                     Arm(real, place, null, sound, cam);
                     return;
                 }
-                var picker = new AreaPicker(real, place, false);
+                var picker = new AreaPicker(real, place, AreaRatio.Known(settings.RecordRatio), null);
                 picker.Done = delegate (Rect? part)
                 {
+                    // 고른 비율은 취소해도 다음에 그대로 쓴다
+                    settings.RecordRatio = picker.Ratio;
+                    settings.SaveQuietly();
                     if (part == null)
                     {
                         busy = false;
                         return;
                     }
                     Rect p = part.Value;
-                    var box = new Box(real.X + (int)Math.Round(p.X * real.Width), real.Y + (int)Math.Round(p.Y * real.Height), (int)Math.Round(p.Width * real.Width), (int)Math.Round(p.Height * real.Height));
-                    Arm(box, place, new Rect(place.X + p.X * place.Width, place.Y + p.Y * place.Height, p.Width * place.Width, p.Height * place.Height), sound, cam);
+                    Arm(BoxFor(real, p), place, new Rect(place.X + p.X * place.Width, place.Y + p.Y * place.Height, p.Width * place.Width, p.Height * place.Height), sound, cam);
                 };
                 picker.Show();
                 picker.Activate();
@@ -126,6 +128,12 @@ namespace Bakkum
                 busy = false;
                 App.Notify("화면 녹화", ex.Message, true);
             }
+        }
+
+        /// 화면 전체를 1로 본 비율 → 그 모니터의 실제 픽셀 영역
+        internal static Box BoxFor(Box real, Rect p)
+        {
+            return new Box(real.X + (int)Math.Round(p.X * real.Width), real.Y + (int)Math.Round(p.Y * real.Height), (int)Math.Round(p.Width * real.Width), (int)Math.Round(p.Height * real.Height));
         }
 
         /// 시험에서만: 진짜 비디오 폴더 대신 쓸 곳
@@ -474,36 +482,48 @@ namespace Bakkum
             return new Countdown(new Rect(), true);
         }
 
-        public static Window PreviewPicker()
+        /// state: start(고르기 전) · small(너무 작게 그림) · 비율 이름(그 비율로 고른 모습). 150% 배율 화면으로 그린다.
+        public static Window PreviewPicker(string state)
         {
-            return new AreaPicker(new Box(0, 0, 1920, 1080), new Rect(0, 0, 1280, 720), true);
+            string s = string.IsNullOrEmpty(state) ? "free" : state;
+            string ratio = s == "start" || s == "small" ? "free" : AreaRatio.Known(s);
+            return new AreaPicker(new Box(0, 0, 1920, 1080), new Rect(0, 0, 1280, 720), ratio, s);
         }
     }
 
-    /// 어디를 녹화할지 끌어서 고르는 창. 결과는 화면 전체를 1로 본 비율이라 배율이 달라도 맞는다.
+    /// 어디를 녹화할지 고르는 창: 끌어서 그리고, 손잡이로 다듬고, [녹화 시작]으로 정한다.
+    /// 비율 칩으로 비율을 정하면 꼭짓점 손잡이만(비율 그대로), 자유면 변 손잡이도 있다.
+    /// 계산은 AreaSelect가 실제 픽셀로 하고, 결과는 화면 전체를 1로 본 비율이라 배율이 달라도 맞는다.
     sealed class AreaPicker : Window
     {
-        const int Smallest = 64;
+        /// 손잡이를 잡는 거리, 새로 그리기를 시작하는 거리, 막대와 영역·화면 끝 사이, 옆에 둘 때 막대의 가장 작은 너비(화면 점)
+        const double GripDip = 12, SlopDip = 4, Gap = 12, SideMin = 340;
+        static readonly AreaGrip[] GripOrder = { AreaGrip.TopLeft, AreaGrip.Top, AreaGrip.TopRight, AreaGrip.Right, AreaGrip.BottomRight, AreaGrip.Bottom, AreaGrip.BottomLeft, AreaGrip.Left };
 
         readonly Canvas canvas = new Canvas();
         readonly RectangleGeometry hole = new RectangleGeometry();
         readonly Border edge;
         readonly Border sizeTag;
         readonly TextBlock sizeText;
-        readonly FrameworkElement hint;
-        readonly TextBlock hintText;
-        readonly Box real;
-        Point start;
-        bool dragging, finished;
+        readonly FrameworkElement[] grips = new FrameworkElement[8];
+        readonly FrameworkElement bar;
+        readonly TextBlock barTitle;
+        readonly TextBlock barHelp;
+        readonly FrameworkElement barButtons;
+        readonly AreaSelect select;
+        readonly double sx, sy, viewW, viewH;
+        bool finished, tooSmall;
 
         public Action<Rect?> Done;
 
-        public AreaPicker(Box real, Rect place, bool preview)
+        /// ratio: 처음 비율(지난번에 고른 것). preview: null이면 진짜로 고른다.
+        /// 그림 확인용은 "start"(고르기 전), "small"(너무 작게 그렸을 때), 비율 이름(그 비율로 고른 모습).
+        public AreaPicker(Box real, Rect place, string ratio, string preview)
         {
-            this.real = real;
             WindowStyle = WindowStyle.None;
             AllowsTransparency = true;
-            Background = Brushes.Transparent;
+            // 아주 옅게라도 칠해 둔다: 다 투명한 곳(고른 곳 안)을 누르면 아래 프로그램이 눌리기 때문
+            Background = Theme.Frozen(Color.FromArgb(1, 0, 0, 0));
             ResizeMode = ResizeMode.NoResize;
             ShowInTaskbar = false;
             Topmost = true;
@@ -515,108 +535,323 @@ namespace Bakkum
             FontFamily = Theme.Font;
             Cursor = Cursors.Cross;
             TextOptions.SetTextFormattingMode(this, TextFormattingMode.Display);
+            viewW = place.Width;
+            viewH = place.Height;
+            sx = real.Width / place.Width;
+            sy = real.Height / place.Height;
+            select = new AreaSelect(real.Width, real.Height, ratio);
+            var hue = Theme.HueOf("record");
 
             var whole = new GeometryGroup { FillRule = FillRule.EvenOdd };
             whole.Children.Add(new RectangleGeometry(new Rect(0, 0, place.Width, place.Height)));
             whole.Children.Add(hole);
             canvas.Children.Add(new ShapePath { Data = whole, Fill = Theme.Frozen(Color.FromArgb(120, 0x22, 0x25, 0x2F)) });
 
-            edge = new Border { BorderBrush = Theme.HueOf("record").VividBrush, BorderThickness = new Thickness(2), CornerRadius = new CornerRadius(2), Visibility = Visibility.Collapsed };
+            edge = new Border { BorderBrush = hue.VividBrush, BorderThickness = new Thickness(2), CornerRadius = new CornerRadius(2), Visibility = Visibility.Collapsed, IsHitTestVisible = false };
             canvas.Children.Add(edge);
 
+            // 손잡이: 꼭짓점은 동그라미, 변은 짧은 알약(자유 비율에서만 보인다)
+            for (int i = 0; i < grips.Length; i++)
+            {
+                AreaGrip g = GripOrder[i];
+                FrameworkElement shape;
+                if (AreaMath.IsCorner(g))
+                {
+                    shape = new System.Windows.Shapes.Ellipse { Width = 14, Height = 14, Fill = Theme.Sheet, Stroke = hue.DeepBrush, StrokeThickness = 2 };
+                }
+                else
+                {
+                    bool across = g == AreaGrip.Top || g == AreaGrip.Bottom;
+                    shape = new Border { Width = across ? 26 : 8, Height = across ? 8 : 26, CornerRadius = new CornerRadius(4), Background = Theme.Sheet, BorderBrush = hue.DeepBrush, BorderThickness = new Thickness(2) };
+                }
+                shape.IsHitTestVisible = false;
+                shape.Visibility = Visibility.Collapsed;
+                grips[i] = shape;
+                canvas.Children.Add(shape);
+            }
+
             sizeText = Theme.Text("", 13, FontWeights.Bold, Theme.Ink);
-            sizeTag = new Border { Background = Theme.HueOf("record").VividBrush, CornerRadius = new CornerRadius(8), Padding = new Thickness(9, 3, 9, 3), Child = sizeText, Visibility = Visibility.Collapsed };
+            sizeTag = new Border { Background = hue.VividBrush, CornerRadius = new CornerRadius(8), Padding = new Thickness(9, 3, 9, 3), Child = sizeText, Visibility = Visibility.Collapsed, IsHitTestVisible = false };
             canvas.Children.Add(sizeTag);
 
-            var words = new StackPanel();
-            hintText = Theme.Text("녹화할 곳을 끌어서 고르세요", 16, FontWeights.Bold, Theme.Ink);
-            hintText.HorizontalAlignment = HorizontalAlignment.Center;
-            words.Children.Add(hintText);
-            var sub = Theme.MetaLabel("Esc를 누르면 취소돼요");
-            sub.HorizontalAlignment = HorizontalAlignment.Center;
-            sub.Margin = new Thickness(0, 3, 0, 0);
-            words.Children.Add(sub);
-            hint = Theme.Card(words, 16);
-            hint.IsHitTestVisible = false;
-            canvas.Children.Add(hint);
-            hint.Loaded += delegate
+            // 막대: 안내 한 줄 → 비율 칩 → 짧은 도움말 + [취소] [녹화 시작]
+            var stack = new StackPanel();
+            barTitle = Theme.Text("", 15.5, FontWeights.Bold, Theme.Ink);
+            barTitle.Margin = new Thickness(0, 0, 0, 10);
+            stack.Children.Add(barTitle);
+            var chips = Prompts.Chips(hue, AreaRatio.Ids, AreaRatio.Labels, select.Ratio, delegate (string id)
             {
-                Canvas.SetLeft(hint, (place.Width - hint.ActualWidth) / 2);
-                Canvas.SetTop(hint, Math.Max(28, place.Height * 0.08));
-            };
+                select.SetRatio(id);
+                tooSmall = false;
+                Redraw();
+            });
+            // 칩·단추는 마우스로만 고른다(화살표 키는 고른 곳을 옮기는 데 쓴다)
+            foreach (UIElement c in chips.Children) c.Focusable = false;
+            stack.Children.Add(chips);
+            var foot = new DockPanel { LastChildFill = true };
+            var buttons = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(16, 0, 0, 0) };
+            var cancel = BarButton("취소", "Quiet");
+            var go = BarButton("녹화 시작", "Primary");
+            go.Margin = new Thickness(6, 0, 0, 0);
+            buttons.Children.Add(cancel);
+            buttons.Children.Add(go);
+            DockPanel.SetDock(buttons, Dock.Right);
+            foot.Children.Add(buttons);
+            barButtons = buttons;
+            barHelp = Theme.MetaLabel("");
+            barHelp.VerticalAlignment = VerticalAlignment.Center;
+            foot.Children.Add(barHelp);
+            stack.Children.Add(foot);
+            bar = Theme.Card(stack, 16);
+            bar.Cursor = Cursors.Arrow;
+            // 막대를 눌러도 영역을 새로 그리거나 취소하지 않는다
+            bar.MouseLeftButtonDown += delegate (object s, MouseButtonEventArgs e) { e.Handled = true; };
+            bar.MouseRightButtonDown += delegate (object s, MouseButtonEventArgs e) { e.Handled = true; };
+            canvas.Children.Add(bar);
             Content = canvas;
-            if (preview)
+            Loaded += delegate { Redraw(); };
+
+            if (preview != null)
             {
-                Update(new Point(320, 200), new Point(980, 560));
-                hint.Visibility = Visibility.Visible;
+                if (preview == "small") tooSmall = true;
+                else if (preview != "start") select.Choose(new Rect(real.Width * 0.25, real.Height * 0.28, real.Width * 0.5, real.Height * 0.5));
+                Redraw();
                 return;
             }
 
+            cancel.Click += delegate { End(null); };
+            go.Click += delegate { Confirm(); };
             MouseLeftButtonDown += delegate (object s, MouseButtonEventArgs e)
             {
-                start = e.GetPosition(canvas);
-                dragging = true;
-                hint.Visibility = Visibility.Collapsed;
+                Point p = Real(e.GetPosition(canvas));
+                if (e.ClickCount == 2 && select.Hit(p, GripDip * sx) == AreaGrip.Inside)
+                {
+                    // 고른 곳 안을 두 번 누르면 시작
+                    Confirm();
+                    return;
+                }
+                select.Press(p, GripDip * sx);
+                Cursor = CursorFor(select.Held);
                 CaptureMouse();
             };
             MouseMove += delegate (object s, MouseEventArgs e)
             {
-                if (dragging) Update(start, e.GetPosition(canvas));
+                Point p = Real(e.GetPosition(canvas));
+                if (!select.Pressed)
+                {
+                    Cursor = CursorFor(select.Hit(p, GripDip * sx));
+                    return;
+                }
+                if (select.Move(p, SlopDip * sx))
+                {
+                    tooSmall = false;
+                    Redraw();
+                }
             };
             MouseLeftButtonUp += delegate (object s, MouseButtonEventArgs e)
             {
-                if (!dragging) return;
-                dragging = false;
+                if (!select.Pressed) return;
+                var result = select.Release(Real(e.GetPosition(canvas)), SlopDip * sx);
                 ReleaseMouseCapture();
-                Rect r = Span(start, e.GetPosition(canvas));
-                if (RealWidth(r) < Smallest || RealHeight(r) < Smallest)
-                {
-                    // 너무 작게 고르면(그냥 누른 경우 포함) 다시 고르게 한다.
-                    edge.Visibility = Visibility.Collapsed;
-                    sizeTag.Visibility = Visibility.Collapsed;
-                    hole.Rect = Rect.Empty;
-                    hintText.Text = Theme.Keep("조금 더 크게 끌어 주세요");
-                    hint.Visibility = Visibility.Visible;
-                    return;
-                }
-                End(new Rect(r.X / ActualWidth, r.Y / ActualHeight, r.Width / ActualWidth, r.Height / ActualHeight));
+                tooSmall = result == AreaRelease.TooSmall;
+                Redraw();
+            };
+            // 다른 창이 마우스를 가져가면 끄던 것만 그만둔다(고른 곳은 그대로)
+            LostMouseCapture += delegate
+            {
+                if (!select.Pressed) return;
+                select.Abort();
+                Redraw();
             };
             MouseRightButtonDown += delegate { End(null); };
-            KeyDown += delegate (object s, KeyEventArgs e)
+            PreviewKeyDown += delegate (object s, KeyEventArgs e)
             {
-                if (e.Key == Key.Escape) End(null);
+                int step = (Keyboard.Modifiers & ModifierKeys.Shift) != 0 ? 10 : 1;
+                switch (e.Key)
+                {
+                    case Key.Escape: End(null); break;
+                    case Key.Enter: Confirm(); break;
+                    case Key.Left: select.Nudge(-step, 0); Redraw(); break;
+                    case Key.Right: select.Nudge(step, 0); Redraw(); break;
+                    case Key.Up: select.Nudge(0, -step); Redraw(); break;
+                    case Key.Down: select.Nudge(0, step); Redraw(); break;
+                    default: return;
+                }
+                e.Handled = true;
             };
             Closed += delegate { End(null); };
         }
 
-        static Rect Span(Point a, Point b)
+        /// 고른 비율(다음에 열 때 쓴다)
+        public string Ratio
         {
-            return new Rect(Math.Min(a.X, b.X), Math.Min(a.Y, b.Y), Math.Abs(a.X - b.X), Math.Abs(a.Y - b.Y));
+            get { return select.Ratio; }
         }
 
-        int RealWidth(Rect r)
+        /// 시험용: 보이는 손잡이 수
+        internal int GripsShown
         {
-            return (int)Math.Round(r.Width / Width * real.Width) & ~1;
+            get { return grips.Count(g => g.Visibility == Visibility.Visible); }
         }
 
-        int RealHeight(Rect r)
+        /// 시험용: 막대 자리(화면 점)
+        internal Rect BarArea
         {
-            return (int)Math.Round(r.Height / Height * real.Height) & ~1;
+            get { return new Rect(Canvas.GetLeft(bar), Canvas.GetTop(bar), bar.DesiredSize.Width, bar.DesiredSize.Height); }
         }
 
-        void Update(Point a, Point b)
+        /// 시험용: 고른 곳(화면 점). 아직 없으면 null.
+        internal Rect? ChosenDip
         {
-            Rect r = Span(a, b);
-            hole.Rect = r;
-            edge.Visibility = Visibility.Visible;
-            Canvas.SetLeft(edge, r.X - 2);
-            Canvas.SetTop(edge, r.Y - 2);
-            edge.Width = r.Width + 4;
-            edge.Height = r.Height + 4;
-            sizeText.Text = RealWidth(r) + " × " + RealHeight(r);
-            sizeTag.Visibility = Visibility.Visible;
-            Canvas.SetLeft(sizeTag, r.X);
-            Canvas.SetTop(sizeTag, r.Y >= 34 ? r.Y - 32 : r.Y + 8);
+            get { return select.Chosen == null ? (Rect?)null : Dip(select.Chosen.Value); }
+        }
+
+        static Button BarButton(string text, string style)
+        {
+            var b = Theme.MakeButton(text, style);
+            b.Height = 38;
+            b.FontSize = 14;
+            b.Padding = new Thickness(16, 0, 16, 0);
+            b.Focusable = false;
+            return b;
+        }
+
+        static Cursor CursorFor(AreaGrip g)
+        {
+            switch (g)
+            {
+                case AreaGrip.TopLeft:
+                case AreaGrip.BottomRight:
+                    return Cursors.SizeNWSE;
+                case AreaGrip.TopRight:
+                case AreaGrip.BottomLeft:
+                    return Cursors.SizeNESW;
+                case AreaGrip.Left:
+                case AreaGrip.Right:
+                    return Cursors.SizeWE;
+                case AreaGrip.Top:
+                case AreaGrip.Bottom:
+                    return Cursors.SizeNS;
+                case AreaGrip.Inside:
+                    return Cursors.SizeAll;
+                default:
+                    return Cursors.Cross;
+            }
+        }
+
+        /// 화면 점 → 실제 픽셀
+        Point Real(Point p)
+        {
+            return new Point(p.X * sx, p.Y * sy);
+        }
+
+        /// 실제 픽셀 → 화면 점
+        Rect Dip(Rect r)
+        {
+            return new Rect(r.X / sx, r.Y / sy, r.Width / sx, r.Height / sy);
+        }
+
+        void Redraw()
+        {
+            Rect? shown = select.Shown;
+            bool any = shown != null;
+            Rect d = any ? Dip(shown.Value) : Rect.Empty;
+            hole.Rect = d;
+            edge.Visibility = any ? Visibility.Visible : Visibility.Collapsed;
+            sizeTag.Visibility = edge.Visibility;
+            if (any)
+            {
+                Canvas.SetLeft(edge, d.X - 2);
+                Canvas.SetTop(edge, d.Y - 2);
+                edge.Width = d.Width + 4;
+                edge.Height = d.Height + 4;
+                // 크기 글은 손을 떼면 정해질 실제 크기(짝수, 정한 비율이면 딱 그 비율)
+                Rect plan = select.Planned.Value;
+                sizeText.Text = Theme.Keep((int)plan.Width + " × " + (int)plan.Height + (select.Free ? "" : " · " + select.Ratio));
+            }
+            // 손잡이: 새로 그리는 동안은 감춘다. 정한 비율이면 꼭짓점만.
+            for (int i = 0; i < grips.Length; i++)
+            {
+                bool show = any && !select.Drawing && (AreaMath.IsCorner(GripOrder[i]) || select.Free);
+                grips[i].Visibility = show ? Visibility.Visible : Visibility.Collapsed;
+                if (!show) continue;
+                Point c = AreaMath.GripPoint(d, GripOrder[i]);
+                Canvas.SetLeft(grips[i], c.X - grips[i].Width / 2);
+                Canvas.SetTop(grips[i], c.Y - grips[i].Height / 2);
+            }
+            bool chosen = select.Chosen != null;
+            string title = "녹화할 곳을 끌어서 고르세요";
+            if (tooSmall) title = "조금 더 크게 끌어 주세요";
+            else if (chosen) title = select.Free ? "꼭짓점이나 변을 끌어 크기를 바꿔요" : "꼭짓점을 끌면 비율 그대로 크기가 바뀌어요";
+            barTitle.Text = Theme.Keep(title);
+            barHelp.Text = Theme.Keep(chosen ? "안을 끌면 옮겨져요" : "Esc를 누르면 취소돼요");
+            barButtons.Visibility = chosen ? Visibility.Visible : Visibility.Collapsed;
+            // 끄는 동안은 막대를 감춘다(고르는 곳을 가리지 않게)
+            bar.Visibility = select.Drawing || select.Held != AreaGrip.None ? Visibility.Hidden : Visibility.Visible;
+            bool barAbove = PlaceBar(chosen ? (Rect?)Dip(select.Chosen.Value) : null);
+            if (any)
+            {
+                Canvas.SetLeft(sizeTag, d.X);
+                // 막대가 위에 붙었거나 화면 위 끝이면 영역 안쪽 위에
+                Canvas.SetTop(sizeTag, !barAbove && d.Y >= 34 ? d.Y - 32 : d.Y + 8);
+            }
+        }
+
+        /// 막대를 고른 곳 아래에 둔다. 자리가 없으면 위, 그다음 넓은 옆(칩을 접어서), 그래도 없으면 안쪽 아래.
+        /// 고르기 전이면 화면 위 가운데. 위에 두었으면 true(크기 글을 영역 안쪽에 쓰게).
+        bool PlaceBar(Rect? area)
+        {
+            double full = Math.Max(SideMin, viewW - Gap * 2);
+            Size bs = MeasureBar(full);
+            if (area == null)
+            {
+                Canvas.SetLeft(bar, (viewW - bs.Width) / 2);
+                Canvas.SetTop(bar, Math.Max(28, viewH * 0.08));
+                return false;
+            }
+            Rect r = area.Value;
+            double x = Math.Max(Gap, Math.Min(viewW - Gap - bs.Width, r.X + (r.Width - bs.Width) / 2));
+            Canvas.SetLeft(bar, x);
+            if (r.Bottom + Gap + bs.Height <= viewH - Gap)
+            {
+                Canvas.SetTop(bar, r.Bottom + Gap);
+                return false;
+            }
+            if (r.Top - Gap - bs.Height >= Gap)
+            {
+                Canvas.SetTop(bar, r.Top - Gap - bs.Height);
+                return true;
+            }
+            // 세로로 긴 영역: 위아래에 자리가 없으면 넓은 옆에(아래 끝에 맞춤). 한 줄이 안 들어가면 좁게 접는다(칩 4·3).
+            double right = viewW - r.Right - Gap * 2, left = r.Left - Gap * 2;
+            double room = Math.Max(right, left);
+            if (room >= SideMin)
+            {
+                Size side = room >= bs.Width ? bs : MeasureBar(SideMin);
+                if (side.Height <= viewH - Gap * 2)
+                {
+                    Canvas.SetLeft(bar, right >= left ? r.Right + Gap : r.Left - Gap - side.Width);
+                    Canvas.SetTop(bar, Math.Max(Gap, Math.Min(viewH - Gap - side.Height, r.Bottom - side.Height)));
+                    return false;
+                }
+                bs = MeasureBar(full);
+            }
+            Canvas.SetTop(bar, Math.Max(Gap, r.Bottom - Gap - bs.Height));
+            return false;
+        }
+
+        /// 막대 너비를 max까지로 두고 잰 크기(칩은 넘치면 다음 줄로)
+        Size MeasureBar(double max)
+        {
+            bar.MaxWidth = max;
+            bar.Measure(new Size(double.PositiveInfinity, double.PositiveInfinity));
+            return bar.DesiredSize;
+        }
+
+        void Confirm()
+        {
+            if (select.Pressed || select.Chosen == null) return;
+            End(select.Fraction);
         }
 
         void End(Rect? result)

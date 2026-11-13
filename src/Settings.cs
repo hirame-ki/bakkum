@@ -54,6 +54,8 @@ namespace Bakkum
         public string RecordSound { get; set; }
         /// 지난번에 고른 화면 녹화 웹캠: none · cam
         public string RecordCam { get; set; }
+        /// 지난번에 고른 화면 녹화 영역 비율: free · 16:9 · 9:16 · 1:1 · 4:5 · 4:3 · 3:4
+        public string RecordRatio { get; set; }
 
         public AppSettings()
         {
@@ -69,6 +71,7 @@ namespace Bakkum
             RecordArea = "full";
             RecordSound = "none";
             RecordCam = "none";
+            RecordRatio = "free";
             ClaudeAllowMetered = false;
             MenuShape = "index";
             TriggerKey = "Shift";
