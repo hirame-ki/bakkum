@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-only
 // Bakkum - Copyright (C) 2026 hirame.ki - additional terms under GPL-3.0 section 7 apply, see NOTICE.txt
 // 처음 켰을 때 한 번 보여 주는 사용법. 알림 영역 메뉴와 설정에서 다시 볼 수 있다.
+// 끝 단추는 처음 켤 때 [시작하기], 다시 열 때 [닫기]. [사용법 영상 보기]는 누를 때만 브라우저로 사이트의 영상 칸을 연다.
 using System;
 using System.Collections.Generic;
 using System.Windows;
@@ -11,16 +12,32 @@ namespace Bakkum
 {
     public class GuideWindow : Window
     {
-        static GuideWindow shown;
+        /// 바꿈 사이트의 '사용법 영상' 칸(차례를 눌러 골라 볼 수 있다)
+        internal const string VideoUrl = "https://hirame-ki.github.io/bakkum/#guide";
 
+        static GuideWindow shown;
+        readonly Button endButton, videoButton;
+
+        /// 처음 켰을 때(App.Start): 끝 단추가 [시작하기]
+        public static void OpenFirst()
+        {
+            Open(true);
+        }
+
+        /// 설정의 [사용법 다시 보기]·알림 영역의 '사용법': 끝 단추가 [닫기]
         public static void Open()
+        {
+            Open(false);
+        }
+
+        static void Open(bool first)
         {
             if (shown != null)
             {
                 shown.Activate();
                 return;
             }
-            shown = new GuideWindow();
+            shown = new GuideWindow(first);
             shown.Closed += delegate { shown = null; };
             shown.Show();
             shown.Activate();
@@ -32,12 +49,22 @@ namespace Bakkum
             }
         }
 
-        public static Window ForPreview()
+        public static Window ForPreview(bool first)
         {
-            return new GuideWindow();
+            return new GuideWindow(first);
         }
 
-        GuideWindow()
+        internal Button EndButtonForTest
+        {
+            get { return endButton; }
+        }
+
+        internal Button VideoButtonForTest
+        {
+            get { return videoButton; }
+        }
+
+        GuideWindow(bool first)
         {
             var s = AppSettings.Current;
             string key = s.TriggerKey == "Off" ? "Shift" : s.TriggerKey;
@@ -76,10 +103,23 @@ namespace Bakkum
             columns.Children.Add(frame);
             body.Children.Add(columns);
 
-            var go = Theme.MakeButton("시작하기", "Primary");
-            go.IsDefault = true;
-            go.Click += delegate { Close(); };
-            var buttons = new StackPanel { Orientation = Orientation.Horizontal, HorizontalAlignment = HorizontalAlignment.Right, Margin = new Thickness(0, 20, 0, 0) };
+            // 다시 볼 때는 [시작하기]보다 [닫기]가 어울린다(2026-11-13 관리자 의견)
+            endButton = Theme.MakeButton(first ? "시작하기" : "닫기", "Primary");
+            endButton.IsDefault = true;
+            endButton.Click += delegate { Close(); };
+            var row = new DockPanel { LastChildFill = false, Margin = new Thickness(0, 20, 0, 0) };
+            // 영상으로 창을 바꾸지 않는다: 이 창은 고른 키·메뉴 모양을 그대로 보여 주고 인터넷 없이 뜬다
+            videoButton = Theme.MakeButton("사용법 영상 보기", "Line");
+            videoButton.ToolTip = "브라우저로 바꿈 사이트의 사용법 영상을 열어요.";
+            videoButton.Click += delegate
+            {
+                if (!Web.OpenBrowser(VideoUrl))
+                    Dialog.Ask(this, Theme.Coral, "close", "브라우저를 열지 못했어요", "이 주소를 브라우저에 넣어 주세요: " + VideoUrl, null, "확인");
+            };
+            DockPanel.SetDock(videoButton, Dock.Left);
+            row.Children.Add(videoButton);
+            var buttons = new StackPanel { Orientation = Orientation.Horizontal };
+            DockPanel.SetDock(buttons, Dock.Right);
             if (!Ai.Configured)
             {
                 var ai = Theme.MakeButton("AI 연결하기", "Line");
@@ -91,8 +131,9 @@ namespace Bakkum
                 };
                 buttons.Children.Add(ai);
             }
-            buttons.Children.Add(go);
-            body.Children.Add(buttons);
+            buttons.Children.Add(endButton);
+            row.Children.Add(buttons);
+            body.Children.Add(row);
 
             var card = Theme.Card(body, 28);
             card.Margin = new Thickness(20);
