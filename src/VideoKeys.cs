@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-3.0-only
-// Bakkum - Copyright (C) 2026 hirame.ki - additional terms under GPL-3.0 section 7 apply, see NOTICE.txt
+// Bakkum - Copyright (C) 2026 hirame.ki, moonsune.zip - additional terms under GPL-3.0 section 7 apply, see NOTICE.txt
 // 키프레임(움직임 표시) 다루기: 이 시각에 넣기·지우기, 앞뒤 표시 찾기, 마지막 표시를 지울 때 지금 모습 굳히기.
 // 편집 창의 단추·화면 끌기·슬라이더와 자동 시험이 같이 쓴다.
 // 얹은 것의 표시는 '시작에서 지난 시간', 영상 조각의 표시는 '원본 시간', 사진·색 조각의 표시는 '조각 안 시간'에 붙는다.

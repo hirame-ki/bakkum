@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-3.0-only
-// Bakkum - Copyright (C) 2026 hirame.ki - additional terms under GPL-3.0 section 7 apply, see NOTICE.txt
+// Bakkum - Copyright (C) 2026 hirame.ki, moonsune.zip - additional terms under GPL-3.0 section 7 apply, see NOTICE.txt
 // 'AI로' 칸의 폴더 정리: 폴더 바로 안의 파일을 비슷한 것끼리 하위 폴더로 나누고, 이름을 알아보기 쉽게 다듬는다.
 // AI에게는 파일 이름과 고친 날짜만 보낸다(내용은 보내지 않는다). 옮기기 전에 고칠 수 있는 창으로 한 번 더 묻는다.
 // 지우거나 덮어쓰지 않고, 고른 폴더 밖으로는 옮기지 않는다.

@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-3.0-only
-// Bakkum - Copyright (C) 2026 hirame.ki - additional terms under GPL-3.0 section 7 apply, see NOTICE.txt
+// Bakkum - Copyright (C) 2026 hirame.ki, moonsune.zip - additional terms under GPL-3.0 section 7 apply, see NOTICE.txt
 // 영상 편집 시간 막대: 눈금(표시·구간), 본 영상(그림 띠·소리 모양), 자막, 글자·그림, 작은 화면, 소리 줄.
 // 조각은 끌어서 순서를 바꾸고 앞뒤 끝을 끌어 자른다(놓을 때 뒤가 당겨 붙는다).
 // 얹은 것·소리는 끌어서 옮기거나 길이를 바꾼다. 자석을 켜면 재생 위치·경계·표시에 붙는다. Ctrl+휠은 확대.

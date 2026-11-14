@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-3.0-only
-// Bakkum - Copyright (C) 2026 hirame.ki - additional terms under GPL-3.0 section 7 apply, see NOTICE.txt
+// Bakkum - Copyright (C) 2026 hirame.ki, moonsune.zip - additional terms under GPL-3.0 section 7 apply, see NOTICE.txt
 // 이용자 수 파악(ㄱ할게 GOE와 같은 방식): 켠 날 하루 한 번, 임의 번호·버전·날짜만 문수네집 서버에 남긴다(설치 하나에 문서 하나).
 // 프로그램을 지워도 서버의 문서는 남는다(마지막 날짜가 멈추므로 최근 7·30일 수에서 저절로 빠진다).
 // 파일·이름·PC 정보는 넣지 않는다. 설정 → 그 밖에서 끄면 보내지 않고, 남긴 문서와 임의 번호도 지운다.

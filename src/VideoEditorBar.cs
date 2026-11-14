@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-3.0-only
-// Bakkum - Copyright (C) 2026 hirame.ki - additional terms under GPL-3.0 section 7 apply, see NOTICE.txt
+// Bakkum - Copyright (C) 2026 hirame.ki, moonsune.zip - additional terms under GPL-3.0 section 7 apply, see NOTICE.txt
 // 영상 편집 창의 '고른 것 단추 줄': 재생 막대 가운데 빈 곳에, 고른 것(자막·글자·그림·조각·소리 등)마다 바로 쓸 단추를 보인다.
 // 오른쪽 칸을 내려 찾지 않아도 움직임 표시(키프레임)·복사·지우기를 할 수 있게(2026-11-12 사용자 요청).
 // 자리가 좁으면 그림만 보이고, 그래도 넘치면 재생 막대 아래 줄로 내린다.

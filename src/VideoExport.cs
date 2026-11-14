@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-3.0-only
-// Bakkum - Copyright (C) 2026 hirame.ki - additional terms under GPL-3.0 section 7 apply, see NOTICE.txt
+// Bakkum - Copyright (C) 2026 hirame.ki, moonsune.zip - additional terms under GPL-3.0 section 7 apply, see NOTICE.txt
 // 영상 편집 내보내기: 정해 둔 모양(릴스·쇼츠·유튜브·카카오톡·용량 맞추기·소리만·표지 그림)으로 만들기 전에 점검하고,
 // 화면(VRenderer) + 얹은 것(VOverlayRenderer) + 소리(VMixer)를 윈도우 인코더(H.264·AAC)로 MP4에 담는다.
 // 찍은 장소 같은 원본 파일 정보는 새 파일에 옮기지 않는다.

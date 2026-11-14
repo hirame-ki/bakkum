@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-3.0-only
-// Bakkum - Copyright (C) 2026 hirame.ki - additional terms under GPL-3.0 section 7 apply, see NOTICE.txt
+// Bakkum - Copyright (C) 2026 hirame.ki, moonsune.zip - additional terms under GPL-3.0 section 7 apply, see NOTICE.txt
 // 도구 시험 중 무료 배경 음악 찾기 부분(영상 편집 묶음에서 부른다).
 // 진짜 다운로드 폴더는 읽지 않는다. 시험 폴더에 가짜 소리 파일과 '인터넷에서 받음' 표시를 만들어 확인한다.
 using System;

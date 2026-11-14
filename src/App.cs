@@ -1,5 +1,5 @@
 ﻿// SPDX-License-Identifier: GPL-3.0-only
-// Bakkum - Copyright (C) 2026 hirame.ki - additional terms under GPL-3.0 section 7 apply, see NOTICE.txt
+// Bakkum - Copyright (C) 2026 hirame.ki, moonsune.zip - additional terms under GPL-3.0 section 7 apply, see NOTICE.txt
 // 프로그램 시작점. 한 번만 뜨게 하고(두 번째 실행은 첫 번째에게 파일을 넘김), 알림 영역 아이콘과 끌기 감지를 켠다.
 // 시험용 명령: /render-menu, /render-window, /run   설치용: /install(창), /uninstall
 using System;
@@ -22,11 +22,11 @@ using System.Windows.Threading;
 [assembly: AssemblyTitle("바꿈")]
 [assembly: AssemblyDescription("파일을 끌다가 키를 누르면 뜨는 변환 메뉴")]
 [assembly: AssemblyProduct("바꿈")]
-[assembly: AssemblyCompany("hirame.ki")]
+[assembly: AssemblyCompany("hirame.ki, moonsune.zip")]
 [assembly: AssemblyCopyright("Copyright (c) 2026 hirame.ki, moonsune.zip")]
-[assembly: AssemblyVersion("0.3.8.0")]
-[assembly: AssemblyFileVersion("0.3.8.0")]
-[assembly: AssemblyInformationalVersion("0.3.8")]
+[assembly: AssemblyVersion("0.3.9.0")]
+[assembly: AssemblyFileVersion("0.3.9.0")]
+[assembly: AssemblyInformationalVersion("0.3.9")]
 
 namespace Bakkum
 {

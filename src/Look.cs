@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-3.0-only
-// Bakkum - Copyright (C) 2026 hirame.ki - additional terms under GPL-3.0 section 7 apply, see NOTICE.txt
+// Bakkum - Copyright (C) 2026 hirame.ki, moonsune.zip - additional terms under GPL-3.0 section 7 apply, see NOTICE.txt
 // 화면 스타일과 색감(설정 → 메뉴 모양). 켤 때 한 번 정하고 Theme가 읽는다. 바꾸면 다시 켜야 보인다.
 // 스타일은 바탕·글자·선 색, 모서리, 테두리, 그림자를 바꾸고, 색감은 바탕과 열두 색에 고른 색을 조금 섞는다.
 // 기본 스타일(색종이)에 기본 색감이면 아무것도 바꾸지 않는다(DESIGN.md 그대로).

@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-3.0-only
-// Bakkum - Copyright (C) 2026 hirame.ki - additional terms under GPL-3.0 section 7 apply, see NOTICE.txt
+// Bakkum - Copyright (C) 2026 hirame.ki, moonsune.zip - additional terms under GPL-3.0 section 7 apply, see NOTICE.txt
 // 프로그램 전체에서 쓰는 이름·경로·기록·작은 도우미.
 // C# 5(윈도우에 든 csc.exe)로 컴파일하므로 $"", ?., nameof, => 멤버를 쓰지 않는다.
 using System;
@@ -15,8 +15,8 @@ namespace Bakkum
     {
         public const string Id = "Bakkum";
         public const string Name = "바꿈";
-        public const string Version = "0.3.8";
-        public const string Publisher = "hirame.ki";
+        public const string Version = "0.3.9";
+        public const string Publisher = "hirame.ki, moonsune.zip";
 
         /// 시험(/selftest-net) 동안만: 설정·로그인 파일을 임시 폴더에 둔다(선생님의 진짜 설정을 건드리지 않게).
         internal static string DataDirOverride;

@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-3.0-only
-// Bakkum - Copyright (C) 2026 hirame.ki - additional terms under GPL-3.0 section 7 apply, see NOTICE.txt
+// Bakkum - Copyright (C) 2026 hirame.ki, moonsune.zip - additional terms under GPL-3.0 section 7 apply, see NOTICE.txt
 // 영상 위에 얹는 것(글자·자막·그림·스티커·도형·작은 화면 테두리)을 WPF로 그린다.
 // 크기와 자리는 모두 화면에 대한 비율이라, 미리 보기(화면 크기)와 내보내기(영상 크기)가 같은 모습으로 나온다.
 // 스티커는 이 파일에서 직접 그린 단순한 도형이라 따로 허락받을 것이 없다.

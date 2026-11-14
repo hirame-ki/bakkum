@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-3.0-only
-// Bakkum - Copyright (C) 2026 hirame.ki - additional terms under GPL-3.0 section 7 apply, see NOTICE.txt
+// Bakkum - Copyright (C) 2026 hirame.ki, moonsune.zip - additional terms under GPL-3.0 section 7 apply, see NOTICE.txt
 // 영상 편집: 자동 자막(말소리를 듣고 자막 만들기). Whisper 모델은 처음 쓸 때 한 번만 받는다(받는 곳·크기를 먼저 묻는다).
 // 받은 뒤에는 인터넷 없이 이 PC 안에서 돌고, 영상의 소리는 PC 밖으로 나가지 않는다.
 using System;

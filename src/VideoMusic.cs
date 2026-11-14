@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-3.0-only
-// Bakkum - Copyright (C) 2026 hirame.ki - additional terms under GPL-3.0 section 7 apply, see NOTICE.txt
+// Bakkum - Copyright (C) 2026 hirame.ki, moonsune.zip - additional terms under GPL-3.0 section 7 apply, see NOTICE.txt
 // 영상 편집 '소리' 칸의 무료 배경 음악 찾기(2026-11-12 사용자 요청). 바꿈에는 음악을 넣어 두지 않는다(프로그램이 무거워지고, 곡마다 조건이 바뀔 수 있다).
 // 사이트를 기본 인터넷 창으로 열어 미리 듣고 받게 하고, 다운로드 폴더에 새로 받은 소리 파일을 [넣기] 한 번에 배경 음악으로 넣는다.
 // 받은 파일에 Windows가 붙여 두는 '인터넷에서 받음' 표시(Zone.Identifier)의 주소로 어느 사이트 곡인지 알아보고 출처 밝히기를 알려 준다.

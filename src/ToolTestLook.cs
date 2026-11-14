@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-3.0-only
-// Bakkum - Copyright (C) 2026 hirame.ki - additional terms under GPL-3.0 section 7 apply, see NOTICE.txt
+// Bakkum - Copyright (C) 2026 hirame.ki, moonsune.zip - additional terms under GPL-3.0 section 7 apply, see NOTICE.txt
 // 'look' 묶음: 화면 스타일·색감(Look.cs)과 이용자 수 알리기(Usage.cs) 시험.
 // 이용 신호는 이 PC 안의 가짜 서버(127.0.0.1)로만 보낸다. 인터넷으로는 아무것도 나가지 않는다.
 using System;

@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-3.0-only
-// Bakkum - Copyright (C) 2026 hirame.ki - additional terms under GPL-3.0 section 7 apply, see NOTICE.txt
+// Bakkum - Copyright (C) 2026 hirame.ki, moonsune.zip - additional terms under GPL-3.0 section 7 apply, see NOTICE.txt
 // 설정 창: 왼쪽 메뉴(메뉴 모양 · 메뉴 칸 · 메뉴를 띄우는 키 · AI 연결 · 그 밖에)에서 고른 쪽 하나만 오른쪽에 보인다.
 // 바꾸면 바로 적용되고, [설정 완료]로 닫아야 남는다. 창의 X로 닫으면 열 때의 값으로 되돌린다(2026-11-10 사용자 요청).
 // 디자인(DESIGN.md): 책상색 바탕, 쪽마다 색 칩 머리 + 흰 카드. 고른 메뉴는 흰 면 + 그 색 테두리.

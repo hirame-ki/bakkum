@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-3.0-only
-// Bakkum - Copyright (C) 2026 hirame.ki - additional terms under GPL-3.0 section 7 apply, see NOTICE.txt
+// Bakkum - Copyright (C) 2026 hirame.ki, moonsune.zip - additional terms under GPL-3.0 section 7 apply, see NOTICE.txt
 // 영상 편집 창. 왼쪽 손질 칸 고르기, 가운데 화면(미리 보기)과 재생 단추, 오른쪽 손질 칸, 아래 시간 막대.
 // 모든 바꿈은 Change()를 거쳐 되돌리기 칸에 쌓이고 2초 뒤 자동 저장된다(꺼져도 같은 영상을 열면 이어서 한다).
 // 미리 보기는 VPreview가 다른 스레드에서 그리고, 이 창은 받은 장면을 보여 주기만 한다(창이 멈추지 않게).

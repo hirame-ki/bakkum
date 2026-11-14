@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-3.0-only
-// Bakkum - Copyright (C) 2026 hirame.ki - additional terms under GPL-3.0 section 7 apply, see NOTICE.txt
+// Bakkum - Copyright (C) 2026 hirame.ki, moonsune.zip - additional terms under GPL-3.0 section 7 apply, see NOTICE.txt
 // 휴대폰 영상 시험: /selftest-tools 시험폴더 phone
 // 사람·학생 영상은 쓰지 않는다. 시험이 직접 만든 무늬 영상·삐 소리에 휴대폰이 적어 두는 정보(위치·돌림)를 넣어 본다.
 //  1. 위치 정보: 휴대폰처럼 위치(©xyz 칸, 애플 위치 칸)를 넣은 영상을 바꿈의 영상 도구·편집 내보내기에 넣고, 결과에 위치가 남는지.

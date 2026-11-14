@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-3.0-only
-// Bakkum - Copyright (C) 2026 hirame.ki - additional terms under GPL-3.0 section 7 apply, see NOTICE.txt
+// Bakkum - Copyright (C) 2026 hirame.ki, moonsune.zip - additional terms under GPL-3.0 section 7 apply, see NOTICE.txt
 // 영상 편집의 소리: 원본 소리 다듬기(빠르기·높낮이·거꾸로·잡음 줄이기), 여러 소리 섞기(배경 음악 줄이기·크기 맞추기),
 // 미리 듣기(waveOut), 자막 음성(윈도우 목소리), 녹음(마이크), 조용한 곳 찾기, 효과음 만들기.
 // 효과음은 이 파일에서 소리 물결을 직접 계산해 만든다(따로 받은 소리 파일이 없다).

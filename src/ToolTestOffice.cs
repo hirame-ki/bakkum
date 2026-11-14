@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-3.0-only
-// Bakkum - Copyright (C) 2026 hirame.ki - additional terms under GPL-3.0 section 7 apply, see NOTICE.txt
+// Bakkum - Copyright (C) 2026 hirame.ki, moonsune.zip - additional terms under GPL-3.0 section 7 apply, see NOTICE.txt
 // 옛 오피스 형식을 새 형식으로(#28): 옛 엑셀(.xls)·한셀(.cell) → xlsx·csv·tsv, 옛 PPT(.ppt) → pptx.
 // 재료 파일 없이 돈다. 바꿈이 지어낸 xlsx·pptx를 쓰고, 옛 형식은 이 PC의 MS 오피스·한컴오피스로 그 자리에서 만든다.
 // 한쇼 고유 형식(.show)은 자동화로 만들 방법을 찾지 못해(저장 형식 번호가 파워포인트와 같다, 2026-11-13) 시험하지 못한다.

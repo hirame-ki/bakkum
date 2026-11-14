@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-3.0-only
-// Bakkum - Copyright (C) 2026 hirame.ki - additional terms under GPL-3.0 section 7 apply, see NOTICE.txt
+// Bakkum - Copyright (C) 2026 hirame.ki, moonsune.zip - additional terms under GPL-3.0 section 7 apply, see NOTICE.txt
 // 영상 편집 내용(프로젝트): 본 영상 줄(조각들), 그 위에 얹는 것(글자·그림·스티커·도형·작은 화면), 소리, 표시.
 // 시간 계산, 저장(JSON), 되돌리기, 자동 저장을 맡는다.
 // 얹은 것과 목소리는 '본 영상의 어느 순간'에 붙어 있어서, 자르거나 빠르기를 바꾸거나 순서를 바꾸면 그 순간을 따라 움직인다.

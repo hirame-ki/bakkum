@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-3.0-only
-// Bakkum - Copyright (C) 2026 hirame.ki - additional terms under GPL-3.0 section 7 apply, see NOTICE.txt
+// Bakkum - Copyright (C) 2026 hirame.ki, moonsune.zip - additional terms under GPL-3.0 section 7 apply, see NOTICE.txt
 // 영상 편집의 움직임 표시(키프레임): 재생 위치에 넣기·빼기, 앞뒤 표시로 가기, 모두 지우기, 오른쪽 칸의 쉬운 설명.
 // 표시가 둘 이상이면 표시와 표시 사이를 저절로 부드럽게 잇는다(얹은 것은 자리·크기·기울기·투명도, 조각은 확대·자리).
 using System;

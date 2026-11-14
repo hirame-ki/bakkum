@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-3.0-only
-// Bakkum - Copyright (C) 2026 hirame.ki - additional terms under GPL-3.0 section 7 apply, see NOTICE.txt
+// Bakkum - Copyright (C) 2026 hirame.ki, moonsune.zip - additional terms under GPL-3.0 section 7 apply, see NOTICE.txt
 // 작은 대화 창(안내·확인)과 라이선스·고지 창. 색종이 디자인: 책상색 바탕 위 흰 카드, 색 칩 머리.
 using System;
 using System.Windows;

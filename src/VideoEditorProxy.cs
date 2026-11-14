@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-3.0-only
-// Bakkum - Copyright (C) 2026 hirame.ki - additional terms under GPL-3.0 section 7 apply, see NOTICE.txt
+// Bakkum - Copyright (C) 2026 hirame.ki, moonsune.zip - additional terms under GPL-3.0 section 7 apply, see NOTICE.txt
 // 영상 편집: 긴 영상·큰 영상의 미리 보기용 가벼운 사본 만들기. 뒤에서 천천히 만들고(편집은 그대로 할 수 있게),
 // 다 되면 미리 보기가 저절로 사본으로 바뀐다. 내보내기는 늘 원본으로 한다.
 using System;
