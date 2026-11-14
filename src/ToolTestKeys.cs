@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-3.0-only
-// Bakkum - Copyright (C) 2026 hirame.ki - additional terms under GPL-3.0 section 7 apply, see NOTICE.txt
+// Bakkum - Copyright (C) 2026 hirame.ki, moonsune.zip - additional terms under GPL-3.0 section 7 apply, see NOTICE.txt
 // 도구 시험 중 움직임 표시(키프레임)·자막 너비 부분: /selftest-tools 시험폴더 keys (video 시험도 맨 앞에서 부른다)
 // 파일을 만들지 않는 가벼운 시험이다. 화면에 그리는 것은 메모리 안 그림으로만 본다.
 using System;

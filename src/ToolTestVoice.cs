@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-3.0-only
-// Bakkum - Copyright (C) 2026 hirame.ki - additional terms under GPL-3.0 section 7 apply, see NOTICE.txt
+// Bakkum - Copyright (C) 2026 hirame.ki, moonsune.zip - additional terms under GPL-3.0 section 7 apply, see NOTICE.txt
 // 자연스러운 목소리 시험(인터넷 안 씀).
 // · NaturalVoiceLogic: 재료 없이(video 묶음에서 부른다) 받을 목록·목소리 이름·읽을 조각·AI 목소리 표시·내보내기 점검,
 //   자연스러운 목소리가 안 될 때 윈도우 목소리로 이어서 만들기

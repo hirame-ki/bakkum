@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-3.0-only
-// Bakkum - Copyright (C) 2026 hirame.ki - additional terms under GPL-3.0 section 7 apply, see NOTICE.txt
+// Bakkum - Copyright (C) 2026 hirame.ki, moonsune.zip - additional terms under GPL-3.0 section 7 apply, see NOTICE.txt
 // 도구 시험 중 영상 편집 창의 '줄 이름 옆 + 로 넣기'와 '아래 빈 곳 단추'(이슈 #69) 부분: /selftest-tools 시험폴더 video
 // 실제 창을 화면 밖에 띄워 누른다. 파일 고르기 창·마이크·음성 만들기는 부르지 않고, 효과음 미리 듣기는 소리를 내지 않는다(VWaveOut.Silent).
 using System;

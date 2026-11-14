@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-3.0-only
-// Bakkum - Copyright (C) 2026 hirame.ki - additional terms under GPL-3.0 section 7 apply, see NOTICE.txt
+// Bakkum - Copyright (C) 2026 hirame.ki, moonsune.zip - additional terms under GPL-3.0 section 7 apply, see NOTICE.txt
 // 영상 편집 창의 오른쪽 손질 칸: 편집 · 자막 · 글자·그림 · 화면 비율 · 소리 · 색·효과 · 가리기 · 내보내기.
 // 칸은 고른 것이나 손질 칸이 바뀔 때만 다시 그린다(슬라이더를 끄는 동안에는 다시 그리지 않는다).
 using System;

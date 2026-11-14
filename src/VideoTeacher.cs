@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-3.0-only
-// Bakkum - Copyright (C) 2026 hirame.ki - additional terms under GPL-3.0 section 7 apply, see NOTICE.txt
+// Bakkum - Copyright (C) 2026 hirame.ki, moonsune.zip - additional terms under GPL-3.0 section 7 apply, see NOTICE.txt
 // 영상 편집 창의 '선생님 도구': 학생 얼굴 가리기(찾기·따라가기), 조용한 곳 한 번에 자르기,
 // 화면 녹화 다듬기(누른 곳 확대·마우스 강조·누른 자리 표시), 내 얼굴 작은 화면, 수업 자료(PDF·PPT·한글)로 영상 만들기,
 // 제목 화면, 내 꾸밈, 유튜브 챕터.

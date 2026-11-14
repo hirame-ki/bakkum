@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-3.0-only
-// Bakkum - Copyright (C) 2026 hirame.ki - additional terms under GPL-3.0 section 7 apply, see NOTICE.txt
+// Bakkum - Copyright (C) 2026 hirame.ki, moonsune.zip - additional terms under GPL-3.0 section 7 apply, see NOTICE.txt
 // ONNX 모델 파일을 바이트 그대로 고치는 작은 도구(onnx 패키지 없이 protobuf 칸을 그대로 옮겨 적는다).
 // Hugging Face의 Whisper 디코더(decoder_model_merged)는 If 마디 하나로 '첫 걸음'과 '이어지는 걸음'을 오가는데,
 // 윈도우에 들어 있는 Windows ML(onnxruntime 1.17)에서는 이 꼴이 느려서 두 갈래를 따로 된 모델 두 개로 나눈다.

@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-3.0-only
-// Bakkum - Copyright (C) 2026 hirame.ki - additional terms under GPL-3.0 section 7 apply, see NOTICE.txt
+// Bakkum - Copyright (C) 2026 hirame.ki, moonsune.zip - additional terms under GPL-3.0 section 7 apply, see NOTICE.txt
 // 도구 시험 중 영상 편집 부분: /selftest-tools 시험폴더 video
 // 사람 얼굴·목소리·학생 자료는 쓰지 않는다. 시험이 직접 만든 무늬 그림·삐 소리·마우스 기록으로 영상을 만들어 확인한다.
 // 자동 저장·마우스 기록·내 꾸밈·수업 자료 쪽 그림은 임시 자료 폴더(AppInfo.DataDirOverride)에 쓴다.

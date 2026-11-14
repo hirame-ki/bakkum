@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-3.0-only
-// Bakkum - Copyright (C) 2026 hirame.ki - additional terms under GPL-3.0 section 7 apply, see NOTICE.txt
+// Bakkum - Copyright (C) 2026 hirame.ki, moonsune.zip - additional terms under GPL-3.0 section 7 apply, see NOTICE.txt
 // 영상 편집 창의 목소리 고르기: 자연스러운 목소리(AI, 처음 쓸 때 받음)와 윈도우 목소리.
 // 자막 칸의 '자막을 음성으로'와 선생님 도구의 '발표자 노트를 음성으로'가 같이 쓴다.
 using System;

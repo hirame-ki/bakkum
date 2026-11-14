@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-3.0-only
-// Bakkum - Copyright (C) 2026 hirame.ki - additional terms under GPL-3.0 section 7 apply, see NOTICE.txt
+// Bakkum - Copyright (C) 2026 hirame.ki, moonsune.zip - additional terms under GPL-3.0 section 7 apply, see NOTICE.txt
 // 긴 영상·큰 영상의 미리 보기용 가벼운 사본. 원본을 작은 영상(긴 쪽 960, 1초에 30장까지, 1초마다 통째 그림)으로
 // 한 번 바꿔 두고, 편집 창의 미리 보기만 이 사본을 읽는다. 내보내기는 늘 원본으로 한다.
 // 줌·OBS 녹화처럼 통째 그림이 드문 영상, 4K 휴대폰 영상, 1시간 수업 영상에서 넘기기가 빨라진다.

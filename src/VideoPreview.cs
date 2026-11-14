@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-3.0-only
-// Bakkum - Copyright (C) 2026 hirame.ki - additional terms under GPL-3.0 section 7 apply, see NOTICE.txt
+// Bakkum - Copyright (C) 2026 hirame.ki, moonsune.zip - additional terms under GPL-3.0 section 7 apply, see NOTICE.txt
 // 영상 편집 미리 보기: 화면은 한 일꾼(VRenderer)이 그리고, 소리는 다른 일꾼(VWaveOut + VMixer)이 낸다.
 // 재생 중에는 소리 장치가 실제로 낸 칸 수가 시계다(소리 장치가 없으면 흐른 시간). 화면이 늦으면 그 사이 장면은 건너뛴다.
 // 멈춰 있을 때는 마지막으로 고른 시각만 그린다(빨리 끌어도 밀리지 않게).

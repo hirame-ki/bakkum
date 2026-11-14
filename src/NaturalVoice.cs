@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-3.0-only
-// Bakkum - Copyright (C) 2026 hirame.ki - additional terms under GPL-3.0 section 7 apply, see NOTICE.txt
+// Bakkum - Copyright (C) 2026 hirame.ki, moonsune.zip - additional terms under GPL-3.0 section 7 apply, see NOTICE.txt
 // 자연스러운 목소리: Supertone이 공개한 Supertonic 3(한국어·영어를 읽는 AI 목소리, ONNX 파일 넷과 목소리 10개)를
 // 윈도우에 들어 있는 Windows ML로 이 PC 안에서 돌린다. exe를 따로 켜지 않고, 처음 쓸 때 한 번만 받는다
 // (받는 곳·크기·사용 조건을 먼저 보여 주고 묻는다). 받은 뒤에는 인터넷 없이 돌고, 글은 PC 밖으로 나가지 않는다.

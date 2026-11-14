@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-3.0-only
-// Bakkum - Copyright (C) 2026 hirame.ki - additional terms under GPL-3.0 section 7 apply, see NOTICE.txt
+// Bakkum - Copyright (C) 2026 hirame.ki, moonsune.zip - additional terms under GPL-3.0 section 7 apply, see NOTICE.txt
 // 화면 녹화와 함께 웹캠 찍기. 윈도우 카메라 기능(MediaCapture + MediaFrameReader)으로 가장 최근 장을 받아
 // 화면 녹화와 같은 시계로 따로 MP4에 담는다(ScreenRecorder를 하나 더 쓴다). 녹화하는 동안 화면 구석에 내 얼굴이
 // 작게 보이지만 녹화본에는 찍히지 않는다. 영상 편집에 녹화 파일을 놓으면 얼굴 영상이 오른쪽 아래에 동그랗게 얹힌다.

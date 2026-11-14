@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-3.0-only
-// Bakkum - Copyright (C) 2026 hirame.ki - additional terms under GPL-3.0 section 7 apply, see NOTICE.txt
+// Bakkum - Copyright (C) 2026 hirame.ki, moonsune.zip - additional terms under GPL-3.0 section 7 apply, see NOTICE.txt
 // 영상 편집의 한 장면 만들기. 본 영상 줄의 조각을 풀어(VideoReader) 가리기 → 색 → 흔들림 줄이기 → 돌리기·뒤집기 → 자르기 →
 // 비율에 맞추기·확대·자리 옮기기를 거쳐 화면(캔버스)에 놓고, 조각 사이 전환과 작은 화면(PiP)을 얹는다.
 // 미리 보기와 내보내기가 같은 계산을 쓴다(그래서 보이는 대로 저장된다). 글자·그림·스티커·도형은 VideoOverlay.cs가 그린다.

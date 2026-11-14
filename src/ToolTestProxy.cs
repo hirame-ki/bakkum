@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-3.0-only
-// Bakkum - Copyright (C) 2026 hirame.ki - additional terms under GPL-3.0 section 7 apply, see NOTICE.txt
+// Bakkum - Copyright (C) 2026 hirame.ki, moonsune.zip - additional terms under GPL-3.0 section 7 apply, see NOTICE.txt
 // 미리 보기 사본 시험. 통째 그림이 10초에 한 번뿐인 1080p 가짜 영상을 만들어(줌·OBS 녹화와 비슷하게),
 // 넘기기 빠르기를 원본과 사본에서 재고, 같은 시각에 같은 장이 나오는지 본다.
 // 장마다 왼쪽 위 네모의 회색 밝기에 장 번호를 적어 두어 어긋나면 바로 드러난다.

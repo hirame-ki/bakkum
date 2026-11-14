@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-3.0-only
-// Bakkum - Copyright (C) 2026 hirame.ki - additional terms under GPL-3.0 section 7 apply, see NOTICE.txt
+// Bakkum - Copyright (C) 2026 hirame.ki, moonsune.zip - additional terms under GPL-3.0 section 7 apply, see NOTICE.txt
 // 자동 자막 시험(인터넷 안 씀). 시험 폴더에 미리 받아 둔 Whisper 파일(whisper_onnx\base·turbo)을 이 PC 안의 작은 서버로 내주어
 // 받기·멈추기·이어 받기·확인·고치기를 보고, 사람이 만든 수업 녹음(whisper_test\lesson16k.wav와 정답 글 lesson.txt)을 글로 바꿔
 // 글자 틀린 비율(CER, 띄어쓰기·문장부호 빼고)을 잰다. 'whisperturbo'는 1.1GB 모델이라 따로 부를 때만.

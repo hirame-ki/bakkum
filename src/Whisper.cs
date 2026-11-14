@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-3.0-only
-// Bakkum - Copyright (C) 2026 hirame.ki - additional terms under GPL-3.0 section 7 apply, see NOTICE.txt
+// Bakkum - Copyright (C) 2026 hirame.ki, moonsune.zip - additional terms under GPL-3.0 section 7 apply, see NOTICE.txt
 // 자동 자막: OpenAI Whisper(Hugging Face onnx-community의 8비트 ONNX 파일)를 윈도우에 들어 있는 Windows ML로 이 PC 안에서 돌린다.
 // exe를 따로 켜지 않고, 처음 쓸 때 한 번만 받는다(받는 곳·크기를 먼저 보여 준다). 받은 뒤에는 인터넷 없이 돌아가고 소리는 PC 밖으로 나가지 않는다.
 // 로그멜·타임스탬프 규칙·구간 나누기는 OpenAI whisper(MIT)를, 바이트 BPE 풀기는 GPT-2를 따른다(2026-11-11 시험판을 옮김).

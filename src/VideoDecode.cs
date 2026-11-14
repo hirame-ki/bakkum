@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-3.0-only
-// Bakkum - Copyright (C) 2026 hirame.ki - additional terms under GPL-3.0 section 7 apply, see NOTICE.txt
+// Bakkum - Copyright (C) 2026 hirame.ki, moonsune.zip - additional terms under GPL-3.0 section 7 apply, see NOTICE.txt
 // 영상 편집용으로 원본을 푼다: 그림(그래픽 장치로 빠르게 풀고 원하는 크기로 줄여 받기), 소리(48kHz 두 줄로 풀어 임시 파일에),
 // 시간 막대에 늘어놓을 작은 그림 띠.
 // 2026-11-12 이 PC 실측(1080p, 열쇠 장면 간격 5초): 그래픽 장치로 640×360을 받으면 1초에 338장, 아무 데로 넘기기 0.17~0.37초.

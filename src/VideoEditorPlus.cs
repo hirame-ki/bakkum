@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-3.0-only
-// Bakkum - Copyright (C) 2026 hirame.ki - additional terms under GPL-3.0 section 7 apply, see NOTICE.txt
+// Bakkum - Copyright (C) 2026 hirame.ki, moonsune.zip - additional terms under GPL-3.0 section 7 apply, see NOTICE.txt
 // 영상 편집 창의 '+로 넣기'와 '아래 빈 곳 단추'(2026-11-13 관리자 요청, 이슈 #69).
 // 오른쪽 칸이 보이는 높이보다 3~5배 길어서 넣기·시간 맞추기 단추를 찾으려면 한참 내려야 했다.
 // - 시간 막대 줄 이름 옆 연한 + : 자막은 바로 넣고, 글자·그림·소리는 + 위로 작은 고르기 창을 띄워 재생 위치에 넣는다.

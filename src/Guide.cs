@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-3.0-only
-// Bakkum - Copyright (C) 2026 hirame.ki - additional terms under GPL-3.0 section 7 apply, see NOTICE.txt
+// Bakkum - Copyright (C) 2026 hirame.ki, moonsune.zip - additional terms under GPL-3.0 section 7 apply, see NOTICE.txt
 // 처음 켰을 때 한 번 보여 주는 사용법. 알림 영역 메뉴와 설정에서 다시 볼 수 있다.
 // 끝 단추는 처음 켤 때 [시작하기], 다시 열 때 [닫기]. [사용법 영상 보기]는 누를 때만 브라우저로 사이트의 영상 칸을 연다.
 using System;

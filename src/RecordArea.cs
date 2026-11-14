@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-3.0-only
-// Bakkum - Copyright (C) 2026 hirame.ki - additional terms under GPL-3.0 section 7 apply, see NOTICE.txt
+// Bakkum - Copyright (C) 2026 hirame.ki, moonsune.zip - additional terms under GPL-3.0 section 7 apply, see NOTICE.txt
 // 화면 녹화: 녹화할 곳 고르기의 계산(비율, 꼭짓점·변 손잡이, 옮기기, 화면 안에 두기, 짝수 크기).
 // 창(AreaPicker)과 떼어 두어 창 없이 시험한다. 좌표는 모니터 왼쪽 위를 0으로 본 실제 픽셀(배율을 거치지 않음).
 using System;
