@@ -429,6 +429,13 @@ namespace Bakkum
             return new ActionOption("ods", "ODS", "오픈 문서 표");
         }
 
+        /// 워드·PDF → 한글(HWP·HWPX). 한글 프로그램이 읽고 저장한다.
+        static void AddHangul(List<ActionOption> opts)
+        {
+            AddOnce(opts, new ActionOption("hwp", "한글로", "한글 프로그램 필요"));
+            AddOnce(opts, new ActionOption("hwpx", "HWPX", "새 한글 형식"));
+        }
+
         static void FormatOptions(List<string> usable, List<ActionOption> opts)
         {
             var images = usable.Where(f => Formats.KindOf(f) == Kind.Image).ToList();
@@ -445,6 +452,8 @@ namespace Bakkum
             }
             if (usable.Any(f => Formats.Ext(f) == ".hwp")) opts.Add(new ActionOption("hwpx", "HWPX", "새 한글 형식"));
             if (usable.Any(f => Formats.Ext(f) == ".hwpx")) opts.Add(new ActionOption("hwp", "HWP", "예전 한글 형식"));
+            // 워드 → 한글은 맨 앞에 둔다(워드 파일에는 '워드로'가 없어서 가장 많이 찾을 칸이다).
+            if (Any(usable, Kind.Word)) AddHangul(opts);
             if (Any(usable, Kind.Hwp))
             {
                 AddOnce(opts, new ActionOption("docx", "워드로", "한글 프로그램 필요"));
@@ -453,6 +462,7 @@ namespace Bakkum
             if (Any(usable, Kind.Pdf))
             {
                 AddOnce(opts, new ActionOption("docx", "워드로", "글자·표"));
+                AddHangul(opts);
                 AddOnce(opts, new ActionOption("xlsx", "엑셀로", "PDF 안의 표"));
                 AddOnce(opts, new ActionOption("pptx", "PPT로", "글자 고칠 수 있게"));
                 AddOnce(opts, new ActionOption("pptximg", "그림 PPT", "모양 그대로"));

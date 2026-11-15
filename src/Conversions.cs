@@ -254,15 +254,14 @@ namespace Bakkum
             string target = job.Option.Id;
             if (target == "hwpx" || target == "hwp")
             {
+                // 한글끼리(HWP ↔ HWPX)와 워드·PDF → 한글. 모두 한글 프로그램이 읽고 저장한다.
                 string from = target == "hwpx" ? ".hwp" : ".hwpx";
-                var docs = files.Where(f => Formats.Ext(f) == from).ToList();
+                var docs = files.Where(f => Formats.Ext(f) == from || Formats.KindOf(f) == Kind.Word || Formats.KindOf(f) == Kind.Pdf).ToList();
                 if (docs.Count < files.Count) job.Note(target.ToUpperInvariant() + "로 바꿀 수 없는 파일 " + (files.Count - docs.Count) + "개는 건너뛰었어요.");
+                string format = target == "hwpx" ? "HWPX" : "HWP";
                 EachFile(job, docs, target.ToUpperInvariant() + "로 바꾸는 중", delegate (string f)
                 {
-                    Produce(job, Util.OutputFile(f, "." + target), delegate (string dst)
-                    {
-                        job.Use(() => new Hangul(job)).Convert(f, dst, target == "hwpx" ? "HWPX" : "HWP");
-                    });
+                    Produce(job, Util.OutputFile(f, "." + target), delegate (string dst) { DocConvert.ToHangul(job, f, dst, format); });
                 });
                 return;
             }

@@ -63,6 +63,8 @@ namespace Bakkum
                 // 자연스러운 목소리: 시험 폴더의 Supertonic 3 파일(supertonic)로 받기·만들기·놓기, whisper_onnx\base가 있으면 받아쓰기까지(인터넷 안 씀)
                 if (what == "voice") VoiceTests();
                 if (what == "hancom") HancomTests();
+                // 워드·PDF → 한글: 재료 없이 지어낸 문서를 그 자리에서 만들어 한글(한컴오피스)로 바꾼다
+                if (what == "tohwp") ToHwpTests();
                 // 옛 엑셀·한셀·옛 PPT → 새 형식: 재료 없이, MS 오피스나 한컴오피스로 시험 파일을 그 자리에서 만든다
                 if (what == "office") OfficeLegacyTests();
                 // 화면 스타일·색감(대비·꾸밈 읽기)과 이용자 수 알리기(이 PC 안 가짜 서버로만)
