@@ -188,8 +188,12 @@ namespace Bakkum
         public void Dispose()
         {
             stopping = true;
-            try { if (Obj != null) Marshal.FinalReleaseComObject(Obj); } catch { }
+            // object로 받아서 놓는다. dynamic인 Obj로 비교하고 넘기면(C#의 dynamic 처리를 거친다) 한글이 그때 HwpAppModule.dll에서
+            // 멈췄다(2026-11-15 실측, 한컴오피스 2022: 바꿈이 켜 있는 동안 두 번째로 켠 한글부터 끌 때마다 7초쯤 걸리고
+            // Windows 오류 보고가 떴다). object로 놓으면 다섯 번 켜고 꺼도 멈추지 않는다.
+            object o = Obj;
             Obj = null;
+            try { if (o != null) Marshal.FinalReleaseComObject(o); } catch { }
             if (Pid != 0 && !Shared)
             {
                 try
@@ -259,6 +263,36 @@ namespace Bakkum
                 app.ExtraQuiet = null;
             }
             if (!ok) throw new UserFacingException("한글에서 이 PDF를 열지 못했어요. 암호가 걸렸거나 손상된 파일일 수 있어요.");
+        }
+
+        /// 워드 계열 파일을 빈 문서에 끼워 넣는다. 한컴오피스 2022의 한글은 Open으로 워드 파일을 받으면 한워드로 넘기고
+        /// 실패하지만, 빈 문서에 Insert하면 한글이 직접 읽는다(2026-11-15 실측: .docx·.rtf·.odt, 한워드 안 뜸).
+        /// Insert는 결과를 돌려주지 않아서 문서가 비었는지로 본다(그림만 든 문서도 비지 않은 것으로 나온다).
+        /// 형식을 비워 두면 한글이 알아서 고르는데, 모르는 내용이면 '텍스트 문서 종류' 창을 띄운다(그 창은 누르지 않는다).
+        public bool InsertDoc(string path, string format)
+        {
+            Util.EnsureReadable(path);
+            var hword = Util.PidsOf("Hword");
+            app.Arm(TimeSpan.FromMinutes(3));
+            try
+            {
+                app.Obj.Clear(1);
+                app.Obj.Insert(path, format, "suspendpassword:true");
+                return !(bool)app.Obj.IsEmpty;
+            }
+            catch (Exception ex) { throw app.Failure(ex, "파일을 읽지"); }
+            finally
+            {
+                app.Disarm();
+                // Open처럼 한워드로 넘어갔으면 창이 남지 않게 끈다. 이 호출 동안 새로 뜬 것만 우리가 띄운 것이다.
+                var now = Util.PidsOf("Hword");
+                now.ExceptWith(hword);
+                foreach (int pid in now)
+                {
+                    Log.Write("한글이 한워드를 띄워서 끔");
+                    Util.KillTree(pid);
+                }
+            }
         }
 
         public void SaveAs(string path, string format)

@@ -439,12 +439,17 @@ namespace Bakkum
             }
         }
 
-        /// PDF에서 글자 덩어리를 만든다. 글자가 든 PDF는 그대로 읽고, 스캔본은 글자 인식을 쓴다.
-        static List<DocBlock> LocalBlocks(Job job, string f)
+        /// PDF의 글자. 글자가 든 PDF는 그대로 읽고, 스캔본은 글자 인식을 쓴다.
+        static string LocalPlain(Job job, string f)
         {
             var t = PdfText.Read(f, job);
-            string text = t != null && t.Usable ? t.Plain() : Conversions.OcrPdf(job, f);
-            return MarkdownDoc.FromPlain(text);
+            return t != null && t.Usable ? t.Plain() : Conversions.OcrPdf(job, f);
+        }
+
+        /// PDF에서 글자 덩어리를 만든다.
+        static List<DocBlock> LocalBlocks(Job job, string f)
+        {
+            return MarkdownDoc.FromPlain(LocalPlain(job, f));
         }
 
         static void PdfToDocx(Job job, string f, string d)
