@@ -254,9 +254,9 @@ namespace Bakkum
             string target = job.Option.Id;
             if (target == "hwpx" || target == "hwp")
             {
-                // 한글끼리(HWP ↔ HWPX)와 워드·PDF → 한글. 모두 한글 프로그램이 읽고 저장한다.
+                // 한글끼리(HWP ↔ HWPX)와 워드·PDF·글자 파일 → 한글. 모두 한글 프로그램이 읽고 저장한다.
                 string from = target == "hwpx" ? ".hwp" : ".hwpx";
-                var docs = files.Where(f => Formats.Ext(f) == from || Formats.KindOf(f) == Kind.Word || Formats.KindOf(f) == Kind.Pdf).ToList();
+                var docs = files.Where(f => Formats.Ext(f) == from || Formats.KindOf(f) == Kind.Word || Formats.KindOf(f) == Kind.Pdf || Formats.Ext(f) == ".txt").ToList();
                 if (docs.Count < files.Count) job.Note(target.ToUpperInvariant() + "로 바꿀 수 없는 파일 " + (files.Count - docs.Count) + "개는 건너뛰었어요.");
                 string format = target == "hwpx" ? "HWPX" : "HWP";
                 EachFile(job, docs, target.ToUpperInvariant() + "로 바꾸는 중", delegate (string f)

@@ -295,6 +295,26 @@ namespace Bakkum
             }
         }
 
+        /// 빈 문서에 글자를 넣는다. 한글의 기본 모양(바탕글)이 그대로 쓰인다.
+        /// 줄 바꿈은 CRLF여야 문단이 나뉜다. LF만 주면 한글이 줄을 붙여 버린다(2026-11-15 실측, 한컴오피스 2022).
+        public void InsertText(string text)
+        {
+            app.Arm(TimeSpan.FromMinutes(5));
+            try
+            {
+                dynamic h = app.Obj;
+                h.Clear(1);
+                dynamic act = h.CreateAction("InsertText");
+                dynamic set = act.CreateSet();
+                act.GetDefault(set);
+                set.SetItem("Text", text);
+                if (!(bool)act.Execute(set)) throw new UserFacingException("한글에 글자를 넣지 못했어요.");
+            }
+            catch (UserFacingException) { throw; }
+            catch (Exception ex) { throw app.Failure(ex, "글자를 넣지"); }
+            finally { app.Disarm(); }
+        }
+
         public void SaveAs(string path, string format)
         {
             bool ok;

@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-3.0-only
 // Bakkum - Copyright (C) 2026 hirame.ki, moonsune.zip - additional terms under GPL-3.0 section 7 apply, see NOTICE.txt
-// 도구 시험 중 워드·PDF → 한글(HWP·HWPX). 재료 없이 지어낸 문서를 그 자리에서 만들고 한글(한컴오피스)로 바꾼다.
+// 도구 시험 중 워드·PDF·글자 파일 → 한글(HWP·HWPX). 재료 없이 지어낸 문서를 그 자리에서 만들고 한글(한컴오피스)로 바꾼다.
 using System;
 using System.Collections.Generic;
 using System.Drawing;
@@ -17,7 +17,7 @@ namespace Bakkum
     {
         static void ToHwpTests()
         {
-            Cli.Print("[워드·PDF → 한글]");
+            Cli.Print("[워드·PDF·글자 파일 → 한글]");
             Cli.Print("    한글 " + Has(Hangul.Installed));
             string w = P("tohwp");
             if (Directory.Exists(w)) Directory.Delete(w, true);
@@ -42,6 +42,14 @@ namespace Bakkum
             var mix = fmt.OptionsFor(new[] { Path.Combine(w, "새.hwpx"), docx });
             var mixHwp = mix.FirstOrDefault(o => o.Id == "hwp");
             Check("메뉴: .hwpx+워드 → HWP·HWPX 한 칸씩", mix.Count(o => o.Id == "hwp") == 1 && mix.Count(o => o.Id == "hwpx") == 1 && mixHwp != null && mixHwp.Label == "HWP", string.Join(",", mix.Select(o => o.Id + ":" + o.Label)));
+            var txtOpts = fmt.OptionsFor(new[] { Path.Combine(w, "알림장.txt") });
+            var txtHwpOpt = txtOpts.FirstOrDefault(o => o.Id == "hwp");
+            Check("메뉴: 글자 파일 → '워드로' 다음에 한글로·HWPX", string.Join(",", txtOpts.Select(o => o.Id)) == "docx,hwp,hwpx,epub" && txtHwpOpt != null && txtHwpOpt.Label == "한글로", string.Join(",", txtOpts.Select(o => o.Id + ":" + o.Label)));
+            foreach (var ext in new[] { ".md", ".html", ".srt", ".tsv" })
+            {
+                var ids = fmt.OptionsFor(new[] { Path.Combine(w, "글" + ext) }).Select(o => o.Id).ToList();
+                Check("메뉴: " + ext + "에는 한글로 없음", !ids.Contains("hwp") && !ids.Contains("hwpx"), string.Join(",", ids));
+            }
 
             // 2. 표 여백 고치기(한글 없이): 표·칸만 고치고, 그림의 여백과 나머지 글은 한 글자도 안 바꾼다
             string m = DocConvert.TableMarginTopBottom.ToString();
@@ -54,6 +62,40 @@ namespace Bakkum
             string expect = xml.Replace("<hp:inMargin left=\"540\" right=\"540\" top=\"0\" bottom=\"0\"/>", "<hp:inMargin left=\"540\" right=\"540\" top=\"" + m + "\" bottom=\"" + m + "\"/>")
                 .Replace("<hp:cellMargin left=\"510\" right=\"510\" top=\"0\" bottom=\"0\"/>", "<hp:cellMargin left=\"510\" right=\"510\" top=\"" + m + "\" bottom=\"" + m + "\"/>");
             Check("표 여백: 표·칸만 고치고 그림·글은 그대로", changed == 2 && fixedXml == expect, changed + "곳");
+
+            // 2-1. 글자 파일 다듬기(한글 없이): 줄 바꿈은 CRLF로, 탭·빈칸·빈 줄은 그대로, 제어 글자와 끝 줄 바꿈은 뺀다
+            string tidy = DocConvert.PlainForHangul("\uFEFF가\n나\r다\r\n\r\n\t라  \f마\0바\u0007\u2028사\n\n");
+            Check("글자 다듬기: 줄 바꿈·탭·빈칸·제어 글자", tidy == "가\r\n나\r\n다\r\n\r\n\t라  \r\n마바\r\n사", ShowBreaks(tidy));
+            Check("글자 다듬기: 줄 바꿈만 있으면 빈 글", DocConvert.PlainForHangul("\r\n\n\r") == "", ShowBreaks(DocConvert.PlainForHangul("\r\n\n\r")));
+
+            // 2-2. 빈 글자 파일·너무 큰 글자 파일은 한글을 켜기 전에 알린다
+            string emptyTxt = Path.Combine(w, "빈글.txt");
+            File.WriteAllBytes(emptyTxt, new byte[0]);
+            string spaceTxt = Path.Combine(w, "빈칸만.txt");
+            File.WriteAllText(spaceTxt, "  \r\n\t\n", new UTF8Encoding(true));
+            var jEmpty = RunJob("format", "hwp", new[] { emptyTxt, spaceTxt }, null);
+            Check("빈 글자 파일·빈칸만 든 글자 파일 → '빈 파일이에요'", jEmpty.Outputs.Count == 0 && jEmpty.Problems.Count == 2 && jEmpty.Problems.All(x => x.Contains("빈 파일")), string.Join(" / ", jEmpty.Problems));
+            string manyTxt = Path.Combine(w, "글자많음.txt");
+            File.WriteAllText(manyTxt, new string('가', DocConvert.MaxHangulChars + 1), new UTF8Encoding(false));
+            string hugeTxt = Path.Combine(w, "아주큼.txt");
+            using (var fs = new FileStream(hugeTxt, FileMode.Create, FileAccess.Write)) fs.SetLength(3L * DocConvert.MaxHangulChars + 4);
+            var sizeWatch = System.Diagnostics.Stopwatch.StartNew();
+            var jBig = RunJob("format", "hwpx", new[] { manyTxt, hugeTxt }, null);
+            Check("너무 큰 글자 파일 → '글자가 너무 많아요'(한글을 켜지 않음)", jBig.Outputs.Count == 0 && jBig.Problems.Count == 2 && jBig.Problems.All(x => x.Contains("글자가 너무 많아요") && x.Contains("300만 자")) && sizeWatch.Elapsed.TotalSeconds < 10,
+                string.Join(" / ", jBig.Problems) + ", " + sizeWatch.Elapsed.TotalSeconds.ToString("0.0") + "초");
+            File.Delete(manyTxt);
+            File.Delete(hugeTxt);
+
+            // 2-3. 시험 글자 파일(지어낸 내용). 인코딩·줄 바꿈이 저마다 다르다
+            const string TxtBody = "2026학년도 2학기 학부모 상담 주간 안내\r\n\r\n상담 기간: 11월 24일(월) ~ 11월 28일(금)\r\n\t- 방법: 방문 또는 전화\r\n  ※ 원하는 시간을 알림장에 적어 주세요.";
+            string txtU8 = Path.Combine(w, "상담안내_UTF8.txt");
+            File.WriteAllText(txtU8, TxtBody.Replace("\r\n", "\n") + "\n", new UTF8Encoding(false));
+            string txtU8Bom = Path.Combine(w, "상담안내_UTF8BOM.txt");
+            File.WriteAllText(txtU8Bom, TxtBody + "\r\n", new UTF8Encoding(true));
+            string txtAnsi = Path.Combine(w, "상담안내_ANSI.txt");
+            File.WriteAllText(txtAnsi, TxtBody, Encoding.GetEncoding(949));
+            string txtU16 = Path.Combine(w, "상담안내_UTF16.txt");
+            File.WriteAllText(txtU16, TxtBody, Encoding.Unicode);
 
             // 3. 시험 문서(지어낸 내용)
             var blocks = MarkdownDoc.Parse("# 2026학년도 현장체험학습 안내\n\n학부모님께 알려 드립니다. ○○초등학교 4학년은 아래와 같이 현장체험학습을 갑니다.\n\n" +
@@ -68,6 +110,8 @@ namespace Bakkum
             {
                 var none = RunJob("format", "hwp", new[] { docx }, null);
                 Check("한글이 없으면 알기 쉽게 알린다", none.Outputs.Count == 0 && none.Problems.Any(x => x.Contains("한글")), string.Join(" / ", none.Problems));
+                var noneTxt = RunJob("format", "hwpx", new[] { txtU8 }, null);
+                Check("한글이 없으면 글자 파일도 알기 쉽게 알린다", noneTxt.Outputs.Count == 0 && noneTxt.Problems.Any(x => x.Contains("한글")), string.Join(" / ", noneTxt.Problems));
                 Cli.Print("    한글이 없어 나머지는 시험하지 못함");
                 return;
             }
@@ -169,11 +213,44 @@ namespace Bakkum
             j = RunJob("format", "hwp", new[] { blankPdf }, null);
             Check("글자 없는 그림 PDF → 쪽 그림 그대로, 알림", j.Outputs.Count == 1 && j.Notes.Any(x => x.Contains("쪽 그림")), string.Join(" / ", j.Problems.Concat(j.Notes)));
 
+            // 9-1. 글자 파일 → HWPX·HWP. 인코딩(UTF-8·한국어 윈도우 인코딩·UTF-16)과 줄 바꿈(LF·CRLF)이 달라도
+            //      한글로 다시 열면 글자·빈 줄·탭·앞 빈칸이 그대로이고, 끝에 빈 문단이 더 생기지 않는다.
+            sw.Restart();
+            j = RunJob("format", "hwpx", new[] { txtU8, txtAnsi, txtU16 }, null);
+            var txtOuts = j.Outputs.ToList();
+            Check("글자 파일 → HWPX: UTF-8(LF)·CP949·UTF-16 세 개", txtOuts.Count == 3 && j.Problems.Count == 0 && j.Notes.Count == 0, string.Join(" / ", j.Problems.Concat(j.Notes)) + " " + sw.Elapsed.TotalSeconds.ToString("0.0") + "초");
+            j = RunJob("format", "hwp", new[] { txtU8Bom }, null);
+            string txtHwp = j.Outputs.FirstOrDefault();
+            Check("글자 파일 → HWP: UTF-8 BOM(CRLF)", txtHwp != null && Formats.Ext(txtHwp) == ".hwp" && j.Problems.Count == 0, string.Join(" / ", j.Problems));
+            if (txtHwp != null) txtOuts.Add(txtHwp);
+            using (var h = new Hangul(j))
+            {
+                foreach (var o in txtOuts)
+                {
+                    h.Open(o);
+                    string t = h.Text();
+                    h.CloseDoc();
+                    Check("글자 파일 → " + Path.GetFileName(o) + ": 다시 열면 글자 그대로", t == TxtBody, ShowBreaks(t));
+                }
+            }
+            int txtParas = txtOuts.Count > 0 && Formats.Ext(txtOuts[0]) == ".hwpx" ? HwpxParagraphs(txtOuts[0]) : -1;
+            Check("글자 파일 → HWPX: 줄마다 문단 하나(5개)", txtParas == 5, txtParas + "개");
+
+            // 9-2. 큰 글자 파일(2만 줄, 100만 자쯤)
+            var bigText = new StringBuilder();
+            for (int i = 1; i <= 20000; i++) bigText.Append(i).Append(". 가나다라마바사 아자차카타파하 0123456789 ABCDEFG 한 줄짜리 시험 글\r\n");
+            string bigTxt = Path.Combine(w, "큰글자.txt");
+            File.WriteAllText(bigTxt, bigText.ToString(), new UTF8Encoding(false));
+            sw.Restart();
+            j = RunJob("format", "hwpx", new[] { bigTxt }, null);
+            int bigParas = j.Outputs.Count == 1 ? HwpxParagraphs(j.Outputs[0]) : -1;
+            Check("큰 글자 파일(2만 줄) → HWPX", bigParas == 20000 && j.Problems.Count == 0 && sw.Elapsed.TotalSeconds < 60, bigParas + "문단, " + string.Join(" / ", j.Problems) + " " + sw.Elapsed.TotalSeconds.ToString("0.0") + "초");
+
             // 10. 섞어 놓기와 원래 있던 HWP → HWPX
             if (hwp != null)
             {
-                j = RunJob("format", "hwp", new[] { docx, pdf, hwp }, null);
-                Check("섞어 놓기: 워드·PDF는 HWP로, 이미 HWP인 것은 건너뜀", j.Outputs.Count == 2 && j.Problems.Count == 0 && j.Notes.Any(x => x.Contains("1개는 건너뛰었어요")), string.Join(" / ", j.Problems.Concat(j.Notes)));
+                j = RunJob("format", "hwp", new[] { docx, pdf, txtAnsi, hwp }, null);
+                Check("섞어 놓기: 워드·PDF·글자 파일은 HWP로, 이미 HWP인 것은 건너뜀", j.Outputs.Count == 3 && j.Problems.Count == 0 && j.Notes.Any(x => x.Contains("1개는 건너뛰었어요")), string.Join(" / ", j.Problems.Concat(j.Notes)));
                 j = RunJob("format", "hwpx", new[] { hwp }, null);
                 Check("HWP → HWPX(원래 기능)", HwpxTextOf(j.Outputs.FirstOrDefault()).Contains("현장체험학습"), string.Join(" / ", j.Problems));
             }
@@ -272,6 +349,29 @@ namespace Bakkum
         static string HwpxTextOf(string hwpx)
         {
             return hwpx == null || !File.Exists(hwpx) ? "" : OoxmlRead.HwpxText(hwpx);
+        }
+
+        /// HWPX 본문(section)의 문단 수
+        static int HwpxParagraphs(string hwpx)
+        {
+            int n = 0;
+            using (var fs = File.OpenRead(hwpx))
+            using (var z = new ZipArchive(fs, ZipArchiveMode.Read))
+            {
+                foreach (var e in z.Entries.Where(x => x.FullName.StartsWith("Contents/section", StringComparison.OrdinalIgnoreCase)))
+                {
+                    var doc = new XmlDocument();
+                    using (var s = e.Open()) doc.Load(s);
+                    n += doc.SelectNodes("/*/*[local-name()='p']").Count;
+                }
+            }
+            return n;
+        }
+
+        /// 줄 바꿈·탭을 눈에 보이게(시험 결과 줄에 쓴다)
+        static string ShowBreaks(string s)
+        {
+            return s.Replace("\r", "\\r").Replace("\n", "\\n").Replace("\t", "\\t");
         }
 
         /// HWPX 안 표(tbl)의 칸 안 여백 위·아래 값

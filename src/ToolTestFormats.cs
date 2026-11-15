@@ -479,12 +479,12 @@ namespace Bakkum
             Check("형식 칸: 전자책", opts("a.epub") == "docx,md,html,txt", opts("a.epub"));
             // 의미 없는 변환은 고를 거리에 없다(2026-11-13): PDF → 마크다운·HTML·EPUB(글자만 남고 표가 뭉개짐),
             // 표 → 글자 파일(TSV와 똑같은 파일), TSV → 글자 파일(이름만 바뀜), 글자 파일 → 마크다운·HTML(글자 그대로·문단 틀만).
-            // 워드·PDF → 한글(2026-11-15): 워드는 맨 앞에, PDF는 '워드로' 다음에 '한글로'·'HWPX'
+            // 워드·PDF·글자 파일 → 한글(2026-11-15): 워드는 맨 앞에, PDF·글자 파일은 '워드로' 다음에 '한글로'·'HWPX'
             Check("형식 칸: PDF", opts("a.pdf") == "docx,hwp,hwpx,xlsx,pptx,pptximg", opts("a.pdf"));
             Check("형식 칸: 워드", opts("a.docx") == "hwp,hwpx,pptx,md,html,epub,txt", opts("a.docx"));
             Check("형식 칸: 표", opts("a.csv") == "xlsx,tsv,ods" && opts("a.xlsx") == "csv,tsv,ods" && opts("a.ods") == "xlsx,csv,tsv" && opts("a.tsv") == "xlsx,csv,ods", opts("a.csv") + " / " + opts("a.xlsx") + " / " + opts("a.ods") + " / " + opts("a.tsv"));
             Check("형식 칸: 자막", opts("a.srt") == "vtt,txt" && opts("a.vtt") == "srt,txt", opts("a.srt"));
-            Check("형식 칸: 글자·마크다운·HTML", opts("a.txt") == "docx,epub" && opts("a.md") == "docx,html,epub,txt" && opts("a.html") == "docx,md,epub,txt", opts("a.txt"));
+            Check("형식 칸: 글자·마크다운·HTML", opts("a.txt") == "docx,hwp,hwpx,epub" && opts("a.md") == "docx,html,epub,txt" && opts("a.html") == "docx,md,epub,txt", opts("a.txt"));
             // 일부만 옮겨지는 변환은 고를 때 작은 줄로 미리 알린다
             Func<string[], string, string> sub = delegate (string[] names, string id)
             {

@@ -1,9 +1,10 @@
 // SPDX-License-Identifier: GPL-3.0-only
 // Bakkum - Copyright (C) 2026 hirame.ki, moonsune.zip - additional terms under GPL-3.0 section 7 apply, see NOTICE.txt
-// 워드·PDF → 한글(HWP·HWPX). 한글 프로그램이 읽고 저장한다.
+// 워드·PDF·글자 파일(.txt) → 한글(HWP·HWPX). 한글 프로그램이 읽고 저장한다.
 // - 워드 계열은 빈 문서에 끼워 넣는다(Hangul.InsertDoc). 열기(Open)로 주면 한컴오피스 2022는 한워드로 넘기고 실패한다.
 // - 워드에서 들여온 표는 칸 안 위·아래 여백이 0(워드 기본값)이라 한글에서는 글자가 칸 선에 붙는다. HWPX로 한 번 저장해 고친다.
 // - PDF는 한글이 글·표를 되살려 연다(Hangul.OpenPdf). 스캔한 PDF는 글자 인식으로 글자를 옮긴다.
+// - 글자 파일은 바꿈이 인코딩을 가려 읽고, 빈 문서에 글자를 그대로 넣는다(Hangul.InsertText).
 using System;
 using System.Collections.Generic;
 using System.IO;
@@ -19,11 +20,20 @@ namespace Bakkum
         /// 워드에서 들여온 표의 칸 안 위·아래 여백(0)을 바꿀 값. 한글이 새 표에 쓰는 기본값(0.5mm)과 같다.
         internal const int TableMarginTopBottom = 141;
 
+        /// 한글에 한 번에 넣는 글자 수의 끝. 530만 자(2273쪽)를 넣고 HWP로 저장하는 데 1분쯤 걸렸다(2026-11-15 실측).
+        /// 느린 PC에서도 한글 작업 시간 제한(5분) 안에 끝나도록 그 아래로 둔다.
+        internal const int MaxHangulChars = 3000000;
+
         static readonly Regex ZeroTopBottom = new Regex("\\b(top|bottom)=\"0\"");
 
-        /// f(한글·워드·PDF)를 한글 문서 dst로 만든다. format은 "HWP" 또는 "HWPX".
+        /// f(한글·워드·PDF·글자 파일)를 한글 문서 dst로 만든다. format은 "HWP" 또는 "HWPX".
         public static void ToHangul(Job job, string f, string dst, string format)
         {
+            if (Formats.Ext(f) == ".txt")
+            {
+                TextToHangul(job, f, dst, format);
+                return;
+            }
             switch (Formats.KindOf(f))
             {
                 case Kind.Word:
@@ -118,6 +128,54 @@ namespace Bakkum
             }
             PlainToHangul(job, scanned, dst, format);
             job.Note(Util.ShortName(f) + ": 스캔한 PDF라 글자 인식으로 글자만 옮겼어요. 틀린 글자가 있을 수 있어요.");
+        }
+
+        /// 글자 파일(.txt) → HWP·HWPX. 인코딩은 바꿈이 가려 읽고(BOM → UTF-8 → 한국어 윈도우 인코딩),
+        /// 빈 한글 문서에 글자를 그대로 넣는다(한글 기본 모양, 줄마다 문단, 빈 줄·탭·앞 빈칸 그대로).
+        /// 워드 파일을 거치면 빈 줄이 빠지고 문단마다 간격이 붙어서(MarkdownDoc.FromPlain·DocxWriter) 이 길을 쓴다.
+        static void TextToHangul(Job job, string f, string dst, string format)
+        {
+            Util.EnsureReadable(f);
+            // 한 글자는 파일에서 3바이트를 넘지 않는다(UTF-8). 이보다 크면 읽지 않고 알린다(메모리를 아끼려고).
+            if (new FileInfo(f).Length > 3L * MaxHangulChars + 3) throw TooManyChars();
+            string text = PlainForHangul(TextFile.Read(f));
+            if (text.Trim().Length == 0) throw new UserFacingException("빈 파일이에요.");
+            if (text.Length > MaxHangulChars) throw TooManyChars();
+            var h = job.Use(() => new Hangul(job));
+            try
+            {
+                h.InsertText(text);
+                h.SaveAs(dst, format);
+            }
+            finally { h.CloseDoc(); }
+        }
+
+        static UserFacingException TooManyChars()
+        {
+            return new UserFacingException("글자가 너무 많아요. 한글로는 " + (MaxHangulChars / 10000) + "만 자까지 바꿀 수 있어요. 파일을 나눠서 바꿔 주세요.");
+        }
+
+        /// 한글에 넣을 글자로 다듬는다. 줄 바꿈은 모두 CRLF로 맞추고(LF만 있으면 한글이 줄을 붙인다, 2026-11-15 실측),
+        /// 쪽 나눔(\f)·세로 탭·유니코드 줄 바꿈도 줄 바꿈으로 둔다. 그 밖의 제어 글자와 BOM 글자(U+FEFF)는 빼고,
+        /// 끝의 줄 바꿈은 뺀다(한글에 빈 문단이 하나 더 생기지 않게). 탭·빈칸은 그대로 둔다.
+        internal static string PlainForHangul(string text)
+        {
+            var sb = new StringBuilder(text.Length + text.Length / 16 + 16);
+            for (int i = 0; i < text.Length; i++)
+            {
+                char c = text[i];
+                if (c == '\r')
+                {
+                    if (i + 1 < text.Length && text[i + 1] == '\n') i++;
+                    sb.Append("\r\n");
+                }
+                else if (c == '\n' || c == '\f' || c == '\v' || c == '\u0085' || c == '\u2028' || c == '\u2029') sb.Append("\r\n");
+                else if (c == '\t' || !(char.IsControl(c) || c == '\uFEFF')) sb.Append(c);
+            }
+            int end = sb.Length;
+            while (end > 0 && (sb[end - 1] == '\n' || sb[end - 1] == '\r')) end--;
+            sb.Length = end;
+            return sb.ToString();
         }
 
         /// 글자만 있는 내용을 워드 파일로 만든 뒤 한글에 넣어 dst로 저장한다(dst가 있으면 바꾼다).
