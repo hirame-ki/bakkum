@@ -429,7 +429,7 @@ namespace Bakkum
             return new ActionOption("ods", "ODS", "오픈 문서 표");
         }
 
-        /// 워드·PDF → 한글(HWP·HWPX). 한글 프로그램이 읽고 저장한다.
+        /// 워드·PDF·글자 파일 → 한글(HWP·HWPX). 한글 프로그램이 읽고 저장한다.
         static void AddHangul(List<ActionOption> opts)
         {
             AddOnce(opts, new ActionOption("hwp", "한글로", "한글 프로그램 필요"));
@@ -518,7 +518,9 @@ namespace Bakkum
                         break;
                     default:
                         // 글자 파일(.txt): 마크다운은 글자가 그대로이고, HTML은 문단마다 웹 문서 틀만 씌워 넣지 않는다.
+                        // 한글로는 '워드로' 다음에 둔다(PDF와 같은 자리). '워드로'는 1번 그대로, EPUB는 2번에서 4번이 된다.
                         AddOnce(opts, ToWord());
+                        AddHangul(opts);
                         AddOnce(opts, ToBook());
                         break;
                 }

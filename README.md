@@ -17,7 +17,7 @@
 |---|---|---|
 | PDF로 | 한글·워드·엑셀·PPT·그림 | PDF (여러 개는 하나로 묶거나 따로) |
 | 그림으로 | PDF·한글·워드·엑셀·PPT | 쪽마다 PNG 또는 JPG, 문서 속 사진 뽑기 |
-| 형식 바꾸기 | 그림·PDF·한글·워드·표 파일·글 파일·전자책·옛 PPT | PNG·JPG·WEBP·BMP·GIF·TIFF·ICO(SVG도 넣을 수 있음), HWP ↔ HWPX, 워드·PDF → 한글(HWP·HWPX), PDF → 워드·엑셀, PDF·한글·워드 → 글자 고칠 수 있는 PPT, PDF → 그림 PPT, 한글 → 워드, 한글 표 → 엑셀, 사진 → 워드·PPT, 한글·워드 → 마크다운·HTML·EPUB, MD·HTML·EPUB·워드 사이, SRT ↔ VTT, 엑셀·CSV·TSV·ODS 사이(한셀·옛 엑셀 .xls도), 한쇼·옛 PPT(.ppt) → PPTX. 결과가 쓸모없는 변환(PDF → 마크다운·HTML·EPUB, 표 → 글자 파일 등)은 고를 거리에 두지 않는다 |
+| 형식 바꾸기 | 그림·PDF·한글·워드·표 파일·글 파일·전자책·옛 PPT | PNG·JPG·WEBP·BMP·GIF·TIFF·ICO(SVG도 넣을 수 있음), HWP ↔ HWPX, 워드·PDF·TXT → 한글(HWP·HWPX), PDF → 워드·엑셀, PDF·한글·워드 → 글자 고칠 수 있는 PPT, PDF → 그림 PPT, 한글 → 워드, 한글 표 → 엑셀, 사진 → 워드·PPT, 한글·워드 → 마크다운·HTML·EPUB, MD·HTML·EPUB·워드 사이, SRT ↔ VTT, 엑셀·CSV·TSV·ODS 사이(한셀·옛 엑셀 .xls도), 한쇼·옛 PPT(.ppt) → PPTX. 결과가 쓸모없는 변환(PDF → 마크다운·HTML·EPUB, 표 → 글자 파일 등)은 고를 거리에 두지 않는다 |
 | 용량 줄이기 | 그림·PDF·문서 | 조금(긴 변 3000)·보통(2000)·많이(1400)·목표 용량 |
 | 글자 뽑기 | 그림·PDF·문서 | 이 PC에서(윈도우 글자 인식), 워드로, AI로(표까지) |
 | 사진 손질 | 그림 | 가리기(블러·모자이크·색 칸, 전체·일부), 얼굴 가리기, 자르기·회전·뒤집기·크기, 밝기·대비·채도·선명도, 글자·화살표·형광펜, 배경·여백·둥근 모서리, 문서 펴기, 콜라주, 사진 정보 보기·지우기 |
@@ -58,7 +58,7 @@ PDF·한글·워드 → PPT는 글자를 글상자로 옮기고 표의 선과 �
 ### 필요한 프로그램
 
 - 윈도우 10 또는 11 (.NET Framework 4.8, 윈도우에 기본으로 들어 있음)
-- 한글 파일, 워드·PDF → 한글: 한컴오피스 한글
+- 한글 파일, 워드·PDF·TXT → 한글: 한컴오피스 한글
 - 워드 파일(한글로 바꿀 때 말고): MS 워드 (한컴 한워드는 자동 변환을 지원하지 않아요)
 - 엑셀·PPT 파일: MS 오피스, 또는 한컴오피스 한셀·한쇼
 
@@ -147,7 +147,7 @@ build\Bakkum.exe /run text local 스캔.pdf
 | `src/Look.cs`, `src/Usage.cs` | 화면 스타일·색감, 이용자 수 알리기(하루 한 번 익명 신호) |
 | `src/PhotoEditor.cs`, `src/PhotoOps.cs`, `src/PhotoJobs.cs`, `src/FaceFinder.cs`, `src/WebpLossless.cs` | 사진 손질 |
 | `src/PdfTools.cs`, `src/PdfCrypt.cs`, `src/PdfText.cs`, `src/PdfPagesWindow.cs`, `src/PdfJobs.cs` | PDF 편집 |
-| `src/DocConvert.cs`, `src/DocToHangul.cs`, `src/Ooxml.cs`, `src/Workbench.cs` | 문서 바꾸기(워드·PDF → 한글 포함), 되묻는 창 |
+| `src/DocConvert.cs`, `src/DocToHangul.cs`, `src/Ooxml.cs`, `src/Workbench.cs` | 문서 바꾸기(워드·PDF·TXT → 한글 포함), 되묻는 창 |
 | `src/OpenDoc.cs`, `src/TextPdf.cs`, `src/Epub.cs`, `src/Svg.cs`, `src/Archive.cs` | ODS·ODT, 글자 → PDF, 전자책, SVG, 압축 |
 | `src/PptDeck.cs`, `src/PdfToPpt.cs`, `src/DeckDesign.cs` | PPT 쓰기, PDF → 글자 고칠 수 있는 PPT, AI 수업 PPT 디자인 |
 | `src/Media.cs`, `src/MediaFoundation.cs`, `src/Mkv.cs`, `src/Gif.cs` | 영상·소리 |
