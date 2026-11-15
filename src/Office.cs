@@ -429,6 +429,50 @@ namespace Bakkum
         {
             app = OfficeApp.Start("HShow.Application", "HShow", "한쇼", job, null);
             if (app == null) throw new UserFacingException("이 PC에 한쇼가 없어요.");
+            WaitStartDocument();
+        }
+
+        /// 한쇼는 켜진 뒤 빈 시작 문서를 조금 늦게 마저 만든다(슬라이드 0장 → 1장, 0.1~1.5초).
+        /// 그 전에 연 파일은 이 빈 문서로 바뀌어 빈 슬라이드 한 장만 PDF·PPT로 저장됐고, 옛 .ppt는 한쇼가 꺼지기도 했다
+        /// (2026-11-15 한컴오피스 2022 실측: 새로 켜자마자 PPTX를 PDF로 바꾸면 4번 중 3번 빈 1쪽 PDF, .ppt는 RPC 오류 800706BE).
+        /// 시작 문서에 슬라이드가 생길 때까지 기다린다. 시작 문서가 없는 판이면 1초만 본다. 길어야 5초.
+        void WaitStartDocument()
+        {
+            var sw = System.Diagnostics.Stopwatch.StartNew();
+            while (sw.ElapsedMilliseconds < 5000)
+            {
+                try
+                {
+                    dynamic list = app.Obj.Presentations;
+                    int n = (int)list.Count;
+                    if (n > 0 && (int)list.Item(1).Slides.Count > 0) return;
+                    if (n == 0 && sw.ElapsedMilliseconds > 1000) return;
+                }
+                catch (Exception) { } // 아직 바쁘면 잠깐 뒤 다시 본다
+                Thread.Sleep(50);
+            }
+            Log.Write("한쇼 시작 문서를 기다리다 넘어감");
+        }
+
+        /// 파일을 연다. 연 문서에 경로가 없으면 파일 대신 빈 시작 문서가 열린 것이라 닫고 한 번 더 연다(WaitStartDocument 참고).
+        dynamic Open(string src)
+        {
+            dynamic pres = app.Obj.Presentations.Open(src, true, false, false);
+            if (HasPath(pres)) return pres;
+            Log.Write("한쇼가 파일 대신 빈 문서를 열어 다시 엶");
+            try { pres.Close(); } catch { }
+            Thread.Sleep(500);
+            pres = app.Obj.Presentations.Open(src, true, false, false);
+            if (HasPath(pres)) return pres;
+            try { pres.Close(); } catch { }
+            throw new UserFacingException("한쇼가 파일을 제대로 열지 못했어요. 잠시 뒤 다시 해 주세요.");
+        }
+
+        /// 한쇼가 알려 준 문서 경로가 있는가. 경로를 묻지 못하는 판이면 검사하지 않는다.
+        static bool HasPath(dynamic pres)
+        {
+            try { return !string.IsNullOrEmpty((string)pres.FullName); }
+            catch (Exception) { return true; }
         }
 
         public void ToPdf(string src, string dst)
@@ -447,7 +491,7 @@ namespace Bakkum
             app.Arm(TimeSpan.FromMinutes(5));
             try
             {
-                pres = app.Obj.Presentations.Open(src, true, false, false);
+                pres = Open(src);
                 if (format != 32)
                 {
                     // 한쇼는 옛 .ppt의 슬라이드 내용을 나중에 불러온다. 열자마자 PPTX로 저장하면 슬라이드가 텅 빈다(도형 0개).
@@ -457,6 +501,7 @@ namespace Bakkum
                 }
                 pres.SaveAs(dst, format);
             }
+            catch (UserFacingException) { throw; }
             catch (Exception ex) { throw app.Failure(ex, what); }
             finally
             {
