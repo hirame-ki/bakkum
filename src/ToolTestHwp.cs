@@ -63,6 +63,7 @@ namespace Bakkum
             DocxWriter.Write(padded, blocks);
             DocxWriter.Write(docx, blocks);
             WordDefaultTableMargins(docx);
+            AddMergedRow(docx);
             if (!Hangul.Installed)
             {
                 var none = RunJob("format", "hwp", new[] { docx }, null);
@@ -82,6 +83,8 @@ namespace Bakkum
             string hwpx = j.Outputs.FirstOrDefault();
             string text = HwpxTextOf(hwpx);
             Check("워드 → HWPX: 제목·문단·표·목록 글자", text.Contains("2026학년도 현장체험학습 안내") && text.Contains("○○초등학교") && text.Contains("□□ 과학관") && text.Contains("도시락"), text.Replace("\n", " / "));
+            int merged = hwpx == null ? 0 : MergedCells(hwpx);
+            Check("워드 → HWPX: 가로로 합친 칸이 그대로", merged == 1 && text.Contains("돌아올 때도 같은 버스를 타요"), merged + "칸");
             var margins = hwpx == null ? new List<int>() : TableMargins(hwpx);
             Check("워드 → HWPX: 표 칸 위·아래 여백 0 → " + m, margins.Count > 0 && margins.All(x => x == DocConvert.TableMarginTopBottom), string.Join(",", margins));
             j = RunJob("format", "hwpx", new[] { padded }, null);
@@ -224,6 +227,46 @@ namespace Bakkum
                 var n = z.CreateEntry("word/styles.xml");
                 using (var s = new StreamWriter(n.Open(), new UTF8Encoding(false))) s.Write(xml);
             }
+        }
+
+        /// 표 맨 아래에 두 칸을 가로로 합친 줄을 넣는다(워드의 gridSpan). 바꿈의 워드 쓰기는 칸을 합치지 않아서 여기서 넣는다.
+        static void AddMergedRow(string docx)
+        {
+            using (var fs = new FileStream(docx, FileMode.Open, FileAccess.ReadWrite))
+            using (var z = new ZipArchive(fs, ZipArchiveMode.Update))
+            {
+                var e = z.GetEntry("word/document.xml");
+                string xml;
+                using (var r = new StreamReader(e.Open(), Encoding.UTF8)) xml = r.ReadToEnd();
+                const string Para = "<w:p><w:pPr><w:spacing w:after=\"0\"/></w:pPr><w:r><w:t xml:space=\"preserve\">{0}</w:t></w:r></w:p>";
+                string row = "<w:tr><w:tc><w:tcPr><w:tcW w:w=\"3212\" w:type=\"dxa\"/></w:tcPr>" + string.Format(Para, "참고") + "</w:tc>" +
+                    "<w:tc><w:tcPr><w:tcW w:w=\"6424\" w:type=\"dxa\"/><w:gridSpan w:val=\"2\"/></w:tcPr>" + string.Format(Para, "돌아올 때도 같은 버스를 타요") + "</w:tc></w:tr>";
+                xml = xml.Insert(xml.IndexOf("</w:tbl>", StringComparison.Ordinal), row);
+                e.Delete();
+                var n = z.CreateEntry("word/document.xml");
+                using (var s = new StreamWriter(n.Open(), new UTF8Encoding(false))) s.Write(xml);
+            }
+        }
+
+        /// HWPX 안 표 칸 가운데 가로로 합친 칸(colSpan 2 이상)의 수
+        static int MergedCells(string hwpx)
+        {
+            int n = 0;
+            using (var fs = File.OpenRead(hwpx))
+            using (var z = new ZipArchive(fs, ZipArchiveMode.Read))
+            {
+                foreach (var e in z.Entries.Where(x => x.FullName.StartsWith("Contents/section", StringComparison.OrdinalIgnoreCase)))
+                {
+                    var doc = new XmlDocument();
+                    using (var s = e.Open()) doc.Load(s);
+                    foreach (XmlNode c in doc.SelectNodes("//*[local-name()='tc']/*[local-name()='cellSpan']"))
+                    {
+                        var span = c.Attributes["colSpan"];
+                        if (span != null && int.Parse(span.Value) >= 2) n++;
+                    }
+                }
+            }
+            return n;
         }
 
         static string HwpxTextOf(string hwpx)
