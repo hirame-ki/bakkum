@@ -175,7 +175,27 @@ namespace Bakkum
                 Check("HWP → HWPX(원래 기능)", HwpxTextOf(j.Outputs.FirstOrDefault()).Contains("현장체험학습"), string.Join(" / ", j.Problems));
             }
 
-            // 11. 한워드가 뜨지 않고, 끝나면 한글이 남지 않는다
+            // 11. 한글을 연달아 켜고 끄기. 예전에는 바꿈이 켜 있는 동안 두 번째로 켠 한글부터 끌 때마다 한글이 멈춰서
+            //     끄는 데 7초쯤 걸리고 Windows 오류 보고가 떴다(OfficeApp.Dispose가 dynamic으로 COM 객체를 놓던 탓).
+            var quits = new List<double>();
+            for (int i = 0; i < 3; i++)
+            {
+                var h = new Hangul(j);
+                try
+                {
+                    h.InsertDoc(docx, "OOXML");
+                    h.CloseDoc();
+                }
+                finally
+                {
+                    sw.Restart();
+                    h.Dispose();
+                    quits.Add(sw.Elapsed.TotalSeconds);
+                }
+            }
+            Check("한글을 연달아 켜고 꺼도 바로 꺼짐", quits.All(x => x < 5), string.Join(", ", quits.Select(x => x.ToString("0.0") + "초")));
+
+            // 12. 한워드가 뜨지 않고, 끝나면 한글이 남지 않는다
             var hwordNew = Util.PidsOf("Hword");
             hwordNew.ExceptWith(hwordBefore);
             Check("한워드가 뜨지 않음", hwordNew.Count == 0, hwordNew.Count + "개");

@@ -188,8 +188,12 @@ namespace Bakkum
         public void Dispose()
         {
             stopping = true;
-            try { if (Obj != null) Marshal.FinalReleaseComObject(Obj); } catch { }
+            // object로 받아서 놓는다. dynamic인 Obj로 비교하고 넘기면(C#의 dynamic 처리를 거친다) 한글이 그때 HwpAppModule.dll에서
+            // 멈췄다(2026-11-15 실측, 한컴오피스 2022: 바꿈이 켜 있는 동안 두 번째로 켠 한글부터 끌 때마다 7초쯤 걸리고
+            // Windows 오류 보고가 떴다). object로 놓으면 다섯 번 켜고 꺼도 멈추지 않는다.
+            object o = Obj;
             Obj = null;
+            try { if (o != null) Marshal.FinalReleaseComObject(o); } catch { }
             if (Pid != 0 && !Shared)
             {
                 try
