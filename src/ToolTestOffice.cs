@@ -96,7 +96,9 @@ namespace Bakkum
                 string pptx = Path.Combine(w, "물의순환.pptx");
                 MakeLectureDeck(pptx);
                 string by = MakeLegacy(pptx, ppt, 1, true, false);
-                Check("시험용 .ppt 만들기(" + by + ")", File.Exists(ppt), by);
+                // 옛 PPT는 한글 글자를 UTF-16으로 담는다. 빈 슬라이드만 저장되면 다음 시험이 아니라 여기서 알린다.
+                bool pptText = File.Exists(ppt) && IndexOf(File.ReadAllBytes(ppt), Encoding.Unicode.GetBytes("구름")) >= 0;
+                Check("시험용 .ppt 만들기(" + by + ")", pptText, !File.Exists(ppt) ? by : Conversions.Size(new FileInfo(ppt).Length) + (pptText ? "" : " · 글자 '구름'이 없음(빈 슬라이드)"));
                 if (File.Exists(ppt))
                 {
                     var pptOpts = fmt.OptionsFor(new[] { ppt }).Select(o => o.Id).ToList();
@@ -122,6 +124,26 @@ namespace Bakkum
                 string hp = Path.Combine(w, "한쇼로바꿈.pptx");
                 string by = MakeLegacy(ppt, hp, 24, true, true);
                 Check("한쇼: .ppt → PPTX", File.Exists(hp) && OoxmlRead.PptxText(hp).Contains("구름"), by);
+            }
+
+            // 5. 한쇼를 새로 켜자마자 연 파일이 빈 시작 문서로 바뀌던 문제(2026-11-15 한컴오피스 2022: 4번 중 3번 빈 1쪽 PDF).
+            //    바꿈은 할 일마다 한쇼를 새로 켜므로, 새로 켜서 PDF로 바꾸기를 3번 한다.
+            string deck = Path.Combine(w, "물의순환.pptx");
+            if (Hanshow.Installed && File.Exists(deck))
+            {
+                var wrong = new List<string>();
+                for (int i = 1; i <= 3; i++)
+                {
+                    string pdf = Path.Combine(w, "한쇼새로켜기" + i + ".pdf");
+                    string by = MakeLegacy(deck, pdf, 32, true, true);
+                    int pages = 0;
+                    if (File.Exists(pdf))
+                    {
+                        using (var d = new WinPdfDoc(pdf)) pages = d.PageCount;
+                    }
+                    if (pages != 3) wrong.Add(i + "번째 " + (File.Exists(pdf) ? pages + "쪽" : by));
+                }
+                Check("한쇼: 새로 켜자마자 열어도 그 파일 그대로(PDF 3번)", wrong.Count == 0, wrong.Count == 0 ? "3쪽씩" : string.Join(" / ", wrong));
             }
             Cli.Print("    한쇼 고유 형식(.show)은 자동화로 만들 수 없어 시험하지 못함");
         }
