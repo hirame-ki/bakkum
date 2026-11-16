@@ -115,7 +115,14 @@ namespace Bakkum
                     return OoxmlRead.HwpxText(f);
                 case ".hwp":
                     {
-                        var h = job.Use(() => new Hangul(job));
+                        Hangul h;
+                        try { h = job.Use(() => new Hangul(job)); }
+                        catch (ProgramMissingException ex)
+                        {
+                            // 한글은 있는데 부를 수 없는 PC: 선생님이 한글에서 HWPX로 저장하면 바로 읽을 수 있다.
+                            if (!ex.Installed) throw;
+                            throw new UserFacingException(ex.Message + " 급하면 한글에서 HWPX로 저장해 넣어 주세요. HWPX는 한글 없이 읽어요.");
+                        }
                         h.Open(f);
                         try { return h.Text() ?? ""; }
                         finally { h.CloseDoc(); }
@@ -313,6 +320,7 @@ namespace Bakkum
                         return File.Exists(full) ? MarkdownDoc.Picture(File.ReadAllBytes(full)) : null;
                     });
                     if (blocks.Count > 0) return blocks;
+                    Log.Write("한글을 거친 HTML이 비어 있음");
                 }
                 catch (OperationCanceledException)
                 {
@@ -327,9 +335,11 @@ namespace Bakkum
                 {
                     Util.TryDeleteDir(dir);
                 }
+                // 한글은 있는데 내용이 비어 나왔다(예전에는 '한글 프로그램이 있어야 해요'로 잘못 알렸다)
+                if (Formats.Ext(f) != ".hwpx") throw new UserFacingException("한글에서 이 파일의 내용을 읽지 못했어요. 빈 문서일 수 있어요.");
             }
             if (Formats.Ext(f) == ".hwpx") return MarkdownDoc.FromPlain(OoxmlRead.HwpxText(f));
-            throw new UserFacingException("HWP 파일을 바꾸려면 이 PC에 한글 프로그램이 있어야 해요.");
+            throw ComFind.Missing("HWPFrame.HwpObject", "한글", "HWP 파일을 바꾸려면 이 PC에 한글 프로그램이 있어야 해요.");
         }
 
         /// 어떤 문서든 글·표·사진 덩어리로 읽는다.
