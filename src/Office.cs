@@ -69,26 +69,31 @@ namespace Bakkum
             guard = new Thread(Guard) { IsBackground = true, Name = "office-guard" };
         }
 
+        /// 한컴오피스는 이름표로 못 찾으면 레지스트리에서 한 번 더 찾는다(ComFind.cs).
         public static bool Available(string progId)
         {
-            try { return Type.GetTypeFromProgID(progId) != null; }
+            try { return ComFind.Find(progId) != null; }
             catch { return false; }
         }
 
         public static OfficeApp Start(string progId, string processName, string friendly, Job job, string[] known)
         {
-            Type t = Type.GetTypeFromProgID(progId);
-            if (t == null) return null;
+            ComClass found = ComFind.Find(progId);
+            if (found == null)
+            {
+                ComFind.LogMissing(progId, friendly);
+                return null;
+            }
             var before = Util.PidsOf(processName);
             if (job != null) job.Report(friendly + " 여는 중…", -1);
             object o;
             try
             {
-                o = Activator.CreateInstance(t);
+                o = ComFind.Create(found, friendly);
             }
             catch (Exception ex)
             {
-                Log.Write(friendly + " 시작 실패: " + ex.GetType().Name);
+                Log.Write(friendly + " 시작 실패: " + ex.GetType().Name + " " + ComFind.Hex(ex.HResult));
                 throw new UserFacingException(friendly + " 프로그램을 시작하지 못했어요.");
             }
             var app = new OfficeApp(processName, friendly, job, known);
@@ -227,7 +232,7 @@ namespace Bakkum
         public Hangul(Job job)
         {
             app = OfficeApp.Start("HWPFrame.HwpObject", "Hwp", "한글", job, Known);
-            if (app == null) throw new UserFacingException("이 PC에 한글(한컴오피스)이 없어요.");
+            if (app == null) throw ComFind.Missing("HWPFrame.HwpObject", "한글", "이 PC에 한글(한컴오피스)이 없어요.");
             dynamic h = app.Obj;
             try { h.RegisterModule("FilePathCheckDLL", "FilePathCheckerModule"); } catch { }
             try { h.XHwpWindows.Item(0).Visible = false; } catch { }
@@ -420,7 +425,7 @@ namespace Bakkum
         public Hancell(Job job)
         {
             app = OfficeApp.Start("HCell.Application", "HCell", "한셀", job, null);
-            if (app == null) throw new UserFacingException("이 PC에 한셀이 없어요.");
+            if (app == null) throw ComFind.Missing("HCell.Application", "한셀", "이 PC에 한셀이 없어요.");
             try { app.Obj.DisplayAlerts = false; } catch { }
         }
 
@@ -482,7 +487,7 @@ namespace Bakkum
         public Hanshow(Job job)
         {
             app = OfficeApp.Start("HShow.Application", "HShow", "한쇼", job, null);
-            if (app == null) throw new UserFacingException("이 PC에 한쇼가 없어요.");
+            if (app == null) throw ComFind.Missing("HShow.Application", "한쇼", "이 PC에 한쇼가 없어요.");
             WaitStartDocument();
         }
 

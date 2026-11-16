@@ -22,7 +22,10 @@
 #   memory), proxy (slow: makes a 2-minute 1080p video), office (MS Office or Hancom Office: makes its own
 #   old .xls/.cell/.ppt files and converts them to .xlsx/.csv/.pptx; no sample files needed),
 #   tohwp (Hancom Office: makes its own invented Word/RTF/ODT/PDF/TXT files and converts them to HWP/HWPX;
-#   no sample files needed; without Hancom Office it only checks the menu and the message).
+#   no sample files needed; without Hancom Office it only checks the menu and the message),
+#   hncfind (finding and starting Hancom Office when the usual way is blocked: checks the search order against
+#   a fake registry, then, with Hancom Office, blocks the usual way on purpose and starts Hangul, Hancell and
+#   Hanshow through the registry, the known class ID and 32-bit activation; writes nothing to the registry).
 # - Suites run one after another, never at the same time (video suites are heavy on the GPU).
 # - The full output of each suite is saved as <Dir>\result_<suite>.txt (UTF-8).
 param(
